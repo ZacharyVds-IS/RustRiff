@@ -1,7 +1,7 @@
-use std::sync::Mutex;
 use crate::domain::amp_config_dto::AmpConfigDto;
 use crate::domain::tone_stack_dto::ToneStackDto;
 use crate::services::audio_service::AudioService;
+use std::sync::Mutex;
 
 /// Retrieves the current amplifier configuration as an [`AmpConfigDto`].
 ///

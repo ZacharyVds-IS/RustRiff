@@ -1,17 +1,15 @@
-import {
-    Alert,
-    Box,
-    CircularProgress,
-    Typography
-} from "@mui/material";
+import {Alert, Box, CircularProgress, FormControlLabel, Switch, Typography} from "@mui/material";
 import {DropdownSelector} from "../components/selection/DropdownSelector.tsx";
 import {useAudioDevices} from "../hooks/useAudioDevices.ts";
 import {useUpdateAudioDevices} from "../hooks/useUpdateAudioDevices.ts";
 import {useState} from "react";
+import {useUIStore} from "../state/UIStore.tsx";
 
 export function SettingsScreen() {
     const { inputs, outputs, isLoading, error } = useAudioDevices();
     const { updateInputDevice, updateOutputDevice, error: routingError } = useUpdateAudioDevices();
+    const showLatencyImpacts = useUIStore((state) => state.showLatencyImpacts);
+    const setShowLatencyImpacts = useUIStore((state) => state.setShowLatencyImpacts);
 
     const [selectedInput, setSelectedInput] = useState<string>("");
     const [selectedOutput, setSelectedOutput] = useState<string>("");
@@ -51,6 +49,16 @@ export function SettingsScreen() {
                 options={outputOptions}
                 selectedValue={selectedOutput}
                 onSelectionChange={handleOutputChange}
+            />
+
+            <FormControlLabel
+                control={
+                    <Switch
+                        checked={showLatencyImpacts}
+                        onChange={(e) => setShowLatencyImpacts(e.target.checked)}
+                    />
+                }
+                label="Show Latency Impacts"
             />
         </Box>
     );

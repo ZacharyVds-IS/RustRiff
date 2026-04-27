@@ -1,6 +1,9 @@
 use crate::domain::audio_processor::AudioProcessor;
 use crate::domain::channel::Channel;
+use crate::domain::execution_timing_dto::ExecutionTimingDto;
 use crate::infrastructure::audio_handler::{AudioHandler, AudioHandlerTrait};
+use crate::services::analyzers::LatencyAnalyzer::LatencyAnalyzer;
+use crate::services::processors::fixed_delay::fixed_delay_processor::FixedDelayProcessor;
 use crate::services::processors::gain::gain_processor::GainProcessor;
 use crate::services::processors::tone_stack::tone_stack_processor::ToneStackProcessor;
 use cpal::{Device, StreamConfig};
@@ -229,6 +232,58 @@ impl AudioService {
         } else {
             self.start_loopback();
         }
+    }
+
+    /// Measures gain processor execution cost in microseconds per sample.
+    pub fn measure_gain_latency(&self, block_size: usize) -> f64 {
+        let mut gain = GainProcessor::new(self.channel.gain());
+        LatencyAnalyzer::measure_effect_added_execution_us(
+            &mut gain,
+            256,
+            block_size,
+        )
+    }
+
+    /// Measures tone stack processor execution cost in microseconds per sample.
+    pub fn measure_tone_stack_latency(&self, block_size: usize) -> f64 {
+        let mut tonestack = ToneStackProcessor::new(self.channel.tone_stack());
+        LatencyAnalyzer::measure_effect_added_execution_us(
+            &mut tonestack,
+            256,
+            block_size,
+        )
+    }
+
+    /// Measures fixed-delay processor execution cost in microseconds per sample.
+    ///
+    /// This is intended as a sanity check for execution-time benchmarking.
+    pub fn measure_fixed_delay_latency(&self, delay_samples: usize, block_size: usize) -> f64 {
+        let mut fixed_delay = FixedDelayProcessor::new(delay_samples);
+        LatencyAnalyzer::measure_effect_added_execution_us(
+            &mut fixed_delay,
+            256,
+            block_size,
+        )
+    }
+
+    /// Measures execution cost of all processors in the loopback DSP chain.
+    /// Returns a vector of timing measurements in the order they appear in the chain:
+    /// 2. Gain
+    /// 3. Tone Stack
+    /// 4. Master Volume
+    pub fn measure_all_dsp_timings(&self, block_size: usize) -> Vec<ExecutionTimingDto> {
+        let gain_us = self.measure_gain_latency(block_size);
+        let tone_stack_us = self.measure_tone_stack_latency(block_size);
+        let master_volume_us = {
+            let mut master_volume = GainProcessor::new(self.channel.master_volume());
+            LatencyAnalyzer::measure_effect_added_execution_us(&mut master_volume, 256, block_size)
+        };
+
+        vec![
+            ExecutionTimingDto::new("Gain", gain_us),
+            ExecutionTimingDto::new("Tone Stack", tone_stack_us),
+            ExecutionTimingDto::new("Master Volume", master_volume_us),
+        ]
     }
 
 }
