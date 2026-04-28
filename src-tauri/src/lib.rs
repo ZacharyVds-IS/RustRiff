@@ -6,7 +6,7 @@ pub mod infrastructure;
 #[cfg(test)]
 pub mod tests;
 
-use crate::commands::channels::{add_channel, get_all_channels, get_channel_id, set_channel_id,};
+use crate::commands::channels::{add_channel, get_all_channels, get_channel_id, remove_channel, set_channel_id};
 use crate::commands::default_controls::{get_amp_config, set_bass, set_gain, set_master_volume, set_middle, set_treble, set_volume, toggle_on_off};
 use crate::commands::loopback::start_loopback;
 use crate::commands::settings::{get_input_device_list, get_output_device_list, set_input_device, set_output_device};
@@ -53,7 +53,8 @@ pub fn run() {
             set_channel_id,
             get_channel_id,
             add_channel,
-            get_all_channels
+            get_all_channels,
+            remove_channel,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -69,3 +69,11 @@ pub(crate) fn get_all_channels(
         })
         .collect()
 }
+
+#[tauri::command]
+pub (crate) fn remove_channel(audio_service: tauri::State<Mutex<AudioService>>, channel_id: u32) -> Result<(), String> {
+    let mut service = audio_service.inner().lock().unwrap();
+    service.remove_channel(channel_id);
+    info!("remove channel {channel_id}");
+    Ok(())
+}

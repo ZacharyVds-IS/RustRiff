@@ -3,6 +3,7 @@ import {
     AmpConfigDto,
     ChannelDto,
     getAmpConfig,
+    removeChannel,
     setBass,
     setChannelId,
     setGain,
@@ -19,6 +20,7 @@ interface AmpState extends AmpConfigDto {
     setChannelById: (index: number) => Promise<void>;
     addChannel: (channelName: string) => Promise<void>;
     addChannelFromBackend: (channelDto: ChannelDto) => Promise<void>;
+    removeChannel: (channelId: number) => void;
     setGain: (val: number) => void;
     setVolume: (val: number) => void;
     setMasterVolume: (val: number) => void;
@@ -100,6 +102,21 @@ export const useAmpStore = create<AmpState>((set) => ({
                     current_channel: channelDto.id,
                 };
             });
+        },
+
+        removeChannel: async (channelId: number) => {
+            try {
+                console.log("Removing channel:", channelId);
+
+                await removeChannel({channelId});
+
+                const config = await getAmpConfig();
+                set({...config});
+
+                console.log("Channel removed, store updated:", config);
+            } catch (error) {
+                console.error("Failed to remove channel:", error);
+            }
         },
 
         setMasterVolume: (val: number) => {

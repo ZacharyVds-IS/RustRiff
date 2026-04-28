@@ -45,7 +45,7 @@ pub struct AudioService {
     channels: Vec<Channel>,
     current_channel_id: u32,
     master_volume: Arc<AtomicF32>,
-    next_channel_id: u32
+    next_channel_id: u32,
 }
 
 impl AudioService {
@@ -83,10 +83,10 @@ impl AudioService {
             audio_handler: handler,
             loopback_thread: None,
             is_active: false,
-            channels: vec![Channel::new(0,"Default".to_string(), None, None)],
+            channels: vec![Channel::new(0, "Default".to_string(), None, None)],
             master_volume: Arc::new(AtomicF32::new(1.0)),
             current_channel_id: 0,
-            next_channel_id: 1
+            next_channel_id: 1,
         }
     }
 
@@ -117,7 +117,11 @@ impl AudioService {
         self.is_active = true;
 
         let handler = self.audio_handler.clone();
-        let channel = self.channels().iter().find(|c| c.id() == *self.current_channel_id()).unwrap();
+        let channel = self
+            .channels()
+            .iter()
+            .find(|c| c.id() == *self.current_channel_id())
+            .unwrap();
         let master_volume_arc = self.master_volume.clone();
 
         let gain_arc = channel.gain().clone();
@@ -129,7 +133,9 @@ impl AudioService {
             // Larger = better quality, more latency. Smaller = lower latency, cheaper.
             const RESAMPLER_CHUNK_SIZE: usize = 256;
 
-            let ringbuffer_size = handler.input_sample_rate().max(handler.output_sample_rate()) as usize;
+            let ringbuffer_size = handler
+                .input_sample_rate()
+                .max(handler.output_sample_rate()) as usize;
 
             // ── Resampling decision ──────────────────────────────────────────────
             // `ResamplePolicy::from_rates` compares input and output sample rates
@@ -166,6 +172,7 @@ impl AudioService {
                 let mut run_dsp = |sample: f32| -> f32 {
                     let sample = gain.process(sample);
                     let sample = tone_stack.process(sample);
+                    let sample = volume.process(sample);
                     master_volume.process(sample)
                 };
 
@@ -179,7 +186,9 @@ impl AudioService {
                         //   PreDsp  → resamples first, then calls `dsp.process` on each result
                         //   PostDsp → calls `dsp.process` first, then resamples the output
                         //   Bypass  → calls `dsp.process` directly, returns a single sample
-                        for processed_sample in policy.process(sample, &mut |resampled_sample| run_dsp(resampled_sample)) {
+                        for processed_sample in policy
+                            .process(sample, &mut |resampled_sample| run_dsp(resampled_sample))
+                        {
                             let _ = o_producer.try_push(processed_sample);
                         }
                     } else {
@@ -189,7 +198,9 @@ impl AudioService {
 
                 // Drain any samples still sitting in the resampler's input buffer
                 // when the loopback is stopped so we don't lose the tail.
-                for processed_sample in policy.flush(&mut |resampled_sample| run_dsp(resampled_sample)) {
+                for processed_sample in
+                    policy.flush(&mut |resampled_sample| run_dsp(resampled_sample))
+                {
                     let _ = o_producer.try_push(processed_sample);
                 }
             });
@@ -339,20 +350,29 @@ impl AudioService {
         let id = self.next_channel_id;
         self.next_channel_id += 1;
 
-        let new_channel = Channel::new(
-            id,
-            channel_name.into(),
-            None,
-            None,
-        );
+        let new_channel = Channel::new(id, channel_name.into(), None, None);
 
         self.channels.push(new_channel.clone());
         self.set_current_channel_id(id);
         new_channel
     }
 
+    pub fn remove_channel(&mut self, channel_id: u32) {
+        if channel_id != 0 {
+            self.channels.retain(|c| c.id() != channel_id);
+            self.set_current_channel_id(0);
+        } else {
+            error!("Cannot remove default channel");
+        }
+    }
+
     pub fn set_current_channel_id(&mut self, new_current_channel_id: u32) {
+        let was_on = self.is_active;
+        self.stop_loopback();
         self.current_channel_id = new_current_channel_id;
+        if was_on {
+            self.start_loopback();
+        }
     }
 }
 

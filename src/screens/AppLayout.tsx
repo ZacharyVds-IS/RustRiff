@@ -1,9 +1,10 @@
-import {AppBar, Box, Button, Toolbar, Typography} from "@mui/material";
+import {AppBar, Box, Button, IconButton, Toolbar, Typography} from "@mui/material";
 import {Outlet, useNavigate} from "react-router-dom";
 import {ChannelSelector} from "../components/ChannelSelector.tsx";
 import {useAmpStore} from "../state/AmpConfigStore.tsx";
 import {useState} from "react";
 import {AddChannelDialog} from "../components/AddChannelDialog.tsx";
+import DeleteIcon from '@mui/icons-material/Delete';
 
 export function AppLayout() {
     const navigate = useNavigate();
@@ -27,6 +28,10 @@ export function AppLayout() {
         await ampStore.addChannel(name);
         setDialogOpen(false);
     };
+
+    const handleDeleteChannel = async () => {
+        ampStore.removeChannel(currentChannelId);
+    }
 
 
     return (
@@ -56,6 +61,7 @@ export function AppLayout() {
                                     onAdd={() => setDialogOpen(true)}
                                 />
                                 <AddChannelDialog open={dialogOpen} onClose={() => setDialogOpen(false)} onCreate={handleAddChannel}/>
+                                { currentChannelId != 0 && <IconButton onClick={handleDeleteChannel}><DeleteIcon/></IconButton>}
                             </>
 
                         ) : (
