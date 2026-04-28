@@ -2,41 +2,28 @@ import {DropdownSelector} from "./selection/DropdownSelector.tsx";
 
 interface ChannelSelectorProps {
     channels: { label: string; value: number }[];
-    currentChannelIndex: number;
+    currentChannelId: number;
     onChannelChange: (index: number) => void;
     onAdd: () => void;
 }
 
-export function ChannelSelector({channels, currentChannelIndex, onChannelChange, onAdd}: ChannelSelectorProps) {
-    console.log("Channels: ", channels);
-    console.log("Current Channel index: ", currentChannelIndex);
+export function ChannelSelector({channels, currentChannelId, onChannelChange, onAdd}: ChannelSelectorProps) {
+    const selectedChannel = channels.find(ch => ch.value === currentChannelId);
 
-    const selectedChannel = channels.find(ch => ch.value === currentChannelIndex);
-    console.log("Current Channel: ", selectedChannel);
+    const handleSelectionChange = (value: string | number) => {
+        const nextChannelId = typeof value === "number" ? value : Number(value);
 
-
-    if (!selectedChannel) {
-        return (
-            <DropdownSelector
-                label="Channels"
-                options={channels}
-                selectedValue=""
-                onSelectionChange={(index) =>
-                    onChannelChange(index as unknown as number)
-                }
-                onAdd={onAdd}
-            />
-        );
-    }
+        if (!Number.isNaN(nextChannelId)) {
+            onChannelChange(nextChannelId);
+        }
+    };
 
     return (
         <DropdownSelector
             label="Channels"
             options={channels}
-            selectedValue={selectedChannel.label}
-            onSelectionChange={(index) =>
-                onChannelChange(index as unknown as number)
-            }
+            selectedValue={selectedChannel ? selectedChannel.value : ""}
+            onSelectionChange={handleSelectionChange}
             onAdd={onAdd}
         />
     );

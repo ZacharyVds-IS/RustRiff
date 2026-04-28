@@ -16,16 +16,18 @@ interface DropdownProps {
     label: string;
     options: { label: string; value: string | number }[];
     selectedValue: string | number;
-    onSelectionChange: (value: string) => void;
+    onSelectionChange: (value: string | number) => void;
     onAdd?: () => void;
 }
 
 export function DropdownSelector({title, label, options, selectedValue, onSelectionChange, onAdd}: DropdownProps) {
     const handleChange = (event: SelectChangeEvent<string | number>) => {
-        if (event.target.value === "__ADD_NEW__") {
+        const selectedValue = event.target.value;
+
+        if (selectedValue === "__ADD_NEW__") {
             onAdd?.()
         } else {
-            onSelectionChange(event.target.value as string);
+            onSelectionChange(selectedValue);
         }
     };
     return (

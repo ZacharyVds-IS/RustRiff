@@ -75,7 +75,6 @@ export const useAmpStore = create<AmpState>((set) => ({
             try {
                 console.log("Adding channel with name:", channelName);
                 await addChannel({channelName});
-                // backend emits "channel-added"
             } catch (error) {
                 console.error("Failed to add channel:", error);
             }
@@ -88,11 +87,17 @@ export const useAmpStore = create<AmpState>((set) => ({
                 );
 
                 if (exists) {
-                    return state;
+                    return {
+                        channels: state.channels.map((channel) =>
+                            channel.id === channelDto.id ? channelDto : channel
+                        ),
+                        current_channel: channelDto.id,
+                    };
                 }
 
                 return {
                     channels: [...state.channels, channelDto],
+                    current_channel: channelDto.id,
                 };
             });
         },

@@ -1,8 +1,8 @@
-use crate::domain::channel_dto::{ChannelDto};
+use crate::domain::channel_dto::ChannelDto;
 use crate::services::audio_service::AudioService;
 use std::sync::Mutex;
-use tauri::{AppHandle, Emitter};
 use tauri::async_runtime::channel;
+use tauri::{AppHandle, Emitter};
 use tracing::info;
 
 #[tauri::command]
@@ -19,15 +19,22 @@ pub(crate) fn get_channel_id(audio_service: tauri::State<Mutex<AudioService>>) -
 
 #[tauri::command]
 pub(crate) fn add_channel(app: AppHandle,audio_service: tauri::State<Mutex<AudioService>>, channel_name: String) -> Result<(), String> {
+    info!("add_channel command received: {channel_name}");
+
     let mut service = audio_service.inner().lock().unwrap();
     let channel = service.add_channel(channel_name.clone());
+    let channel_dto = ChannelDto::from(&channel);
+
+    info!("emitting channel-added event for id={} name={}", channel_dto.id, channel_dto.name);
 
 
     app.emit(
         "channel-added",
-        ChannelDto::from(&channel),
+        channel_dto,
     )
         .map_err(|e| e.to_string())?;
+
+    info!("channel-added event emitted successfully");
 
     Ok(())
 }
