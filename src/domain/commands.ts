@@ -87,7 +87,7 @@ export async function testGainLatency(): Promise<void> {
 
 
 export async function measureAllDspTimings(): Promise<types.ExecutionTimingDto[]> {
-  return invoke('measure_all_dsp_timings');
+  return invoke('measure_all_dsp_cpu_timings');
 }
 
 

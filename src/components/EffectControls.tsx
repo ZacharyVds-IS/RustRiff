@@ -6,7 +6,9 @@ import {useUIStore} from "../state/UIStore.tsx";
 import {
     type AlgorithmicLatencyDto,
     type BufferLatencyDto,
+    type ExecutionTimingDto,
     measureAllDspAlgorithmicLatency,
+    measureAllDspTimings,
     measureBufferLatency
 } from "../domain";
 import {useEffect, useState} from "react";
@@ -27,17 +29,20 @@ export function EffectControls() {
     const showLatencyImpacts = useUIStore((state) => state.showLatencyImpacts);
     const [latency, setLatency] = useState<AlgorithmicLatencyDto[]>([]);
     const [bufferLatency, setBufferLatency] = useState<BufferLatencyDto | null>(null);
+    const [cpuTimings, setCpuTimings] = useState<ExecutionTimingDto[]>([]);
 
     useEffect(() => {
         if (showLatencyImpacts) {
             const fetchTimings = async () => {
                 try {
-                    const [algorithmicLatency, systemBufferLatency] = await Promise.all([
+                    const [algorithmicLatency, systemBufferLatency, dspCpuTimings] = await Promise.all([
                         measureAllDspAlgorithmicLatency(),
                         measureBufferLatency(),
+                        measureAllDspTimings(),
                     ]);
                     setLatency(algorithmicLatency);
                     setBufferLatency(systemBufferLatency);
+                    setCpuTimings(dspCpuTimings);
                 } catch (error) {
                     console.error("Failed to fetch latency metrics:", error);
                 }
@@ -45,12 +50,18 @@ export function EffectControls() {
             fetchTimings();
         } else {
             setBufferLatency(null);
+            setCpuTimings([]);
         }
     }, [showLatencyImpacts]);
 
     const getTimingValue = (processorName: string): string => {
         const timing = latency.find(t => t.processor_name === processorName);
         return timing ? `${timing.latency_ms.toFixed(3)} ms (${timing.latency_samples} samples)` : "-";
+    };
+
+    const getCpuTimeValue = (processorName: string): string => {
+        const timing = cpuTimings.find(t => t.processor_name === processorName);
+        return timing ? `${timing.execution_us_per_sample.toFixed(3)} us/sample` : "-";
     };
 
     return (
@@ -101,9 +112,14 @@ export function EffectControls() {
 
                     </Box>
                     {showLatencyImpacts && (
-                        <Typography variant="caption" sx={{fontSize: "0.62rem", color: "text.secondary"}}>
-                            {getTimingValue("Master Volume")}
-                        </Typography>
+                        <Stack spacing={0}>
+                            <Typography variant="caption" sx={{fontSize: "0.62rem", color: "text.secondary"}}>
+                                latency: {getTimingValue("Master Volume")}
+                            </Typography>
+                            <Typography variant="caption" sx={{fontSize: "0.62rem", color: "text.secondary"}}>
+                                cpu: {getCpuTimeValue("Master Volume")}
+                            </Typography>
+                        </Stack>
                     )}
                 </Stack>
 
@@ -117,9 +133,14 @@ export function EffectControls() {
                         onChange={setGain}
                     />
                     {showLatencyImpacts && (
-                        <Typography variant="caption" sx={{fontSize: "0.62rem", color: "text.secondary"}}>
-                            {getTimingValue("Gain")}
-                        </Typography>
+                        <Stack spacing={0}>
+                            <Typography variant="caption" sx={{fontSize: "0.62rem", color: "text.secondary"}}>
+                                latency: {getTimingValue("Gain")}
+                            </Typography>
+                            <Typography variant="caption" sx={{fontSize: "0.62rem", color: "text.secondary"}}>
+                                cpu: {getCpuTimeValue("Gain")}
+                            </Typography>
+                        </Stack>
                     )}
                 </Box>
 
@@ -157,15 +178,25 @@ export function EffectControls() {
                         </Stack>
                     </Box>
                     {showLatencyImpacts && (
-                        <Typography variant="caption" sx={{
-                            fontSize: "0.62rem",
-                            color: "text.secondary",
-                            mt: 1,
-                            display: "block",
-                            textAlign: "center"
-                        }}>
-                            {getTimingValue("Tone Stack")}
-                        </Typography>
+                        <Stack spacing={0}>
+                            <Typography variant="caption" sx={{
+                                fontSize: "0.62rem",
+                                color: "text.secondary",
+                                mt: 1,
+                                display: "block",
+                                textAlign: "center"
+                            }}>
+                                latency: {getTimingValue("Tone Stack")}
+                            </Typography>
+                            <Typography variant="caption" sx={{
+                                fontSize: "0.62rem",
+                                color: "text.secondary",
+                                display: "block",
+                                textAlign: "center"
+                            }}>
+                                cpu: {getCpuTimeValue("Tone Stack")}
+                            </Typography>
+                        </Stack>
                     )}
                 </Stack>
 
