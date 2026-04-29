@@ -43,6 +43,7 @@ export const useAmpStore = create<AmpState>((set) => ({
                 treble: 100.0,
             },
             volume: 1,
+            effect_chain: [],
         }],
         current_channel: 0,
 

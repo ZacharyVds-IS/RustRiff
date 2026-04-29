@@ -115,26 +115,7 @@ pub(crate) fn get_all_channels(
     service
         .channels()
         .iter()
-        .map(|channel| ChannelDto {
-            id: channel.id(),
-            name: channel.name().clone(),
-            gain: channel.gain().load(std::sync::atomic::Ordering::Relaxed),
-            tone_stack: crate::domain::tone_stack_dto::ToneStackDto {
-                bass: channel
-                    .tone_stack()
-                    .bass()
-                    .load(std::sync::atomic::Ordering::Relaxed),
-                middle: channel
-                    .tone_stack()
-                    .middle()
-                    .load(std::sync::atomic::Ordering::Relaxed),
-                treble: channel
-                    .tone_stack()
-                    .treble()
-                    .load(std::sync::atomic::Ordering::Relaxed),
-            },
-            volume: channel.volume().load(std::sync::atomic::Ordering::Relaxed),
-        })
+        .map(|channel| ChannelDto::from(channel))
         .collect()
 }
 

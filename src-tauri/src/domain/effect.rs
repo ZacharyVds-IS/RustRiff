@@ -10,7 +10,7 @@ use crate::domain::audio_processor::AudioProcessor;
 ///
 /// Types implementing `Effect` must also implement `AudioProcessor`, which provides the
 /// primary [`process`](AudioProcessor::process) method used for manipulating audio samples.
-pub trait Effect: AudioProcessor {
+pub trait Effect: AudioProcessor + Send + Sync {
 
     /// Returns the unique numeric identifier for this specific effect instance.
     fn id(&self) -> u32;

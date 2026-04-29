@@ -9,3 +9,4 @@ pub mod tone_stack_dto;
 pub mod channel_dto;
 
 mod effect;
+pub mod effect_dto;

@@ -3,8 +3,8 @@ use crate::domain::tone_stack_dto::ToneStackDto;
 use atomic_float::AtomicF32;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
-use tauri::utils::acl::Identifier;
-use tracing::{error, info};
+use tracing::{error};
+use crate::domain::effect::Effect;
 
 /// Represents an audio channel with atomic gain, master volume, and tone stack parameters.
 ///
@@ -27,6 +27,7 @@ pub struct Channel {
     gain: Arc<AtomicF32>,
     tone_stack: Arc<ToneStack>,
     volume: Arc<AtomicF32>,
+    effect_chain: Vec<Arc<dyn Effect>>,
 }
 
 impl Channel {
@@ -50,6 +51,7 @@ impl Channel {
             gain: Arc::new(AtomicF32::new(gain)),
             tone_stack: Arc::new(ToneStack::new()),
             volume: Arc::new(AtomicF32::new(volume)),
+            effect_chain: Vec::new(),
         }
     }
 
@@ -193,6 +195,10 @@ impl Channel {
     /// Returns the unique identifier of the channel.
     pub fn id(&self) -> u32 {
         self.id
+    }
+
+    pub fn effect_chain(&self) -> &[Arc<dyn Effect>] {
+        &self.effect_chain
     }
 }
 
