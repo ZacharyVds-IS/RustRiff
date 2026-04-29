@@ -347,14 +347,19 @@ impl AudioService {
     }
 
     pub fn add_channel(&mut self, channel_name: String) -> Channel {
-        let id = self.next_channel_id;
-        self.next_channel_id += 1;
+        if channel_name.len() <= 30 {
+            let id = self.next_channel_id;
+            self.next_channel_id += 1;
 
-        let new_channel = Channel::new(id, channel_name.into(), None, None);
+            let new_channel = Channel::new(id, channel_name.into(), None, None);
 
-        self.channels.push(new_channel.clone());
-        self.set_current_channel_id(id);
-        new_channel
+            self.channels.push(new_channel.clone());
+            self.set_current_channel_id(id);
+            new_channel
+        } else {
+            error!("Channel name must be 30 characters or less");
+            panic!("Channel name must be 30 characters or less");
+        }
     }
 
     pub fn remove_channel(&mut self, channel_id: u32) {
@@ -394,6 +399,34 @@ mod tests {
             service.set_master_volume(0.5);
             assert_eq!(service.master_volume().load(Ordering::Relaxed), 0.5);
         }
+
+        #[test]
+        fn add_channel_should_add_a_channel_with_correct_values_and_sets_current_channel_id_to_new_id() {
+            let mock = MockAudioHandlerTrait::new();
+            let mut service = AudioService::new_with_handler(Arc::new(mock));
+            let test_channel = service.add_channel("TestChannel".to_string());
+
+            assert_eq!(service.channels.len(), 2);
+            assert_eq!(test_channel.name(), "TestChannel");
+            assert_eq!(test_channel.id(), 1);
+            assert_eq!(test_channel.gain().load(Ordering::Relaxed), 1.0);
+            assert_eq!(test_channel.volume().load(Ordering::Relaxed), 1.0);
+            assert_eq!(test_channel.tone_stack().bass().load(Ordering::Relaxed),1.0);
+            assert_eq!(test_channel.tone_stack().middle().load(Ordering::Relaxed),1.0);
+            assert_eq!(test_channel.tone_stack().treble().load(Ordering::Relaxed),1.0);
+            assert_eq!(*service.current_channel_id(), test_channel.id());
+        }
+
+        #[test]
+        fn remove_channel_removes_channel_and_sets_current_channel_id_to_0 () {
+            let mock = MockAudioHandlerTrait::new();
+            let mut service = AudioService::new_with_handler(Arc::new(mock));
+            let test_channel = service.add_channel("TestChannel".to_string());
+            service.remove_channel(test_channel.id());
+
+            assert_eq!(service.channels.len(), 1);
+            assert_eq!(*service.current_channel_id(), 0);
+        }
     }
 
     #[cfg(test)]
@@ -406,6 +439,23 @@ mod tests {
             let mock = MockAudioHandlerTrait::new();
             let service = AudioService::new_with_handler(Arc::new(mock));
             service.set_master_volume(-0.5);
+        }
+
+        #[test]
+        fn removing_default_channel_should_do_nothing() {
+            let mock = MockAudioHandlerTrait::new();
+            let mut service = AudioService::new_with_handler(Arc::new(mock));
+            service.remove_channel(0);
+
+            assert_eq!(service.channels.len(), 1);
+        }
+
+        #[test]
+        #[should_panic(expected = "Channel name must be 30 characters or less")]
+        fn add_channel_should_panic_with_to_long_name() {
+            let mock = MockAudioHandlerTrait::new();
+            let mut service = AudioService::new_with_handler(Arc::new(mock));
+            let test_channel = service.add_channel("Hippopotomonstrosesquippedaliophobia".to_string());
         }
     }
 }
