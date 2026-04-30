@@ -2,29 +2,12 @@ import {Box, Paper, Stack, Typography} from "@mui/material";
 import {EffectPedalPreview} from "./EffectPedalPreview.tsx";
 import {EffectDto} from "../domain";
 
-const effectsComponents = [
-    {
-        id: 2,
-        type: 'Distortion',
-        icon: (
-            <EffectPedalPreview mainColor={"#f46616"}/>
-        )
-    }
-];
 
 export interface EffectChainProps {
     effects: EffectDto[];
 }
 
 export function EffectChain({effects}: EffectChainProps) {
-    effects.forEach(effect => {effectsComponents.push({
-        id: effect.id,
-        type: effect.name,
-        icon: (
-            <EffectPedalPreview mainColor={"#f46616"}/>
-        )
-    })})
-
     return (
         <Box
             component="section"
@@ -107,10 +90,10 @@ export function EffectChain({effects}: EffectChainProps) {
                         Amp
                     </Typography>
                 </Box>
-                {effectsComponents.map((item) => (
-                    <Box key={item.id} sx={{display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
+                {effects.map((item) => (
+                    <Box key={"effect-"+item.id} sx={{display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
                         <Box sx={{display: 'flex', alignItems: 'center', height: 75}}>
-                            {item.icon}
+                            <EffectPedalPreview mainColor={item.color}/>
                         </Box>
                         <Typography
                             variant="caption"
@@ -122,7 +105,7 @@ export function EffectChain({effects}: EffectChainProps) {
                                 fontSize: '0.75rem'
                             }}
                         >
-                            {item.type}
+                            {item.name}
                         </Typography>
                     </Box>
                 ))}

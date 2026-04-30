@@ -3,3 +3,4 @@
 pub mod audio_service;
 pub mod device_service;
 pub mod processors;
+pub mod effects;

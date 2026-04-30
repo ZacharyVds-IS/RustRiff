@@ -4,9 +4,11 @@ import {DefaultAmpControls} from "../components/DefaultAmpControls.tsx";
 import {useAmpStore} from "../state/AmpConfigStore.tsx";
 
 export function MainScreen() {
+
     const activeChannel = useAmpStore((state) =>
         state.channels.find((c) => c.id === state.current_channel)
     );
+    console.log("MainScreen", activeChannel);
     return (
         <Box
             sx={{

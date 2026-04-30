@@ -72,8 +72,9 @@ pub(crate) fn add_channel(app: AppHandle,audio_service: tauri::State<Mutex<Audio
     info!("add_channel command received: {channel_name}");
 
     let mut service = audio_service.inner().lock().unwrap();
-    let channel = service.add_channel(channel_name.clone());
-    let channel_dto = ChannelDto::from(&channel);
+    let channel_id = service.add_channel(channel_name.clone());
+    let channel = service.channels().iter().find(|c| c.id() == channel_id).unwrap();
+    let channel_dto = ChannelDto::from(channel);
 
     info!("emitting channel-added event for id={} name={}", channel_dto.id, channel_dto.name);
 

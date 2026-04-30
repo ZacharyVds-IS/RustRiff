@@ -1,6 +1,7 @@
 use crate::domain::audio_processor::AudioProcessor;
 use crate::domain::channel::Channel;
 use crate::infrastructure::audio_handler::{AudioHandler, AudioHandlerTrait};
+use crate::services::effects::flip_effect::FlipEffect;
 use crate::services::processors::gain::gain_processor::GainProcessor;
 use crate::services::processors::resampler::resampler::ResamplePolicy;
 use crate::services::processors::tone_stack::tone_stack_processor::ToneStackProcessor;
@@ -9,6 +10,7 @@ use cpal::{Device, StreamConfig};
 use derive_getters::Getters;
 use ringbuf::consumer::Consumer;
 use ringbuf::producer::Producer;
+use rubato::VecResampler;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::thread;
@@ -117,16 +119,23 @@ impl AudioService {
         self.is_active = true;
 
         let handler = self.audio_handler.clone();
-        let channel = self
-            .channels()
-            .iter()
-            .find(|c| c.id() == *self.current_channel_id())
-            .unwrap();
+        let channel_id = self.current_channel_id;
         let master_volume_arc = self.master_volume.clone();
 
-        let gain_arc = channel.gain().clone();
-        let volume_arc = channel.volume().clone();
-        let tone_stack_arc = channel.tone_stack().clone();
+        let (gain_arc, volume_arc, tone_stack_arc, effect_chain) = {
+            let channel = self
+                .channels
+                .iter_mut()
+                .find(|c| c.id() == channel_id)
+                .unwrap();
+
+            (
+                channel.gain(),
+                channel.volume(),
+                channel.tone_stack(),
+                channel.take_effect_chain(),
+            )
+        };
 
         let thread = thread::spawn(move || {
             // How many input samples to batch before the resampler produces output.
@@ -169,9 +178,14 @@ impl AudioService {
                 let mut master_volume = GainProcessor::new(master_volume_arc);
                 let mut tone_stack = ToneStackProcessor::new(tone_stack_arc);
 
+                let mut effects = effect_chain;
+
                 let mut run_dsp = |sample: f32| -> f32 {
                     let sample = gain.process(sample);
-                    let sample = tone_stack.process(sample);
+                    let mut sample = tone_stack.process(sample);
+                    for effect in effects.iter_mut() {
+                        sample = effect.process_if_active(sample);
+                    }
                     let sample = volume.process(sample);
                     master_volume.process(sample)
                 };
@@ -355,16 +369,16 @@ impl AudioService {
     /// * `channel_name` - The name of the new channel (30 characters max).
     ///
     /// [`set_current_channel_id`]: AudioService::set_current_channel_id
-    pub fn add_channel(&mut self, channel_name: String) -> Channel {
+    pub fn add_channel(&mut self, channel_name: String) -> u32 {
         if channel_name.len() <= 30 {
             let id = self.next_channel_id;
             self.next_channel_id += 1;
 
             let new_channel = Channel::new(id, channel_name.into(), None, None);
 
-            self.channels.push(new_channel.clone());
+            self.channels.push(new_channel);
             self.set_current_channel_id(id);
-            new_channel
+            id
         } else {
             error!("Channel name must be 30 characters or less");
             panic!("Channel name must be 30 characters or less");
@@ -428,7 +442,8 @@ mod tests {
         fn add_channel_should_add_a_channel_with_correct_values_and_sets_current_channel_id_to_new_id() {
             let mock = MockAudioHandlerTrait::new();
             let mut service = AudioService::new_with_handler(Arc::new(mock));
-            let test_channel = service.add_channel("TestChannel".to_string());
+            let test_channel_id = service.add_channel("TestChannel".to_string());
+            let test_channel = service.channels.iter().find(|c| c.id() == test_channel_id).unwrap();
 
             assert_eq!(service.channels.len(), 2);
             assert_eq!(test_channel.name(), "TestChannel");
@@ -445,8 +460,8 @@ mod tests {
         fn remove_channel_removes_channel_and_sets_current_channel_id_to_0 () {
             let mock = MockAudioHandlerTrait::new();
             let mut service = AudioService::new_with_handler(Arc::new(mock));
-            let test_channel = service.add_channel("TestChannel".to_string());
-            service.remove_channel(test_channel.id());
+            let test_channel_id = service.add_channel("TestChannel".to_string());
+            service.remove_channel(test_channel_id);
 
             assert_eq!(service.channels.len(), 1);
             assert_eq!(*service.current_channel_id(), 0);
