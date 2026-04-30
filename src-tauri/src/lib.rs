@@ -7,9 +7,8 @@ pub mod infrastructure;
 pub mod tests;
 
 use crate::commands::default_controls::{get_amp_config, set_bass, set_gain, set_master_volume, set_middle, set_treble, toggle_on_off};
-use crate::commands::latency_testing::{measure_all_dsp_algorithmic_latency, measure_all_dsp_cpu_timings, measure_buffer_latency, measure_round_trip_latency, test_gain_latency};
 use crate::commands::loopback::start_loopback;
-use crate::commands::settings::{get_buffer_size_frames, get_input_device_list, get_output_device_list, set_buffer_size_frames, set_input_device, set_output_device};
+use crate::commands::settings::{get_input_device_list, get_output_device_list, set_input_device, set_output_device};
 use crate::services::audio_service::AudioService;
 use crate::services::device_service::DeviceService;
 use cpal::default_host;
@@ -36,7 +35,32 @@ pub fn run() {
         .manage(Mutex::new(AudioService::new(input, output, input_config, output_config)))
         .manage(DeviceService::new(host))
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![start_loopback, set_gain,get_input_device_list,get_output_device_list,set_input_device,set_output_device, get_buffer_size_frames, set_buffer_size_frames, set_master_volume, toggle_on_off, get_amp_config, set_bass, set_middle, set_treble,test_gain_latency, measure_all_dsp_cpu_timings, measure_all_dsp_algorithmic_latency, measure_buffer_latency, measure_round_trip_latency])
-        .run(tauri::generate_context!())
+        .invoke_handler(tauri::generate_handler![
+            start_loopback,
+            set_gain,
+            get_input_device_list,
+            get_output_device_list,
+            set_input_device,
+            set_output_device,
+            set_master_volume,
+            toggle_on_off,
+            get_amp_config,
+            set_bass,
+            set_middle,
+            set_treble,
+            set_volume,
+            set_channel_id,
+            get_channel_id,
+            add_channel,
+            get_all_channels,
+            remove_channel,
+            get_buffer_size_frames,
+            set_buffer_size_frames,
+            test_gain_latency,
+            measure_all_dsp_cpu_timings,
+            measure_all_dsp_algorithmic_latency,
+            measure_buffer_latency,
+            measure_round_trip_latency
+        ]).run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

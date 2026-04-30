@@ -1,4 +1,5 @@
-import { Box, Stack, Typography,Paper } from "@mui/material";
+import {Box, Paper, Stack, Typography} from "@mui/material";
+import {EffectPedalPreview} from "./EffectPedalPreview.tsx";
 
 const effects = [
     {
@@ -21,34 +22,7 @@ const effects = [
         id: 2,
         type: 'Distortion',
         icon: (
-            <Box
-                sx={{
-                    width: 40,
-                    height: 70,
-                    bgcolor: '#1E1E1E',
-                    borderRadius: 4,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    p: 1,
-                    boxShadow: 2
-                }}
-            >
-                <Typography variant="caption" sx={{ color: '#F2F2F2', fontSize: '0.6rem', mb: 0.5 }}>
-                    Distortion
-                </Typography>
-                <Stack direction="row" spacing={1}>
-                    {/* Two knobs on top */}
-                    <Box sx={{ width: 10, height: 10, bgcolor: '#FFFFFF', borderRadius: '50%' }} />
-                    <Box sx={{ width: 10, height: 10, bgcolor: '#FFFFFF', borderRadius: '50%' }} />
-                </Stack>
-                <Stack direction="row" spacing={1} sx={{ color: '#999', fontSize: '0.5rem' }}>
-                    <Typography variant="caption" sx={{ fontSize: 'inherit' }}>Tone</Typography>
-                    <Typography variant="caption" sx={{ fontSize: 'inherit' }}>Level</Typography>
-                </Stack>
-                <Box sx={{ width: 15, height: 15, bgcolor: '#FFFFFF', borderRadius: '50%', boxShadow: 1 }} />
-            </Box>
+            <EffectPedalPreview mainColor={"#f46616"}/>
         )
     }
 ];

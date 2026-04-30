@@ -4,7 +4,8 @@ use crate::infrastructure::audio_handler::{AudioHandler, AudioHandlerTrait};
 use crate::services::processors::gain::gain_processor::GainProcessor;
 use crate::services::processors::resampler::resampler::ResamplePolicy;
 use crate::services::processors::tone_stack::tone_stack_processor::ToneStackProcessor;
-use cpal::{BufferSize, Device, StreamConfig};
+use atomic_float::AtomicF32;
+use cpal::{Device, StreamConfig};
 use derive_getters::Getters;
 use ringbuf::consumer::Consumer;
 use ringbuf::producer::Producer;
@@ -12,9 +13,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::thread;
 use std::thread::JoinHandle;
-use std::time::{Duration, Instant};
-use tracing::info;
-
+use tracing::{error, info};
 
 /// The main service that orchestrates real-time audio loopback between an input and output device.
 ///
@@ -43,8 +42,10 @@ pub struct AudioService {
     audio_handler: Arc<dyn AudioHandlerTrait>,
     loopback_thread: Option<JoinHandle<()>>,
     is_active: bool,
-    channel: Channel,
-    preferred_buffer_frames: u32,
+    channels: Vec<Channel>,
+    current_channel_id: u32,
+    master_volume: Arc<AtomicF32>,
+    next_channel_id: u32,
 }
 
 impl AudioService {
@@ -78,61 +79,15 @@ impl AudioService {
     ///
     /// * `handler` - An [`Arc`]-wrapped implementation of [`AudioHandlerTrait`].
     pub fn new_with_handler(handler: Arc<dyn AudioHandlerTrait>) -> Self {
-        let preferred_buffer_frames = match handler.output_config().buffer_size {
-            BufferSize::Fixed(frames) => frames,
-            BufferSize::Default => 256,
-        };
-
         Self {
             audio_handler: handler,
             loopback_thread: None,
             is_active: false,
-            channel: Channel::new("Main".to_string(), None, None),
-            preferred_buffer_frames,
+            channels: vec![Channel::new(0, "Default".to_string(), None, None)],
+            master_volume: Arc::new(AtomicF32::new(1.0)),
+            current_channel_id: 0,
+            next_channel_id: 1,
         }
-    }
-
-    /// Current user-selected stream buffer size in frames.
-    pub fn buffer_size_frames(&self) -> u32 {
-        self.preferred_buffer_frames
-    }
-
-    /// Applies a user-selected buffer size to both input and output streams.
-    ///
-    /// The service rebuilds the underlying handler using the currently selected devices
-    /// and restarts loopback automatically if it was active.
-    pub fn set_buffer_size_frames(&mut self, frames: u32) -> Result<(), String> {
-        if !(64..=4096).contains(&frames) {
-            return Err("Buffer size must be between 64 and 4096 frames".to_string());
-        }
-
-        let previous_frames = self.preferred_buffer_frames;
-        if previous_frames == frames {
-            return Ok(());
-        }
-
-        info!(
-            previous_buffer_size_frames = previous_frames,
-            new_buffer_size_frames = frames,
-            "Updating audio stream buffer size"
-        );
-
-        let old = self.audio_handler.clone();
-        let mut input_config = old.input_config().clone();
-        let mut output_config = old.output_config().clone();
-        input_config.buffer_size = BufferSize::Fixed(frames);
-        output_config.buffer_size = BufferSize::Fixed(frames);
-
-        let new_handler = AudioHandler::new(
-            old.input_device().clone(),
-            old.output_device().clone(),
-            input_config,
-            output_config,
-        );
-
-        self.preferred_buffer_frames = frames;
-        self.set_audio_handler(Arc::new(new_handler));
-        Ok(())
     }
 
     /// Starts the audio loopback on a dedicated background thread.
@@ -140,7 +95,7 @@ impl AudioService {
     /// On startup the service:
     /// 1. Reads the input and output sample rates from the active [`AudioHandlerTrait`].
     /// 2. Selects a [`ResamplePolicy`] based on those rates (logged at `info` level).
-    /// 3. Builds a pair of lock-free ring buffers sized from the configured preferred buffer size.
+    /// 3. Builds a pair of lock-free ring buffers sized to the larger of the two rates.
     /// 4. Asks the handler to open the input and output CPAL streams.
     /// 5. Spawns a worker thread that:
     ///    - Pops samples from the input buffer.
@@ -154,16 +109,45 @@ impl AudioService {
     /// [`AudioHandlerTrait`]: crate::infrastructure::audio_handler::AudioHandlerTrait
     /// [`ResamplePolicy`]: crate::services::processors::resampler::resampler::ResamplePolicy
     pub fn start_loopback(&mut self) {
-        if self.is_active { return; }
+        if self.is_active {
+            return;
+        }
+
+        info!("Starting audio loopback");
         self.is_active = true;
 
         let handler = self.audio_handler.clone();
-        let channel = self.channel.clone();
-        let ringbuffer_size = ((self.preferred_buffer_frames as usize) * 4).max(512);
+        let channel = self
+            .channels()
+            .iter()
+            .find(|c| c.id() == *self.current_channel_id())
+            .unwrap();
+        let master_volume_arc = self.master_volume.clone();
+
+        let gain_arc = channel.gain().clone();
+        let volume_arc = channel.volume().clone();
+        let tone_stack_arc = channel.tone_stack().clone();
 
         let thread = thread::spawn(move || {
+            // How many input samples to batch before the resampler produces output.
+            // Larger = better quality, more latency. Smaller = lower latency, cheaper.
             const RESAMPLER_CHUNK_SIZE: usize = 256;
 
+            let ringbuffer_size = handler
+                .input_sample_rate()
+                .max(handler.output_sample_rate()) as usize;
+
+            // ── Resampling decision ──────────────────────────────────────────────
+            // `ResamplePolicy::from_rates` compares input and output sample rates
+            // and picks one of three strategies (logged at startup):
+            //
+            //   input == output  →  Bypass   – no resampler created at all
+            //   input  > output  →  PreDsp   – downsample BEFORE the DSP chain
+            //                                  (DSP runs at the lower output rate → cheaper)
+            //   input  < output  →  PostDsp  – upsample AFTER the DSP chain
+            //                                  (DSP runs at the lower input rate → cheaper)
+            //
+            // The chosen policy is the only place a `RubatoResampler` is created.
             let mut policy = ResamplePolicy::from_rates(
                 handler.input_sample_rate(),
                 handler.output_sample_rate(),
@@ -180,50 +164,52 @@ impl AudioService {
             let worker_shutdown = shutdown.clone();
 
             let worker = thread::spawn(move || {
-                let mut gain = GainProcessor::new(channel.gain());
-                let mut tone_stack = ToneStackProcessor::new(channel.tone_stack());
-                let mut master_volume = GainProcessor::new(channel.master_volume());
+                let mut gain = GainProcessor::new(gain_arc);
+                let mut volume = GainProcessor::new(volume_arc);
+                let mut master_volume = GainProcessor::new(master_volume_arc);
+                let mut tone_stack = ToneStackProcessor::new(tone_stack_arc);
 
                 let mut run_dsp = |sample: f32| -> f32 {
-                    let s = gain.process(sample);
-                    let s = tone_stack.process(s);
-                    master_volume.process(s)
+                    let sample = gain.process(sample);
+                    let sample = tone_stack.process(sample);
+                    let sample = volume.process(sample);
+                    master_volume.process(sample)
                 };
 
-                // --- DEBUG COUNTERS ---
-                let mut samples_received_total: u64 = 0;
-                let mut peak_volume: f32 = 0.0;
-                let mut last_log_time = Instant::now();
-
                 loop {
-                    if worker_shutdown.load(Ordering::SeqCst) { break; }
+                    if worker_shutdown.load(Ordering::SeqCst) {
+                        break;
+                    }
 
                     if let Some(sample) = i_consumer.try_pop() {
-                        samples_received_total += 1;
-                        let abs_s = sample.abs();
-                        if abs_s > peak_volume { peak_volume = abs_s; }
-
-                        if last_log_time.elapsed() >= Duration::from_secs(2) {
-                            println!("[LOOPBACK] Worker alive. Samples: {}, Peak: {:.4}", samples_received_total, peak_volume);
-                            peak_volume = 0.0;
-                            last_log_time = Instant::now();
-                        }
-
-                        // Run DSP through the resample policy (handles up/down-sampling transparently).
-                        for dsp_sample in policy.process(sample, &mut |s| run_dsp(s)) {
-                            let _ = o_producer.try_push(dsp_sample);
+                        // `policy.process` applies the resampler at the right moment:
+                        //   PreDsp  → resamples first, then calls `dsp.process` on each result
+                        //   PostDsp → calls `dsp.process` first, then resamples the output
+                        //   Bypass  → calls `dsp.process` directly, returns a single sample
+                        for processed_sample in policy
+                            .process(sample, &mut |resampled_sample| run_dsp(resampled_sample))
+                        {
+                            let _ = o_producer.try_push(processed_sample);
                         }
                     } else {
                         thread::yield_now();
                     }
                 }
+
+                // Drain any samples still sitting in the resampler's input buffer
+                // when the loopback is stopped so we don't lose the tail.
+                for processed_sample in
+                    policy.flush(&mut |resampled_sample| run_dsp(resampled_sample))
+                {
+                    let _ = o_producer.try_push(processed_sample);
+                }
             });
 
-            println!("[LOOPBACK] Starting CPAL streams...");
             input_stream.play();
             output_stream.play();
 
             thread::park();
+
             shutdown.store(true, Ordering::SeqCst);
             let _ = worker.join();
         });
@@ -249,6 +235,27 @@ impl AudioService {
         }
 
         self.is_active = false;
+    }
+
+    /// Sets the master volume value.
+    ///
+    /// The master volume value is atomically updated and will be read by the audio processing
+    /// thread on the next sample cycle.
+    ///
+    /// # Arguments
+    ///
+    /// * `master_volume` - The new master volume value. Must be positive (> 0.0).
+    ///
+    /// # Panics
+    ///
+    /// Panics if `master_volume` is negative or zero.
+    pub fn set_master_volume(&self, master_volume: f32) {
+        if master_volume.is_sign_positive() {
+            self.master_volume.store(master_volume, Ordering::Relaxed);
+        } else {
+            error!("Master volume must be a positive number");
+            panic!("Master volume must be positive");
+        }
     }
 
     /// Replaces the underlying audio handler, restarting the loopback if it was running.
@@ -286,13 +293,10 @@ impl AudioService {
         info!("Switching input device");
 
         let old = self.audio_handler.clone();
-        let mut adjusted_input = input_config;
-        adjusted_input.buffer_size = BufferSize::Fixed(self.preferred_buffer_frames);
-
         let new_handler = AudioHandler::new(
             input,
             old.output_device().clone(),
-            adjusted_input,
+            input_config,
             old.output_config().clone(),
         );
 
@@ -313,14 +317,11 @@ impl AudioService {
         info!("Switching output device");
 
         let old = self.audio_handler.clone();
-        let mut adjusted_output = output_config;
-        adjusted_output.buffer_size = BufferSize::Fixed(self.preferred_buffer_frames);
-
         let new_handler = AudioHandler::new(
             old.input_device().clone(),
             output,
             old.input_config().clone(),
-            adjusted_output,
+            output_config,
         );
 
         self.set_audio_handler(Arc::new(new_handler));
@@ -345,5 +346,140 @@ impl AudioService {
         }
     }
 
+    /// Adds a new channel to the channel list and return the new channel.
+    ///
+    /// New channels are initialized with default values and the `current_channel_id` is updated to the new channel's id.
+    ///
+    /// # Arguments
+    ///
+    /// * `channel_name` - The name of the new channel (30 characters max).
+    ///
+    /// [`set_current_channel_id`]: AudioService::set_current_channel_id
+    pub fn add_channel(&mut self, channel_name: String) -> Channel {
+        if channel_name.len() <= 30 {
+            let id = self.next_channel_id;
+            self.next_channel_id += 1;
 
+            let new_channel = Channel::new(id, channel_name.into(), None, None);
+
+            self.channels.push(new_channel.clone());
+            self.set_current_channel_id(id);
+            new_channel
+        } else {
+            error!("Channel name must be 30 characters or less");
+            panic!("Channel name must be 30 characters or less");
+        }
+    }
+
+    /// Removes the channel with the given id from the channel list and sets `current_channel_id` to 0 (default channel).
+    ///
+    /// # Arguments
+    ///
+    /// * `channel_id` - The id of the channel to remove. Cannot be 0 (default channel).
+    ///
+    /// [`set_current_channel_id`]: AudioService::set_current_channel_id
+    pub fn remove_channel(&mut self, channel_id: u32) {
+        if channel_id != 0 {
+            self.channels.retain(|c| c.id() != channel_id);
+            self.set_current_channel_id(0);
+        } else {
+            error!("Cannot remove default channel");
+        }
+    }
+
+    /// Sets the current channel id, restarting the loopback if it was active to ensure the new channel's parameters are applied.
+    ///
+    /// # Arguments
+    ///
+    /// * `new_current_channel_id` - The id of the channel to set as current. Must exist in the channel list.
+    ///
+    /// [`start_loopback`]: AudioService::start_loopback
+    /// [`stop_loopback`]: AudioService::stop_loopback
+    pub fn set_current_channel_id(&mut self, new_current_channel_id: u32) {
+        let was_on = self.is_active;
+        self.stop_loopback();
+        self.current_channel_id = new_current_channel_id;
+        if was_on {
+            self.start_loopback();
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::infrastructure::audio_handler::MockAudioHandlerTrait;
+    use std::sync::atomic::Ordering;
+    use std::sync::Arc;
+
+    #[cfg(test)]
+    mod success_path {
+        use super::*;
+
+        #[test]
+        fn master_volume_set_to_positive_value_should_succeed() {
+            let mock = MockAudioHandlerTrait::new();
+            let service = AudioService::new_with_handler(Arc::new(mock));
+            service.set_master_volume(0.5);
+            assert_eq!(service.master_volume().load(Ordering::Relaxed), 0.5);
+        }
+
+        #[test]
+        fn add_channel_should_add_a_channel_with_correct_values_and_sets_current_channel_id_to_new_id() {
+            let mock = MockAudioHandlerTrait::new();
+            let mut service = AudioService::new_with_handler(Arc::new(mock));
+            let test_channel = service.add_channel("TestChannel".to_string());
+
+            assert_eq!(service.channels.len(), 2);
+            assert_eq!(test_channel.name(), "TestChannel");
+            assert_eq!(test_channel.id(), 1);
+            assert_eq!(test_channel.gain().load(Ordering::Relaxed), 1.0);
+            assert_eq!(test_channel.volume().load(Ordering::Relaxed), 1.0);
+            assert_eq!(test_channel.tone_stack().bass().load(Ordering::Relaxed),1.0);
+            assert_eq!(test_channel.tone_stack().middle().load(Ordering::Relaxed),1.0);
+            assert_eq!(test_channel.tone_stack().treble().load(Ordering::Relaxed),1.0);
+            assert_eq!(*service.current_channel_id(), test_channel.id());
+        }
+
+        #[test]
+        fn remove_channel_removes_channel_and_sets_current_channel_id_to_0 () {
+            let mock = MockAudioHandlerTrait::new();
+            let mut service = AudioService::new_with_handler(Arc::new(mock));
+            let test_channel = service.add_channel("TestChannel".to_string());
+            service.remove_channel(test_channel.id());
+
+            assert_eq!(service.channels.len(), 1);
+            assert_eq!(*service.current_channel_id(), 0);
+        }
+    }
+
+    #[cfg(test)]
+    mod failure_path {
+        use super::*;
+
+        #[test]
+        #[should_panic(expected = "Master volume must be positive")]
+        fn master_volume_set_to_negative_value_should_panic() {
+            let mock = MockAudioHandlerTrait::new();
+            let service = AudioService::new_with_handler(Arc::new(mock));
+            service.set_master_volume(-0.5);
+        }
+
+        #[test]
+        fn removing_default_channel_should_do_nothing() {
+            let mock = MockAudioHandlerTrait::new();
+            let mut service = AudioService::new_with_handler(Arc::new(mock));
+            service.remove_channel(0);
+
+            assert_eq!(service.channels.len(), 1);
+        }
+
+        #[test]
+        #[should_panic(expected = "Channel name must be 30 characters or less")]
+        fn add_channel_should_panic_with_to_long_name() {
+            let mock = MockAudioHandlerTrait::new();
+            let mut service = AudioService::new_with_handler(Arc::new(mock));
+            let test_channel = service.add_channel("Hippopotomonstrosesquippedaliophobia".to_string());
+        }
+    }
 }

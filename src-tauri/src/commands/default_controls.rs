@@ -1,5 +1,5 @@
-use crate::domain::dto::amp_config_dto::AmpConfigDto;
-use crate::domain::dto::tone_stack_dto::ToneStackDto;
+use crate::domain::amp_config_dto::AmpConfigDto;
+use crate::domain::tone_stack_dto::ToneStackDto;
 use crate::services::audio_service::AudioService;
 use std::sync::Mutex;
 
@@ -52,45 +52,116 @@ pub(crate) fn toggle_on_off(audio_service: tauri::State<Mutex<AudioService>>, is
 #[tauri::command]
 pub(crate) fn set_gain(audio_service: tauri::State<Mutex<AudioService>>, gain: f32) {
     let service = audio_service.inner().lock().unwrap();
-    service.channel().set_gain(gain);
+    service.channels().iter().find(|c| c.id() == *service.current_channel_id()).unwrap().set_gain(gain);
 }
 
 /// Sets the master volume level for the amplifier.
 ///
-/// Applies the master volume value to the [`Channel`] within the [`AudioService`].
+/// Applies the master volume value to the [`AudioService`].
 ///
 /// # Arguments
 ///
 /// * `audio_service` - The shared [`AudioService`] state.
 /// * `master_volume` - The master volume value (must be positive).
 ///
-/// [`Channel`]: crate::domain::channel::Channel
+/// [`AudioService`]: crate::services::audio_service::AudioService
 #[tauri::command]
 pub(crate) fn set_master_volume(audio_service: tauri::State<Mutex<AudioService>>, master_volume: f32) {
     let service = audio_service.inner().lock().unwrap();
-    service.channel().set_master_volume(master_volume);
+    service.set_master_volume(master_volume);
 }
 
+
+/// Sets the tone stack configuration for the current channel.
+///
+/// Applies the provided [`ToneStackDto`] to the active [`Channel`] within the
+/// [`AudioService`].
+///
+/// # Arguments
+///
+/// * `audio_service` - The shared [`AudioService`] state.
+/// * `tone_stack` - The tone stack configuration to apply.
+///
+/// [`Channel`]: crate::domain::channel::Channel
+/// [`AudioService`]: crate::services::audio_service::AudioService
 #[tauri::command]
 pub(crate) fn set_tone_stack(audio_service: tauri::State<Mutex<AudioService>>, tone_stack: ToneStackDto){
     let service = audio_service.inner().lock().unwrap();
-    service.channel().set_tone_stack(tone_stack);
+    service.channels().iter().find(|c| c.id() == *service.current_channel_id()).unwrap().set_tone_stack(tone_stack);
 }
 
+
+/// Sets the bass level for the current channel.
+///
+/// Updates the bass parameter of the active [`Channel`] within the
+/// [`AudioService`].
+///
+/// # Arguments
+///
+/// * `audio_service` - The shared [`AudioService`] state.
+/// * `bass` - The bass level value.
+///
+/// [`Channel`]: crate::domain::channel::Channel
+/// [`AudioService`]: crate::services::audio_service::AudioService
 #[tauri::command]
 pub(crate) fn set_bass(audio_service: tauri::State<Mutex<AudioService>>, bass: f32){
     let service = audio_service.inner().lock().unwrap();
-    service.channel().set_bass(bass);
+    service.channels().iter().find(|c| c.id() == *service.current_channel_id()).unwrap().set_bass(bass);
 }
 
+
+
+/// Sets the middle frequency level for the current channel.
+///
+/// Updates the mid-range parameter of the active [`Channel`] within the
+/// [`AudioService`].
+///
+/// # Arguments
+///
+/// * `audio_service` - The shared [`AudioService`] state.
+/// * `middle` - The middle frequency level value.
+///
+/// [`Channel`]: crate::domain::channel::Channel
+/// [`AudioService`]: crate::services::audio_service::AudioService
 #[tauri::command]
 pub(crate) fn set_middle(audio_service: tauri::State<Mutex<AudioService>>, middle: f32){
     let service = audio_service.inner().lock().unwrap();
-    service.channel().set_middle(middle);
+    service.channels().iter().find(|c| c.id() == *service.current_channel_id()).unwrap().set_middle(middle);
 }
 
+
+/// Sets the treble level for the current channel.
+///
+/// Updates the high-frequency parameter of the active [`Channel`] within the
+/// [`AudioService`].
+///
+/// # Arguments
+///
+/// * `audio_service` - The shared [`AudioService`] state.
+/// * `treble` - The treble level value.
+///
+/// [`Channel`]: crate::domain::channel::Channel
+/// [`AudioService`]: crate::services::audio_service::AudioService
 #[tauri::command]
 pub(crate) fn set_treble(audio_service: tauri::State<Mutex<AudioService>>, treble: f32){
     let service = audio_service.inner().lock().unwrap();
-    service.channel().set_treble(treble);
+    service.channels().iter().find(|c| c.id() == *service.current_channel_id()).unwrap().set_treble(treble);
+}
+
+/// Sets the output volume for the current channel.
+///
+/// Applies the volume level to the active [`Channel`] within the
+/// [`AudioService`].
+///
+/// # Arguments
+///
+/// * `audio_service` - The shared [`AudioService`] state.
+/// * `volume` - The volume level value.
+///
+/// [`Channel`]: crate::domain::channel::Channel
+/// [`AudioService`]: crate::services::audio_service::AudioService
+#[tauri::command]
+pub(crate) fn set_volume(audio_service: tauri::State<Mutex<AudioService>>, volume: f32){
+    let service = audio_service.inner().lock().unwrap();
+    service.channels().iter().find(|c| c.id() == *service.current_channel_id()).unwrap().set_volume(volume);
 }

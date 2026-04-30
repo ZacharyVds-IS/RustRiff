@@ -1,89 +1,212 @@
 import {
+    addChannel,
     AmpConfigDto,
+    ChannelDto,
     getAmpConfig,
+    removeChannel,
     setBass,
+    setChannelId,
     setGain,
     setMasterVolume,
     setMiddle,
     setTreble,
+    setVolume,
     toggleOnOff
 } from "../domain";
 import {create} from "zustand/react";
 
 interface AmpState extends AmpConfigDto {
-    init:() => Promise<void>;
-    setGain:(val:number) => void;
-    setVolume: (val:number) => void;
-    setIsActive:(val:boolean) => void;
-    setBass:(val:number) => void;
-    setMiddle:(val:number) => void;
-    setTreble:(val:number) => void;
+    init: () => Promise<void>;
+    setChannelById: (index: number) => Promise<void>;
+    addChannel: (channelName: string) => Promise<void>;
+    addChannelFromBackend: (channelDto: ChannelDto) => Promise<void>;
+    removeChannel: (channelId: number) => void;
+    setGain: (val: number) => void;
+    setVolume: (val: number) => void;
+    setMasterVolume: (val: number) => void;
+    setIsActive: (val: boolean) => void;
+    setBass: (val: number) => void;
+    setMiddle: (val: number) => void;
+    setTreble: (val: number) => void;
 }
 
 export const useAmpStore = create<AmpState>((set) => ({
-    gain: 0,
-    master_volume: 0,
-    is_active: false,
-    tone_stack: {
-        bass: 1.0,
-        middle: 1.0,
-        treble: 1.0,
-    },
+        master_volume: 1,
+        is_active: false,
+        channels: [{
+            id: 0,
+            name: "Default",
+            gain: 1.0,
+            tone_stack: {
+                bass: 100.0,
+                middle: 100.0,
+                treble: 100.0,
+            },
+            volume: 1,
+        }],
+        current_channel: 0,
 
-    init: async () => {
-        try {
-            const config = await getAmpConfig();
-            set({
-                ...config
+        init: async () => {
+            try {
+                const config = await getAmpConfig();
+                set({
+                    ...config
+                });
+                console.log("Store hydrated from Rust:", config);
+            } catch (error) {
+                console.error("Failed to fetch init state from Rust:", error);
+            }
+        },
+
+        setChannelById: async (id: number) => {
+            try {
+                set({current_channel: id});
+
+                await setChannelId({channelId: id});
+
+                const config = await getAmpConfig();
+                set({...config});
+
+                console.log("Channel changed, store updated:", config);
+            } catch (error) {
+                console.error("Failed to set channel index:", error);
+            }
+        },
+
+        addChannel: async (channelName: string) => {
+            try {
+                console.log("Adding channel with name:", channelName);
+                await addChannel({channelName});
+            } catch (error) {
+                console.error("Failed to add channel:", error);
+            }
+        },
+
+        addChannelFromBackend: async (channelDto: ChannelDto) => {
+            set((state) => {
+                const exists = state.channels.some(
+                    (c) => c.id === channelDto.id
+                );
+
+                if (exists) {
+                    return {
+                        channels: state.channels.map((channel) =>
+                            channel.id === channelDto.id ? channelDto : channel
+                        ),
+                        current_channel: channelDto.id,
+                    };
+                }
+
+                return {
+                    channels: [...state.channels, channelDto],
+                    current_channel: channelDto.id,
+                };
             });
-            console.log("Store hydrated from Rust:", config);
-        } catch (error) {
-            console.error("Failed to fetch init state from Rust:", error);
-        }
-    },
+        },
 
-    setGain: (val: number) => {
-        set({ gain: val });
-        setGain({gain:val});
-    },
+        removeChannel: async (channelId: number) => {
+            try {
+                console.log("Removing channel:", channelId);
 
-    setVolume: (val: number) => {
-        set({ master_volume: val });
-        setMasterVolume({masterVolume:val})
-    },
+                await removeChannel({channelId});
 
-    setIsActive:(val: boolean) => {
-        set({is_active: val});
-        toggleOnOff({isOn: val});
-    },
+                const config = await getAmpConfig();
+                set({...config});
 
-    setBass: (val: number) => {
-        set((state) => ({
-            tone_stack: {
-                ...state.tone_stack,
-                bass: val,
-            },
-        }));
-        setBass({bass:val})
-    },
+                console.log("Channel removed, store updated:", config);
+            } catch (error) {
+                console.error("Failed to remove channel:", error);
+            }
+        },
 
-    setMiddle: (val: number) => {
-        set((state) => ({
-            tone_stack: {
-                ...state.tone_stack,
-                middle: val,
-            },
-        }));
-        setMiddle({middle:val})
-    },
+        setMasterVolume: (val: number) => {
+            set({master_volume: val});
+            setMasterVolume({masterVolume: val})
+        },
 
-    setTreble: (val: number) => {
-        set((state) => ({
-            tone_stack: {
-                ...state.tone_stack,
-                treble: val,
-            },
-        }));
-        setTreble({treble:val})
-    },
-}));
+        setIsActive: (val: boolean) => {
+            set({is_active: val});
+            toggleOnOff({isOn: val});
+        },
+
+        setGain: (val: number) => {
+            setGain({gain: val});
+
+            set((state) => ({
+                channels: state.channels.map((c) =>
+                    c.id === state.current_channel
+                        ? {...c, gain: val}
+                        : c
+                ),
+            }));
+        },
+
+        setVolume: (val: number) => {
+            setVolume({volume: val});
+
+            set((state) => ({
+                channels: state.channels.map((c) =>
+                    c.id === state.current_channel
+                        ? {...c, volume: val}
+                        : c
+                ),
+            }));
+        },
+
+        setBass: (val: number) => {
+            setBass({bass: val});
+
+            set((state) => ({
+                channels: state.channels.map((c) =>
+                    c.id === state.current_channel
+                        ? {
+                            ...c,
+                            tone_stack: {
+                                ...c.tone_stack,
+                                bass: val,
+                            },
+                        }
+                        : c
+                ),
+            }));
+        },
+
+
+        setMiddle: (val: number) => {
+            setMiddle({middle: val});
+
+            set((state) => ({
+                channels: state.channels.map((c) =>
+                    c.id === state.current_channel
+                        ? {
+                            ...c,
+                            tone_stack: {
+                                ...c.tone_stack,
+                                middle: val,
+                            },
+                        }
+                        : c
+                ),
+            }));
+        },
+
+        setTreble: (val: number) => {
+            setTreble({treble: val});
+
+            set((state) => ({
+                channels: state.channels.map((c) =>
+                    c.id === state.current_channel
+                        ? {
+                            ...c,
+                            tone_stack: {
+                                ...c.tone_stack,
+                                treble: val,
+                            },
+                        }
+                        : c
+                ),
+            }));
+        },
+
+    }))
+;

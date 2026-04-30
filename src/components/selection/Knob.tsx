@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { Box, Typography, useTheme } from "@mui/material";
+import React, {useEffect, useState} from "react";
+import {Box, Typography, useTheme} from "@mui/material";
 
 interface KnobProps {
     label: string;
@@ -9,9 +9,19 @@ interface KnobProps {
     step?: number;
     size?: number;
     onChange?: (newValue: number) => void;
+    disabled?: boolean;
 }
 
-export function Knob({label,value = 0, min = 0, max = 100, step = 1, size = 60, onChange}: KnobProps) {
+export function Knob({
+                         label,
+                         value = 0,
+                         min = 0,
+                         max = 100,
+                         step = 1,
+                         size = 60,
+                         onChange,
+                         disabled = false
+                     }: KnobProps) {
     const [localValue, setLocalValue] = useState(value);
     const theme = useTheme();
 
@@ -22,6 +32,7 @@ export function Knob({label,value = 0, min = 0, max = 100, step = 1, size = 60, 
     const rotation = percentage * 270 - 135;
 
     const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+        if (disabled) return;
         const startY = e.clientY;
         const startValue = localValue;
         const sensitivity = 200;
@@ -93,7 +104,7 @@ export function Knob({label,value = 0, min = 0, max = 100, step = 1, size = 60, 
                     cursor: 'ns-resize',
                     boxShadow: theme.shadows[4],
                     transition: 'transform 0.05s linear',
-                    '&:active': { cursor: 'grabbing' }
+                    '&:active': {cursor: 'grabbing'}
                 }}
             >
                 <Box
@@ -108,16 +119,18 @@ export function Knob({label,value = 0, min = 0, max = 100, step = 1, size = 60, 
                 />
             </Box>
 
-            <Typography
-                sx={{
-                    fontSize: '0.6rem',
-                    mt: 0.5,
-                    color: 'text.secondary',
-                    fontFamily: 'monospace'
-                }}
-            >
-                {step < 1 ? localValue.toFixed(1) : Math.round(localValue)}
-            </Typography>
+            {!disabled &&
+                <Typography
+                    sx={{
+                        fontSize: '0.6rem',
+                        mt: 0.5,
+                        color: 'text.secondary',
+                        fontFamily: 'monospace'
+                    }}
+                >
+                    {step < 1 ? localValue.toFixed(1) : Math.round(localValue)}
+                </Typography>
+            }
         </Box>
     );
 }

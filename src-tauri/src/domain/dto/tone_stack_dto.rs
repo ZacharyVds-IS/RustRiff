@@ -1,4 +1,6 @@
+use std::sync::atomic::Ordering;
 use serde::{Deserialize, Serialize};
+use crate::domain::tone_stack::ToneStack;
 
 /// Data transfer object for tone stack parameters.
 ///
@@ -12,4 +14,15 @@ pub struct ToneStackDto{
     pub middle: f32,
     /// The treble level (0.0 to 1.0).
     pub treble: f32
+}
+
+
+impl From<&ToneStack> for ToneStackDto {
+    fn from(tone_stack: &ToneStack) -> Self {
+        Self {
+            bass: tone_stack.bass().load(Ordering::Relaxed)*100.0,
+            middle: tone_stack.middle().load(Ordering::Relaxed)*100.0,
+            treble: tone_stack.treble().load(Ordering::Relaxed)*100.0,
+        }
+    }
 }
