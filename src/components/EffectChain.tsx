@@ -91,9 +91,9 @@ export function EffectChain({effects}: EffectChainProps) {
                     </Typography>
                 </Box>
                 {effects.map((item) => (
-                    <Box key={"effect-"+item.id} sx={{display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
+                    <Box key={"effect-"+item.data.id} sx={{display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
                         <Box sx={{display: 'flex', alignItems: 'center', height: 75}}>
-                            <EffectPedalPreview mainColor={item.color}/>
+                            <EffectPedalPreview mainColor={item.data.color}/>
                         </Box>
                         <Typography
                             variant="caption"
@@ -105,7 +105,7 @@ export function EffectChain({effects}: EffectChainProps) {
                                 fontSize: '0.75rem'
                             }}
                         >
-                            {item.name}
+                            {item.data.name}
                         </Typography>
                     </Box>
                 ))}

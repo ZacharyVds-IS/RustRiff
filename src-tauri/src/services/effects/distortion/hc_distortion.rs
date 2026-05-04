@@ -1,6 +1,6 @@
 use crate::domain::audio_processor::AudioProcessor;
 use crate::domain::dto::effect::effect_dto::EffectDto;
-use crate::domain::dto::effect::hcdistortion_dto::HCDistortionDto;
+use crate::domain::dto::effect::hcdistortion_dto::HcDistortionDto;
 use crate::domain::effect::Effect;
 
 /// Hard-clipping distortion effect.
@@ -18,6 +18,7 @@ pub struct HCDistortion {
     name: String,
     is_active: bool,
     limit: f32,
+    color: String,
 }
 
 impl HCDistortion {
@@ -30,12 +31,13 @@ impl HCDistortion {
     /// * `is_active` — Whether the effect is enabled on creation.
     /// * `threshold` — Clip level; clamped internally to the range `[0.001, 1.0]`
     ///   so that a threshold of exactly zero cannot produce silence for all input.
-    pub fn new(id: u32, name: String, is_active: bool, threshold: f32) -> Self {
+    pub fn new(id: u32, name: String, is_active: bool, threshold: f32, color:String) -> Self {
         Self {
             id,
             name,
             is_active,
             limit: threshold.clamp(0.001, 1.0),
+            color
         }
     }
 
@@ -76,11 +78,11 @@ impl Effect for HCDistortion {
     }
 
     fn to_dto(&self) -> EffectDto {
-        EffectDto::HCDistortion(HCDistortionDto {
+        EffectDto::HCDistortion(HcDistortionDto {
             id: self.id,
             name: self.name.clone(),
             is_active: self.is_active,
-            color: self.get_color(),
+            color: self.color.clone(),
             threshold: self.limit,
         })
     }
@@ -99,7 +101,7 @@ mod tests {
     use super::*;
 
     fn distortion(threshold: f32) -> HCDistortion {
-        HCDistortion::new(0, "HC".to_string(), true, threshold)
+        HCDistortion::new(0, "HC".to_string(), true, threshold, "#00FF00".to_string())
     }
 
     #[cfg(test)]

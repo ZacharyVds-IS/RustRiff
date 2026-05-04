@@ -52,7 +52,7 @@ export function EffectPedalPreview({ mainColor }: EffectPedalProps) {
                         disabled
                     />
                     <Knob
-                        key={"placeholder-1"}
+                        key={"placeholder-2"}
                         label={" "}
                         value={0}
                         size={6}
