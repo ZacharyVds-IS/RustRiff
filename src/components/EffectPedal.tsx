@@ -1,14 +1,106 @@
 import {Box, Stack, Typography} from "@mui/material";
 import chroma from "chroma-js";
 import {Knob} from "./selection/Knob.tsx";
+import {EffectDto, HcDistortionDto, setHcDistortionLevel, setHcDistortionThreshold, toggleEffect} from "../domain";
+import {useEffect, useState} from "react";
+import {useAmpStore} from "../state/AmpConfigStore.tsx";
 
 interface EffectPedalProps {
-    mainColor: string;
-    name: string;
+    effect: EffectDto;
+    onToggle?: (effectId: number, isActive: boolean) => void;
 }
 
-export function EffectPedal({ mainColor, name }: EffectPedalProps) {
-    const chassisColor = chroma(mainColor).hex();
+function knobsForEffect(
+    effect: EffectDto,
+    handlers: {
+        onThresholdChange: (effectId: number, threshold: number, previousThreshold: number) => void;
+        onLevelChange: (effectId: number, level: number, previousLevel: number) => void;
+    }
+): React.ReactNode {
+    switch (effect.kind) {
+        case "HCDistortion": {
+            const data = effect.data as HcDistortionDto;
+            const THRESHOLD_CLEAN = 1.0;
+            const THRESHOLD_HOT   = 0.05;
+            const driveKnobValue = (1 - (data.threshold - THRESHOLD_HOT) / (THRESHOLD_CLEAN - THRESHOLD_HOT)) * 100;
+            const levelKnobValue = data.level * 100;
+            return (
+                <>
+                    <Knob
+                        label="Drive"
+                        value={Math.max(0, Math.min(100, driveKnobValue))}
+                        min={0}
+                        max={100}
+                        step={0.5}
+                        size={40}
+                        valueDisplay="min-max"
+                        onChange={(v) => {
+                            const threshold = THRESHOLD_CLEAN - (v / 100) * (THRESHOLD_CLEAN - THRESHOLD_HOT);
+                            handlers.onThresholdChange(data.id, threshold, data.threshold);
+                        }}
+                    />
+                    <Knob
+                        label="Level"
+                        value={Math.max(0, Math.min(100, levelKnobValue))}
+                        min={0}
+                        max={100}
+                        step={0.5}
+                        size={40}
+                        valueDisplay="min-max"
+                        onChange={(v) => {
+                            const level = v / 100;
+                            handlers.onLevelChange(data.id, level, data.level);
+                        }}
+                    />
+                </>
+            );
+        }
+        default:
+            return null;
+    }
+}
+
+export function EffectPedal({effect, onToggle}: EffectPedalProps) {
+    // Local mirror of is_active so the LED reacts instantly without waiting for a full AmpConfig reload
+    const [isActive, setIsActive] = useState(effect.data.is_active);
+    const updateEffectActiveState = useAmpStore((state) => state.updateEffectActiveState);
+    const updateHcDistortionParams = useAmpStore((state) => state.updateHcDistortionParams);
+    const chassisColor = chroma(effect.data.color).hex();
+
+    // Sync local isActive state when the effect prop changes
+    // Prevents stale state if parent re-renders with a different effect
+    useEffect(() => {
+        setIsActive(effect.data.is_active);
+    }, [effect.data.id, effect.data.is_active]);
+
+    async function handleFootswitchClick() {
+        try {
+            const newActive = await toggleEffect({ effectId: effect.data.id });
+            setIsActive(newActive);
+            updateEffectActiveState(effect.data.id, newActive);
+            onToggle?.(effect.data.id, newActive);
+        } catch (error) {
+            console.error(`Failed to toggle effect ${effect.data.id}:`, error);
+            // Keep the current local/store state unchanged on failure.
+            // The backend command did not confirm a new state, so we avoid any optimistic UI flip here.
+        }
+    }
+
+    function handleThresholdChange(effectId: number, threshold: number, previousThreshold: number) {
+        updateHcDistortionParams(effectId, { threshold });
+        void setHcDistortionThreshold({ effectId, threshold }).catch((error) => {
+            console.error("Failed to update HC distortion threshold:", error);
+            updateHcDistortionParams(effectId, { threshold: previousThreshold });
+        });
+    }
+
+    function handleLevelChange(effectId: number, level: number, previousLevel: number) {
+        updateHcDistortionParams(effectId, { level });
+        void setHcDistortionLevel({ effectId, level }).catch((error) => {
+            console.error("Failed to update HC distortion level:", error);
+            updateHcDistortionParams(effectId, { level: previousLevel });
+        });
+    }
 
     return (
         <Box
@@ -37,23 +129,23 @@ export function EffectPedal({ mainColor, name }: EffectPedalProps) {
                     zIndex: 2
                 }}
             >
-                {/* Check LED */}
                 <Box
                     sx={{
                         width: 8,
                         height: 8,
                         borderRadius: '50%',
-                        bgcolor: '#ff0000',
-                        boxShadow: '0 0 6px #ff0000',
-                        mb: 2
+                        bgcolor: isActive ? '#00ff00' : '#ff0000',
+                        boxShadow: isActive ? '0 0 6px #00ff00' : '0 0 6px #ff0000',
+                        mb: 2,
+                        transition: 'background-color 0.1s, box-shadow 0.1s',
                     }}
                 />
 
-                {/* Knobs Row */}
-                <Stack direction="row" spacing={1} sx={{ justifyContent: 'center' }}>
-                    <Knob label="Level" value={50} size={40} disabled />
-                    <Knob label="Tone" value={50} size={40} disabled />
-                    <Knob label="Dist" value={50} size={40} disabled />
+                <Stack direction="row" spacing={1} sx={{justifyContent: 'center'}}>
+                    {knobsForEffect(effect, {
+                        onThresholdChange: handleThresholdChange,
+                        onLevelChange: handleLevelChange,
+                    })}
                 </Stack>
 
                 <Typography
@@ -67,16 +159,16 @@ export function EffectPedal({ mainColor, name }: EffectPedalProps) {
                         fontStyle: 'italic'
                     }}
                 >
-                    {name}
+                    {effect.data.name}
                 </Typography>
             </Box>
 
-            {/* Wider Boss-Style Footswitch */}
             <Box
+                onClick={handleFootswitchClick}
                 sx={{
-                    width: 'calc(100% + 8px)', // Slightly wider than chassis
+                    width: 'calc(100% + 8px)',
                     height: '40%',
-                    bgcolor: '#1a1a1a', // Black rubber pad
+                    bgcolor: '#1a1a1a',
                     borderRadius: '2px 2px 8px 8px',
                     border: '2px solid #000',
                     boxShadow: 'inset 0 2px 4px rgba(255,255,255,0.1)',
@@ -87,12 +179,9 @@ export function EffectPedal({ mainColor, name }: EffectPedalProps) {
                     cursor: 'pointer',
                     zIndex: 3,
                     transition: 'transform 0.05s',
-                    '&:active': {
-                        transform: 'scale(0.98) translateY(2px)'
-                    }
+                    '&:active': {transform: 'scale(0.98) translateY(2px)'}
                 }}
             >
-                {/* Thumb Screw Detail */}
                 <Box
                     sx={{
                         width: 12,

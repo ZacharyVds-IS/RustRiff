@@ -1,4 +1,4 @@
-use crate::domain::channel_dto::ChannelDto;
+use crate::domain::dto::channel_dto::ChannelDto;
 use crate::services::audio_service::AudioService;
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::Ordering;

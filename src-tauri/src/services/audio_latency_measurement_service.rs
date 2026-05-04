@@ -16,7 +16,7 @@ use crate::domain::dto::buffer_latency_dto::BufferLatencyDto;
 use crate::domain::dto::execution_timing_dto::ExecutionTimingDto;
 use crate::domain::dto::round_trip_latency_dto::RoundTripLatencyDto;
 use crate::infrastructure::audio_handler::AudioHandlerTrait;
-use crate::services::analyzers::LatencyAnalyzer::LatencyAnalyzer;
+use crate::services::analyzers::latency_analyzer::LatencyAnalyzer;
 use crate::services::audio_service::AudioService;
 use crate::services::processors::gain::gain_processor::GainProcessor;
 use crate::services::processors::tone_stack::tone_stack_processor::ToneStackProcessor;

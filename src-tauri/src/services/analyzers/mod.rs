@@ -1,1 +1,1 @@
-pub mod LatencyAnalyzer;
+pub mod latency_analyzer;

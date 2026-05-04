@@ -1,8 +1,8 @@
 use crate::domain::channel::Channel;
+use crate::domain::dto::effect::effect_dto::EffectDto;
 use crate::domain::dto::tone_stack_dto::ToneStackDto;
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::Ordering;
-use crate::domain::effect_dto::EffectDto;
 
 /// Data transfer object for a Channel's settings.
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -30,7 +30,7 @@ impl From<&Channel> for ChannelDto {
             gain: channel.gain().load(Ordering::Relaxed),
             tone_stack: ToneStackDto::from(channel.tone_stack().as_ref()),
             volume: channel.volume().load(Ordering::Relaxed),
-            effect_chain: channel.effect_chain().iter().map(|effect| EffectDto::from(effect.as_ref())).collect(),
+            effect_chain: channel.effect_chain().iter().map(|effect| effect.to_dto()).collect(),
         }
     }
 }

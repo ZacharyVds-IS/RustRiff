@@ -111,7 +111,7 @@ impl Biquad {
     ///
     /// * `gain_db` - The new gain in decibels.
     pub fn set_gain_db(&mut self, gain_db: f32) {
-        let (b0, b1, b2, a0, a1, a2) =
+        let (b0, b1, b2, _a0, a1, a2) =
             Self::calculate_coefficients(&self.shelf_type, self.sample_rate, self.freq, gain_db);
 
         self.b0 = b0;

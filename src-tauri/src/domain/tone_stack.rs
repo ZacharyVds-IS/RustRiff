@@ -1,7 +1,7 @@
-use std::sync::Arc;
-use std::sync::atomic::Ordering;
 use atomic_float::AtomicF32;
-use tracing::{error, info};
+use std::sync::atomic::Ordering;
+use std::sync::Arc;
+use tracing::error;
 
 /// Represents the tone stack with atomic bass, middle, and treble parameters for audio equalization.
 ///

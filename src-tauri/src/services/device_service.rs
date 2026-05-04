@@ -1,7 +1,7 @@
 use crate::domain::dto::audio_device_dto::AudioDeviceDto;
 use cpal::traits::DeviceTrait;
 use cpal::traits::HostTrait;
-use cpal::{Host, SampleRate};
+use cpal::Host;
 use tracing::error;
 
 /// Service for managing audio device enumeration and lookup.

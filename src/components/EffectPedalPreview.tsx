@@ -3,9 +3,10 @@ import {Knob} from "./selection/Knob.tsx";
 
 interface EffectPedalProps {
     mainColor: string;
+    isActive?: boolean;
 }
 
-export function EffectPedalPreview({ mainColor }: EffectPedalProps) {
+export function EffectPedalPreview({ mainColor, isActive = false }: EffectPedalProps) {
     return (
         <Box
             sx={{
@@ -37,9 +38,10 @@ export function EffectPedalPreview({ mainColor }: EffectPedalProps) {
                         width: 5,
                         height: 5,
                         borderRadius: '50%',
-                        bgcolor: '#ff0000',
-                        boxShadow: '0 0 4px #ff0000',
-                        mb: 1
+                        bgcolor: isActive ? '#00ff00' : '#ff0000',
+                        boxShadow: isActive ? '0 0 4px #00ff00' : '0 0 4px #ff0000',
+                        mb: 1,
+                        transition: 'background-color 0.1s, box-shadow 0.1s',
                     }}
                 />
                 <Box sx={{ display: 'flex', flexDirection: 'row', alignItems: 'center' }}>
@@ -52,7 +54,7 @@ export function EffectPedalPreview({ mainColor }: EffectPedalProps) {
                         disabled
                     />
                     <Knob
-                        key={"placeholder-1"}
+                        key={"placeholder-2"}
                         label={" "}
                         value={0}
                         size={6}

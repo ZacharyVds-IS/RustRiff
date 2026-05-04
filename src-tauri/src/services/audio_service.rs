@@ -1,7 +1,6 @@
 use crate::domain::audio_processor::AudioProcessor;
 use crate::domain::channel::Channel;
 use crate::infrastructure::audio_handler::{AudioHandler, AudioHandlerTrait};
-use crate::services::effects::flip_effect::FlipEffect;
 use crate::services::processors::gain::gain_processor::GainProcessor;
 use crate::services::processors::resampler::resampler::ResamplePolicy;
 use crate::services::processors::tone_stack::tone_stack_processor::ToneStackProcessor;
@@ -10,7 +9,6 @@ use cpal::{BufferSize, Device, StreamConfig};
 use derive_getters::Getters;
 use ringbuf::consumer::Consumer;
 use ringbuf::producer::Producer;
-use rubato::VecResampler;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::thread;

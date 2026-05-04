@@ -1,4 +1,9 @@
 use crate::domain::audio_processor::AudioProcessor;
+use crate::domain::dto::effect::effect_dto::EffectDto;
+use atomic_float::AtomicF32;
+use std::collections::HashMap;
+use std::sync::atomic::AtomicBool;
+use std::sync::Arc;
 
 /// A trait defining the shared behavior for audio effects within the signal chain.
 ///
@@ -21,15 +26,38 @@ pub trait Effect: AudioProcessor + Send + Sync {
     ///
     /// If `false`, the effect should ideally be bypassed to save CPU or maintain
     /// signal transparency.
-    fn is_active(&self) -> bool;
+    fn is_active(&self) -> bool {
+        self.active_flag().load(std::sync::atomic::Ordering::Relaxed)
+    }
 
     /// Sets whether the effect is active or bypassed.
     ///
     /// * `active` - `true` to enable the effect, `false` to bypass it.
-    fn set_active(&mut self, active: bool);
+    fn set_active(&self, active: bool) {
+        self.active_flag().store(active, std::sync::atomic::Ordering::Relaxed);
+    }
 
     /// Returns a color code (hex) associated with this effect for UI representation.
     fn get_color(&self) -> String;
+
+    /// Converts this effect into its serialisable [`EffectDto`] representation.
+    ///
+    /// Each concrete effect type returns the correct variant of the tagged union,
+    /// carrying its own specific parameters alongside the shared fields.
+    fn to_dto(&self) -> EffectDto;
+
+    /// Returns the shared `Arc<AtomicBool>` that drives `process_if_active`.
+    /// Command handlers write to it; the audio thread reads it lock-free.
+    fn active_flag(&self) -> Arc<AtomicBool>;
+
+    /// Returns named f32 parameter Arcs shared with the audio thread.
+    /// Defaults to an empty map — override for effects with extra parameters.
+    ///
+    /// Implementing this is the **only** change required to make a new effect's
+    /// parameters controllable from commands — no downcasting anywhere.
+    fn f32_params(&self) -> HashMap<&'static str, Arc<AtomicF32>> {
+        HashMap::new()
+    }
 
     /// Processes a single audio sample only if the effect is currently active.
     ///

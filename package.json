@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "generate-types": "cargo tauri-typegen generate --output-path ./src/domain",
+    "generate-types": "cargo tauri-typegen generate --output-path ./src/domain && npm run generate-effect-types",
+    "generate-effect-types": "node scripts/generate-effect-types.mjs",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
