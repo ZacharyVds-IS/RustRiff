@@ -19,7 +19,12 @@ use tracing::{error, info};
 /// and treble (high frequencies), allowing fine-tuning of the audio signal's frequency response.
 /// These parameters are also updated atomically for low-latency changes.
 ///
-/// Gain and master volume are validated to be positive values (> 0.0); attempting to
+/// Effect chain is the chain of effects where the signal is put through. Effects are applied in the order they are added to the chain.
+/// The `Channel` struct provides methods to add and remove effects from the chain, allowing dynamic modification of the audio processing pipeline.
+///
+/// Next effect_id is the unique identifier given to the next created effect in the chain.
+///
+/// Gain and volume are validated to be positive values (> 0.0); attempting to
 /// set a negative or zero value will panic.
 ///
 /// Tone stack values are validated to be between 0.0 and 1.0; attempting to set a value outside this range will panic.
@@ -39,6 +44,7 @@ impl Channel {
     ///
     /// If `gain` or `master_volume` are not provided, they default to `1.0`.
     /// The tone stack parameters (bass, middle, treble) are initialized to `1.0`.
+    /// The `effect chain` is initialized as an empty vector, and the next effect ID starts at `0`.
     ///
     /// # Arguments
     ///
@@ -235,6 +241,13 @@ impl Channel {
         self.next_effect_id += 1;
     }
 
+    /// Removes an effect from the channel's effect chain by its unique identifier.
+    ///
+    /// If the effect is found and removed, an informational message is logged. If the effect is not found, an error message is logged.
+    ///
+    /// # Arguments
+    ///
+    /// * `effect_id` - The unique identifier of the effect to remove from the chain
     pub fn remove_effect_from_chain(&mut self, effect_id: u32) {
         if let Some(pos) = self.effect_chain.iter().position(|e| e.id() == effect_id) {
             info!("Removed effect: {} from chain", self.effect_chain[pos].name());
@@ -244,6 +257,7 @@ impl Channel {
         }
     }
 
+    /// Returns the next available unique identifier for an effect in this channel's effect chain.
     pub fn next_effect_id(&self) -> u32 {
         self.next_effect_id
     }
