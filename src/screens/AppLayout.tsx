@@ -3,9 +3,9 @@ import {Outlet, useNavigate} from "react-router-dom";
 import {ChannelSelector} from "../components/ChannelSelector.tsx";
 import {useAmpStore} from "../state/AmpConfigStore.tsx";
 import {useState} from "react";
-import {AddChannelDialog} from "../components/AddChannelDialog.tsx";
+import {AddChannelDialog} from "../components/dialogs/AddChannelDialog.tsx";
 import DeleteIcon from '@mui/icons-material/Delete';
-import {DeleteConfirmationDialog} from "../components/DeleteConfirmationDialog.tsx";
+import {DeleteConfirmationDialog} from "../components/dialogs/DeleteConfirmationDialog.tsx";
 
 export function AppLayout() {
     const navigate = useNavigate();

@@ -2,9 +2,10 @@ import {Box, IconButton, Paper, Stack, Typography} from "@mui/material";
 import {EffectPedalPreview} from "./EffectPedalPreview.tsx";
 import {EffectDto} from "../domain";
 import {AddCircle, Delete} from "@mui/icons-material";
-import {DeleteConfirmationDialog} from "./DeleteConfirmationDialog.tsx";
+import {DeleteConfirmationDialog} from "./dialogs/DeleteConfirmationDialog.tsx";
 import {useState} from "react";
-import {AddEffectDialog} from "./AddEffectDialog.tsx";
+import {AddEffectDialog} from "./dialogs/AddEffectDialog.tsx";
+import {useAmpStore} from "../state/AmpConfigStore.tsx";
 
 export interface EffectChainProps {
     effects: EffectDto[];
@@ -18,18 +19,20 @@ export function EffectChain({effects, selected, onSelectionChange}: EffectChainP
         return selected === "amp";
     }
 
-export function EffectChain({effects}: EffectChainProps) {
     let [removeDialogOpen, setRemoveDialogOpen] = useState(false);
     let [addDialogOpen, setAddDialogOpen] = useState(false);
-
-    const handleEffectRemove = () => {
-        setRemoveDialogOpen(false);
-        console.log("You tried removing an effect but it isn't wired yet")
-    }
 
     const handleAdd = () => {
         setAddDialogOpen(false);
         console.log("You tried to add an effect it isn't wired yet")
+    }
+
+    const handleEffectRemove = () => {
+        if (selected != "amp") {
+            useAmpStore.getState().removeEffect(selected.data.id);
+        }
+        onSelectionChange("amp");
+        setRemoveDialogOpen(false);
     }
 
     function isEffectSelected(effect: EffectDto) {
@@ -166,7 +169,7 @@ export function EffectChain({effects}: EffectChainProps) {
                             open={removeDialogOpen}
                             onClose={()=> setRemoveDialogOpen(false)}
                             onConfirm={handleEffectRemove}
-                            title={`Remove effect "${item.name}"?`}
+                            title={`Remove effect "${item.data.name}"?`}
                             description={"Are you sure you want to remove this effect from the chain? This action cannot be undone."}
                         />
                         <Box sx={{ display: 'flex', alignItems: 'center', height: 75 }}>
