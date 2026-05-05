@@ -232,7 +232,7 @@ impl Channel {
 
     // ── Effect chain ──────────────────────────────────────────────────────────
 
-    /// Returns a reference to the effect chain for this channel.
+    /// Returns an `Arc<Mutex<Vec<Box<dyn Effect>>>>` representing the effect chain for this channel.
     pub fn effect_chain(&self) -> Arc<Mutex<Vec<Box<dyn Effect>>>> {
         Arc::clone(&self.effect_chain)
     }
