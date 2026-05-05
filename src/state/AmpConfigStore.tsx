@@ -46,9 +46,9 @@ export const useAmpStore = create<AmpState>((set) => ({
             name: "Default",
             gain: 1.0,
             tone_stack: {
-                bass: 100.0,
-                middle: 100.0,
-                treble: 100.0,
+                bass: 1.0,
+                middle: 1.0,
+                treble: 1.0,
             },
             volume: 1,
             effect_chain: [],

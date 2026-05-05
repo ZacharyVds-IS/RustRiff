@@ -1,5 +1,7 @@
+use crate::commands::helpers::persist_amp_config;
 use crate::domain::dto::amp_config_dto::AmpConfigDto;
 use crate::domain::dto::tone_stack_dto::ToneStackDto;
+use crate::services::amp_config_service::AmpConfigPersistenceService;
 use crate::services::audio_service::AudioService;
 use std::sync::Mutex;
 
@@ -34,9 +36,14 @@ pub fn get_amp_config(
 /// * `audio_service` - The shared [`AudioService`] state.
 /// * `is_on` - Whether to enable (`true`) or disable (`false`) the loopback.
 #[tauri::command]
-pub(crate) fn toggle_on_off(audio_service: tauri::State<Mutex<AudioService>>, is_on: bool) {
+pub(crate) fn toggle_on_off(
+    audio_service: tauri::State<Mutex<AudioService>>,
+    persistence_service: tauri::State<Mutex<AmpConfigPersistenceService>>,
+    is_on: bool,
+) {
     let mut service = audio_service.inner().lock().unwrap();
     service.toggle_loopback(is_on);
+    persist_amp_config(&service, &persistence_service);
 }
 
 /// Sets the input gain level for the amplifier.
@@ -50,9 +57,14 @@ pub(crate) fn toggle_on_off(audio_service: tauri::State<Mutex<AudioService>>, is
 ///
 /// [`Channel`]: crate::domain::channel::Channel
 #[tauri::command]
-pub(crate) fn set_gain(audio_service: tauri::State<Mutex<AudioService>>, gain: f32) {
+pub(crate) fn set_gain(
+    audio_service: tauri::State<Mutex<AudioService>>,
+    persistence_service: tauri::State<Mutex<AmpConfigPersistenceService>>,
+    gain: f32,
+) {
     let service = audio_service.inner().lock().unwrap();
     service.channels().iter().find(|c| c.id() == *service.current_channel_id()).unwrap().set_gain(gain);
+    persist_amp_config(&service, &persistence_service);
 }
 
 /// Sets the master volume level for the amplifier.
@@ -66,9 +78,14 @@ pub(crate) fn set_gain(audio_service: tauri::State<Mutex<AudioService>>, gain: f
 ///
 /// [`AudioService`]: crate::services::audio_service::AudioService
 #[tauri::command]
-pub(crate) fn set_master_volume(audio_service: tauri::State<Mutex<AudioService>>, master_volume: f32) {
+pub(crate) fn set_master_volume(
+    audio_service: tauri::State<Mutex<AudioService>>,
+    persistence_service: tauri::State<Mutex<AmpConfigPersistenceService>>,
+    master_volume: f32,
+) {
     let service = audio_service.inner().lock().unwrap();
     service.set_master_volume(master_volume);
+    persist_amp_config(&service, &persistence_service);
 }
 
 
@@ -85,9 +102,14 @@ pub(crate) fn set_master_volume(audio_service: tauri::State<Mutex<AudioService>>
 /// [`Channel`]: crate::domain::channel::Channel
 /// [`AudioService`]: crate::services::audio_service::AudioService
 #[tauri::command]
-pub(crate) fn set_tone_stack(audio_service: tauri::State<Mutex<AudioService>>, tone_stack: ToneStackDto){
+pub(crate) fn set_tone_stack(
+    audio_service: tauri::State<Mutex<AudioService>>,
+    persistence_service: tauri::State<Mutex<AmpConfigPersistenceService>>,
+    tone_stack: ToneStackDto,
+){
     let service = audio_service.inner().lock().unwrap();
     service.channels().iter().find(|c| c.id() == *service.current_channel_id()).unwrap().set_tone_stack(tone_stack);
+    persist_amp_config(&service, &persistence_service);
 }
 
 
@@ -104,9 +126,14 @@ pub(crate) fn set_tone_stack(audio_service: tauri::State<Mutex<AudioService>>, t
 /// [`Channel`]: crate::domain::channel::Channel
 /// [`AudioService`]: crate::services::audio_service::AudioService
 #[tauri::command]
-pub(crate) fn set_bass(audio_service: tauri::State<Mutex<AudioService>>, bass: f32){
+pub(crate) fn set_bass(
+    audio_service: tauri::State<Mutex<AudioService>>,
+    persistence_service: tauri::State<Mutex<AmpConfigPersistenceService>>,
+    bass: f32,
+){
     let service = audio_service.inner().lock().unwrap();
     service.channels().iter().find(|c| c.id() == *service.current_channel_id()).unwrap().set_bass(bass);
+    persist_amp_config(&service, &persistence_service);
 }
 
 
@@ -124,9 +151,14 @@ pub(crate) fn set_bass(audio_service: tauri::State<Mutex<AudioService>>, bass: f
 /// [`Channel`]: crate::domain::channel::Channel
 /// [`AudioService`]: crate::services::audio_service::AudioService
 #[tauri::command]
-pub(crate) fn set_middle(audio_service: tauri::State<Mutex<AudioService>>, middle: f32){
+pub(crate) fn set_middle(
+    audio_service: tauri::State<Mutex<AudioService>>,
+    persistence_service: tauri::State<Mutex<AmpConfigPersistenceService>>,
+    middle: f32,
+){
     let service = audio_service.inner().lock().unwrap();
     service.channels().iter().find(|c| c.id() == *service.current_channel_id()).unwrap().set_middle(middle);
+    persist_amp_config(&service, &persistence_service);
 }
 
 
@@ -143,9 +175,14 @@ pub(crate) fn set_middle(audio_service: tauri::State<Mutex<AudioService>>, middl
 /// [`Channel`]: crate::domain::channel::Channel
 /// [`AudioService`]: crate::services::audio_service::AudioService
 #[tauri::command]
-pub(crate) fn set_treble(audio_service: tauri::State<Mutex<AudioService>>, treble: f32){
+pub(crate) fn set_treble(
+    audio_service: tauri::State<Mutex<AudioService>>,
+    persistence_service: tauri::State<Mutex<AmpConfigPersistenceService>>,
+    treble: f32,
+){
     let service = audio_service.inner().lock().unwrap();
     service.channels().iter().find(|c| c.id() == *service.current_channel_id()).unwrap().set_treble(treble);
+    persist_amp_config(&service, &persistence_service);
 }
 
 /// Sets the output volume for the current channel.
@@ -161,7 +198,12 @@ pub(crate) fn set_treble(audio_service: tauri::State<Mutex<AudioService>>, trebl
 /// [`Channel`]: crate::domain::channel::Channel
 /// [`AudioService`]: crate::services::audio_service::AudioService
 #[tauri::command]
-pub(crate) fn set_volume(audio_service: tauri::State<Mutex<AudioService>>, volume: f32){
+pub(crate) fn set_volume(
+    audio_service: tauri::State<Mutex<AudioService>>,
+    persistence_service: tauri::State<Mutex<AmpConfigPersistenceService>>,
+    volume: f32,
+){
     let service = audio_service.inner().lock().unwrap();
     service.channels().iter().find(|c| c.id() == *service.current_channel_id()).unwrap().set_volume(volume);
+    persist_amp_config(&service, &persistence_service);
 }

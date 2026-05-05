@@ -32,3 +32,4 @@ docs/backend/
 *.njsproj
 *.sln
 *.sw?
+/src-tauri/amp-config.json

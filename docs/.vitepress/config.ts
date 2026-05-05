@@ -33,6 +33,12 @@ export default defineConfig({
         ]
       },
       {
+        text:'Persistency',
+        items:[
+          {text:'Storing data', link:'/guide/persistency/storing-data'}
+        ]
+      },
+      {
         text:'Effects',
         items:[
           {text:'Effect chain', link:'/guide/effects/chain'},

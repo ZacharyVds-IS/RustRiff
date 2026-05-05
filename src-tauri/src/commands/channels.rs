@@ -1,9 +1,10 @@
+use crate::commands::helpers::persist_amp_config;
 use crate::domain::dto::channel_dto::ChannelDto;
+use crate::services::amp_config_service::AmpConfigPersistenceService;
 use crate::services::audio_service::AudioService;
 use std::sync::Mutex;
 use tauri::{AppHandle, Emitter};
 use tracing::info;
-
 
 /// Sets the active channel ID in the audio service.
 ///
@@ -18,9 +19,14 @@ use tracing::info;
 /// [`Channel`]: crate::domain::channel::Channel
 /// [`AudioService`]: crate::services::audio_service::AudioService
 #[tauri::command]
-pub(crate) fn set_channel_id(audio_service: tauri::State<Mutex<AudioService>>, channel_id: u32) {
+pub(crate) fn set_channel_id(
+    audio_service: tauri::State<Mutex<AudioService>>,
+    persistence_service: tauri::State<Mutex<AmpConfigPersistenceService>>,
+    channel_id: u32,
+) {
     let mut service = audio_service.inner().lock().unwrap();
     service.set_current_channel_id(channel_id);
+    persist_amp_config(&service, &persistence_service);
 }
 
 
@@ -67,13 +73,19 @@ pub(crate) fn get_channel_id(audio_service: tauri::State<Mutex<AudioService>>) -
 /// [`ChannelDto`]: crate::dto::channel_dto::ChannelDto
 /// [`AudioService`]: crate::services::audio_service::AudioService
 #[tauri::command]
-pub(crate) fn add_channel(app: AppHandle,audio_service: tauri::State<Mutex<AudioService>>, channel_name: String) -> Result<(), String> {
+pub(crate) fn add_channel(
+    app: AppHandle,
+    audio_service: tauri::State<Mutex<AudioService>>,
+    persistence_service: tauri::State<Mutex<AmpConfigPersistenceService>>,
+    channel_name: String,
+) -> Result<(), String> {
     info!("add_channel command received: {channel_name}");
 
     let mut service = audio_service.inner().lock().unwrap();
     let channel_id = service.add_channel(channel_name.clone());
     let channel = service.channels().iter().find(|c| c.id() == channel_id).unwrap();
     let channel_dto = ChannelDto::from(channel);
+    persist_amp_config(&service, &persistence_service);
 
     info!("emitting channel-added event for id={} name={}", channel_dto.id, channel_dto.name);
 
@@ -137,9 +149,14 @@ pub(crate) fn get_all_channels(
 /// [`Channel`]: crate::domain::channel::Channel
 /// [`AudioService`]: crate::services::audio_service::AudioService
 #[tauri::command]
-pub (crate) fn remove_channel(audio_service: tauri::State<Mutex<AudioService>>, channel_id: u32) -> Result<(), String> {
+pub(crate) fn remove_channel(
+    audio_service: tauri::State<Mutex<AudioService>>,
+    persistence_service: tauri::State<Mutex<AmpConfigPersistenceService>>,
+    channel_id: u32,
+) -> Result<(), String> {
     let mut service = audio_service.inner().lock().unwrap();
     service.remove_channel(channel_id);
+    persist_amp_config(&service, &persistence_service);
     info!("remove channel {channel_id}");
     Ok(())
 }

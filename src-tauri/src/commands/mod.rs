@@ -13,3 +13,4 @@ pub mod settings;
 pub mod latency_testing;
 pub mod channels;
 pub mod effects;
+pub mod helpers;

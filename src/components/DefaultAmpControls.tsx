@@ -23,6 +23,11 @@ export function DefaultAmpControls() {
     const middle = activeChannel?.tone_stack.middle ?? 0;
     const treble = activeChannel?.tone_stack.treble ?? 0;
 
+    // Tone stack values are normalized 0.0..1.0 in state/backend. Convert only for UI display.
+    const bassUi = bass * 100;
+    const middleUi = middle * 100;
+    const trebleUi = treble * 100;
+
     const masterVolume = useAmpStore((state) => state.master_volume);
     const isActive = useAmpStore((state) => state.is_active);
 
@@ -154,9 +159,30 @@ export function DefaultAmpControls() {
                         </Typography>
 
                         <Stack direction="row" spacing={2}>
-                            <Knob label="Bass" min={0} max={100} value={bass} size={50} onChange={setBass}/>
-                            <Knob label="Middle" min={0} max={100} value={middle} size={50} onChange={setMiddle}/>
-                            <Knob label="Treble" min={0} max={100} value={treble} size={50} onChange={setTreble}/>
+                            <Knob
+                                label="Bass"
+                                min={0}
+                                max={100}
+                                value={bassUi}
+                                size={50}
+                                onChange={(val) => setBass(val / 100)}
+                            />
+                            <Knob
+                                label="Middle"
+                                min={0}
+                                max={100}
+                                value={middleUi}
+                                size={50}
+                                onChange={(val) => setMiddle(val / 100)}
+                            />
+                            <Knob
+                                label="Treble"
+                                min={0}
+                                max={100}
+                                value={trebleUi}
+                                size={50}
+                                onChange={(val) => setTreble(val / 100)}
+                            />
                         </Stack>
                     </Box>
                     {developerMode && (
