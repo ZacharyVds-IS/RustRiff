@@ -2,14 +2,13 @@ use crate::domain::dto::effect::effect_dto::EffectDto;
 use crate::services::audio_service::AudioService;
 use std::sync::{Arc, Mutex};
 use tracing::info;
+use crate::domain::channel::Channel;
 
 #[tauri::command]
-pub async fn add_effect(
-    effect_dto: EffectDto,
-    state: tauri::State<'_, Arc<Mutex<AudioService>>>,
-) -> Result<(), String> {
-    let mut service = state.lock().map_err(|_| "Failed to lock service")?;
-
+pub(crate) fn add_effect(
+    audio_service: tauri::State<Mutex<AudioService>>,
+    effect_dto: EffectDto, ) -> Result<(), String> {
+    let mut service = audio_service.inner().lock().unwrap();
     let target_channel_id = *service.current_channel_id();
 
     if let Some(channel) = service.channels_mut().iter_mut().find(|c| c.id() == target_channel_id) {

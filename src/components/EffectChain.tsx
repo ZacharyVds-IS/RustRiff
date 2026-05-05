@@ -22,7 +22,9 @@ export function EffectChain({effects, selected, onSelectionChange}: EffectChainP
     let [removeDialogOpen, setRemoveDialogOpen] = useState(false);
     let [addDialogOpen, setAddDialogOpen] = useState(false);
 
-    const handleAdd = () => {
+    const handleAdd = (newEffect: EffectDto) => {
+        useAmpStore.getState().AddEffect(newEffect);
+
         setAddDialogOpen(false);
         console.log("You tried to add an effect it isn't wired yet")
     }
@@ -94,15 +96,15 @@ export function EffectChain({effects, selected, onSelectionChange}: EffectChainP
             <Stack
                 direction="row"
                 spacing={6}
-                sx={{ width: '100%', position: 'relative', zIndex: 2 }}
+                sx={{width: '100%', position: 'relative', zIndex: 2}}
             >
                 {/* Amp node — selected by default */}
                 <Box
                     key={0}
                     onClick={() => onSelectionChange("amp")}
-                    sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer' }}
+                    sx={{display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer'}}
                 >
-                    <Box sx={{ display: 'flex', alignItems: 'center', height: 75 }}>
+                    <Box sx={{display: 'flex', alignItems: 'center', height: 75}}>
                         <Box
                             sx={{
                                 width: 60,
@@ -158,7 +160,7 @@ export function EffectChain({effects, selected, onSelectionChange}: EffectChainP
                                 transition: 'all 0.2s ease-in-out',
                                 bgcolor: 'error.main',
                                 color: 'white',
-                                '&:hover': { bgcolor: 'error.dark' },
+                                '&:hover': {bgcolor: 'error.dark'},
                                 width: 25,
                                 height: 25
                             }}
@@ -167,12 +169,12 @@ export function EffectChain({effects, selected, onSelectionChange}: EffectChainP
                         </IconButton>
                         <DeleteConfirmationDialog
                             open={removeDialogOpen}
-                            onClose={()=> setRemoveDialogOpen(false)}
+                            onClose={() => setRemoveDialogOpen(false)}
                             onConfirm={handleEffectRemove}
                             title={`Remove effect "${item.data.name}"?`}
                             description={"Are you sure you want to remove this effect from the chain? This action cannot be undone."}
                         />
-                        <Box sx={{ display: 'flex', alignItems: 'center', height: 75 }}>
+                        <Box sx={{display: 'flex', alignItems: 'center', height: 75}}>
                             <Box sx={{
                                 borderRadius: 2,
                                 transition: 'border 0.15s, box-shadow 0.15s',
@@ -201,7 +203,7 @@ export function EffectChain({effects, selected, onSelectionChange}: EffectChainP
                     justifyContent: 'center',
                     height: 70
                 }}>
-                    <IconButton onClick={()=> setAddDialogOpen(true)} sx={{
+                    <IconButton onClick={() => setAddDialogOpen(true)} sx={{
                         p: 0,
                         bgcolor: 'white',
                         '&:hover': {bgcolor: 'white', transform: 'scale(1.2)'},
@@ -213,7 +215,7 @@ export function EffectChain({effects, selected, onSelectionChange}: EffectChainP
                     }}>
                         <AddCircle fontSize="large" color="primary"/>
                     </IconButton>
-                    <AddEffectDialog open={addDialogOpen} onClose={()=> setAddDialogOpen(false)} onCreate={handleAdd}/>
+                    <AddEffectDialog open={addDialogOpen} onClose={() => setAddDialogOpen(false)} onCreate={handleAdd}/>
                 </Box>
             </Stack>
         </Box>
