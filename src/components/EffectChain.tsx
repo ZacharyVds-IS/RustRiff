@@ -12,16 +12,17 @@ export interface EffectChainProps {
     selected: EffectDto | "amp";
     /** "amp" = amp head selected, EffectDto = that effect is selected */
     onSelectionChange: (selected: EffectDto | "amp") => void;
+    onReorderOpen: (open: boolean) => void;
 }
 
-export function EffectChain({effects, selected, onSelectionChange}: EffectChainProps) {
+export function EffectChain({effects, selected, onSelectionChange, onReorderOpen}: EffectChainProps) {
     function isAmpSelected() {
         return selected === "amp";
     }
 
     let [removeDialogOpen, setRemoveDialogOpen] = useState(false);
     let [addDialogOpen, setAddDialogOpen] = useState(false);
-    let [editOpen, setEditOpen] = useState(false);
+    let [reorderOpen, setReorderOpen] = useState(false);
 
     const handleAdd = (newEffect: EffectDto) => {
         useAmpStore.getState().AddEffect(newEffect);
@@ -36,6 +37,11 @@ export function EffectChain({effects, selected, onSelectionChange}: EffectChainP
         }
         onSelectionChange("amp");
         setRemoveDialogOpen(false);
+    }
+
+    const handleToggleEffectReorder = () => {
+        onReorderOpen(!reorderOpen);
+        setReorderOpen(!reorderOpen)
     }
 
     function isEffectSelected(effect: EffectDto) {
@@ -56,51 +62,54 @@ export function EffectChain({effects, selected, onSelectionChange}: EffectChainP
                 bgcolor: 'background.paper',
                 borderRadius: 4,
                 p: 2,
-                position: 'relative'
+                position: 'relative',
+                height: reorderOpen ? 600 : "auto",
             }}
         >
-            <Box sx={{display: 'flex', justifyContent: 'flex-end', mb: 4}}>
-                {!editOpen &&
-                <Button
-                    sx={{
-                        bgcolor: 'background.paper',
-                        color: 'primary.main',
-                        borderRadius: 50,
-                        textTransform: 'none',
-                        fontSize: '0.875rem',
-                        fontWeight: 500,
-                        p: 1.2,
-                        px: 3,
-                        border: '1px solid',
-                        borderColor: 'divider',
-                        '&:hover': {
-                            bgcolor: '#fdfdfd',
-                            cursor: 'pointer'
-                        }
-                    }}
-                    onClick={() => setEditOpen(true)}
-                >
-                   Edit Order
-                </Button>
+            <Box sx={{display: 'flex', justifyContent: 'flex-end', mb: 0.75}}>
+                {!reorderOpen &&
+                    <Button
+                        sx={{
+                            bgcolor: 'background.paper',
+                            color: 'primary.main',
+                            borderRadius: 50,
+                            textTransform: 'none',
+                            fontSize: '0.875rem',
+                            fontWeight: 500,
+                            p: 1.2,
+                            px: 3,
+                            border: '1px solid',
+                            borderColor: 'divider',
+                            '&:hover': {
+                                bgcolor: '#fdfdfd',
+                                cursor: 'pointer'
+                            }
+                        }}
+                        onClick={handleToggleEffectReorder}
+                    >
+                        Edit Order
+                    </Button>
                 }
             </Box>
 
+            {/* The Horizontal Line */}
             <Box
                 sx={{
                     position: 'absolute',
                     left: 0,
                     right: 0,
-                    top: '60%',
+                    top: reorderOpen ? '40%' : "50%",
                     transform: 'translateY(-50%)',
                     height: '6px',
                     bgcolor: 'secondary.main',
                     zIndex: 1
                 }}
             />
+            {/* The Chain Stack */}
             <Stack
                 direction="row"
                 spacing={6}
-                sx={{width: '100%', position: 'relative', zIndex: 2}}
+                sx={{width: '100%', position: 'relative', zIndex: 2, minHeight: 120}}
             >
                 {/* Amp node — selected by default */}
                 <Box
@@ -108,7 +117,7 @@ export function EffectChain({effects, selected, onSelectionChange}: EffectChainP
                     onClick={() => onSelectionChange("amp")}
                     sx={{display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer'}}
                 >
-                    <Box sx={{display: 'flex', alignItems: 'center', height: 75}}>
+                    <Box sx={{display: 'flex', flexDirection: "column" ,alignItems: 'center', height: 75}}>
                         <Box
                             sx={{
                                 width: 60,
@@ -125,6 +134,8 @@ export function EffectChain({effects, selected, onSelectionChange}: EffectChainP
                     <Typography
                         variant="caption"
                         sx={{
+                            position: 'absolute',
+                            bottom: 25,
                             mt: 1,
                             color: isAmpSelected() ? 'primary.main' : 'text.primary',
                             fontWeight: isAmpSelected() ? 700 : 500,
@@ -222,6 +233,12 @@ export function EffectChain({effects, selected, onSelectionChange}: EffectChainP
                     <AddEffectDialog open={addDialogOpen} onClose={() => setAddDialogOpen(false)} onCreate={handleAdd}/>
                 </Box>
             </Stack>
+            {reorderOpen &&
+                <Stack direction={"row"}>
+                    <Button onClick={handleToggleEffectReorder}>Cancel</Button>
+                    <Button>Apply Changes</Button>
+                </Stack>
+            }
         </Box>
     );
 }
