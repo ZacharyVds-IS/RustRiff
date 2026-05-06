@@ -2,6 +2,7 @@ import {
     addChannel,
     addEffect,
     AmpConfigDto,
+    applyEffectOrderChange,
     ChannelDto,
     EffectDto,
     getAmpConfig,
@@ -43,7 +44,7 @@ interface AmpState extends AmpConfigDto {
     applyChangesToChainOrder: () => Promise<void>;
 }
 
-export const useAmpStore = create<AmpState>((set) => ({
+export const useAmpStore = create<AmpState>((set, get) => ({
         master_volume: 1,
         is_active: false,
         channels: [{
@@ -343,9 +344,25 @@ export const useAmpStore = create<AmpState>((set) => ({
         },
 
         applyChangesToChainOrder: async () => {
-            //Save to backend here
-            console.log("applyChangesToChainOrder");
-            set({chain_snapshot: null});
+            const state = get();
+
+            const currentChannel = state.channels.find(c => c.id === state.current_channel);
+
+            if (!currentChannel) {
+                console.error("No active channel found to apply order changes.");
+                return;
+            }
+
+            const currentEffects = currentChannel.effect_chain;
+            try {
+                console.log("Changing effect order", );
+                await applyEffectOrderChange({effects: currentEffects});
+                console.log("Successfully changed effect order", );
+                set({chain_snapshot: null});
+            } catch (error) {
+                console.error("Failed to change Effect order:", error);
+            }
+
         },
     }))
 ;

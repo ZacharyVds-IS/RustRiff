@@ -231,12 +231,7 @@ impl Channel {
         Arc::clone(&self.effect_chain)
     }
 
-    /// Returns a previously taken effect chain back to the channel.
-    ///
-    /// Called by `AudioService::stop_loopback` after the audio worker thread
-    /// has exited and returned ownership of the effects. The `effect_handles`
-    /// Arcs were never cleared, so parameter and toggle commands remain valid
-    /// before and after this call.
+    /// Sets the effect chain to a new given chain of effects
     pub fn restore_effect_chain(&mut self, effects: Vec<Box<dyn Effect>>) {
         if let Ok(mut chain) = self.effect_chain.lock() {
             *chain = effects;
