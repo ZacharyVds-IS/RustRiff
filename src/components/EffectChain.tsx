@@ -65,8 +65,6 @@ export function EffectChain({effects, selected, onSelectionChange, onReorderOpen
         const newIndex = direction === "left" ? currentIndex - 1 : currentIndex + 1;
         if (newIndex < 0 || newIndex >= effects.length) return;
 
-        console.log(`It looks like you're trying to move effect ${effectId} from position ${currentIndex} to ${newIndex}`);
-
         moveEffect(effectId, newIndex);
     }
 
