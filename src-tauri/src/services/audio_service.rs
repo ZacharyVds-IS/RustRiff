@@ -685,7 +685,7 @@ mod tests {
 
         #[test]
         fn apply_amp_config_restores_channels_tones_effects_and_master_volume() {
-            let mut service = build_service(MockAudioHandlerTrait::new());
+            let mut service = build_service(make_mock_handler());
             let config = AmpConfigDto {
                 master_volume: 0.42,
                 is_active: false,
@@ -751,7 +751,7 @@ mod tests {
 
         #[test]
         fn apply_amp_config_clamps_non_positive_levels_and_falls_back_to_first_channel() {
-            let mut service = build_service(MockAudioHandlerTrait::new());
+            let mut service = build_service(make_mock_handler());
             let config = AmpConfigDto {
                 master_volume: 0.0,
                 is_active: false,
@@ -784,7 +784,7 @@ mod tests {
 
         #[test]
         fn apply_amp_config_with_no_channels_creates_default_channel() {
-            let mut service = build_service(MockAudioHandlerTrait::new());
+            let mut service = build_service(make_mock_handler());
 
             service.apply_amp_config(AmpConfigDto {
                 master_volume: 0.75,

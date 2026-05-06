@@ -4,7 +4,8 @@ use crate::domain::dto::effect::effect_dto::EffectDto;
 use crate::domain::effect::Effect;
 use crate::infrastructure::file_loader::{FileLoader, FileLoaderTrait};
 use crate::services::processors::resampler::resampler::ResamplerImpl;
-use hound::WavReader;
+use rustfft::num_complex::Complex;
+use rustfft::FftPlanner;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -19,6 +20,9 @@ pub struct Cabinet {
 	is_active: Arc<AtomicBool>,
 	color: String,
 	ir_buffer: Vec<f32>,
+	// Convolution kernel in frequency domain (complex: magnitude + phase).
+	ir_fft_kernel: Vec<Complex<f32>>,
+	ir_fft_size: usize,
 	dsp_sample_rate: u32,
 }
 
@@ -35,12 +39,15 @@ impl Cabinet {
 		let ir_sample_rate = file_loader.read_wav_sample_rate(&temp_file_path).unwrap_or(dsp_sample_rate);
 		let (ir_buffer, resampling_applied) =
 			Self::resample_if_needed(ir_buffer, ir_sample_rate, dsp_sample_rate);
+		let (ir_fft_kernel, ir_fft_size) = Self::convert_ir_to_fft_kernel(&ir_buffer);
 
 		info!(
-			"Cabinet rates -> ir_sample_rate={}, dsp_sample_rate={}, resampling_applied={}",
+			"Cabinet rates -> ir_sample_rate={}, dsp_sample_rate={}, resampling_applied={}, fft_kernel_len={}, fft_size={}",
 			ir_sample_rate,
 			dsp_sample_rate,
-			resampling_applied
+			resampling_applied,
+			ir_fft_kernel.len(),
+			ir_fft_size
 		);
 
 		Self {
@@ -49,8 +56,28 @@ impl Cabinet {
 			is_active: Arc::new(AtomicBool::new(is_active)),
 			color,
 			ir_buffer,
+			ir_fft_kernel,
+			ir_fft_size,
 			dsp_sample_rate,
 		}
+	}
+
+	fn convert_ir_to_fft_kernel(ir_buffer: &[f32]) -> (Vec<Complex<f32>>, usize) {
+		if ir_buffer.is_empty() {
+			return (Vec::new(), 0);
+		}
+		
+		let fft_size = ir_buffer.len().next_power_of_two().max(2);
+		let mut planner = FftPlanner::<f32>::new();
+		let fft = planner.plan_fft_forward(fft_size);
+
+		let mut buffer = vec![Complex::new(0.0_f32, 0.0_f32); fft_size];
+		for (idx, sample) in ir_buffer.iter().enumerate() {
+			buffer[idx].re = *sample;
+		}
+
+		fft.process(&mut buffer);
+		(buffer, fft_size)
 	}
 
 	fn resample_if_needed(buffer: Vec<f32>, source_rate: u32, target_rate: u32) -> (Vec<f32>, bool) {
@@ -92,6 +119,15 @@ impl Cabinet {
 
 	pub fn sample_rate(&self) -> u32 {
 		self.dsp_sample_rate
+	}
+
+
+	pub fn ir_fft_kernel(&self) -> &[Complex<f32>] {
+		&self.ir_fft_kernel
+	}
+
+	pub fn ir_fft_size(&self) -> usize {
+		self.ir_fft_size
 	}
 }
 

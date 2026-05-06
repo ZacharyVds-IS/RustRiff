@@ -3487,6 +3487,7 @@ dependencies = [
  "mockall",
  "ringbuf",
  "rubato",
+ "rustfft",
  "serde",
  "serde_json",
  "spectrum-analyzer",

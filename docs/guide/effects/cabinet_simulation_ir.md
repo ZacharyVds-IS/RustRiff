@@ -45,7 +45,7 @@ Simply put this means that instead of the complex sliding and summing math. We c
 
 ### FFT workflow
 1. Take the dry guitar signal and convert them into its frequency components.
-2. FFT the ir: Convert your Cabinet IR into its frequency components (this only needs to be done once).
+2. apply FFT to the ir: Convert your Cabinet IR into its frequency components (this only needs to be done once).
 3. Multiple: Multiply the two frequency graphs together. If the IR has a huge dip at 500Hz, the multiplication will "carve" that dip into your guitar signal.
 4. Inverse FFT (IFFT): Convert the result back into the Time Domain so our speakers can use it.
 
