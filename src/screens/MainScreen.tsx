@@ -12,6 +12,8 @@ export function MainScreen() {
     );
     const currentChannelId = useAmpStore((state) => state.current_channel);
 
+    let [editOrderOpen, setEditOrderOpen] = useState<boolean>(false);
+
     const [selection, setSelection] = useState<number | "amp">("amp");
     useEffect(() => {
         setSelection("amp");
@@ -40,12 +42,13 @@ export function MainScreen() {
                     onSelectionChange={(selected) => {
                         setSelection(selected === "amp" ? "amp" : selected.data.id);
                     }}
+                    onReorderOpen={setEditOrderOpen}
                 />
             }
-
-            {resolvedSelection === "amp" || !resolvedSelection
-                ? <DefaultAmpControls/>
-                : <EffectPedal effect={resolvedSelection}/>
+            {!editOrderOpen &&
+                ((resolvedSelection === "amp" || !resolvedSelection)
+                    ? <DefaultAmpControls/>
+                    : <EffectPedal effect={resolvedSelection}/>)
             }
         </Box>
     );

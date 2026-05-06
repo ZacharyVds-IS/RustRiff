@@ -19,8 +19,8 @@ pub enum EffectDto {
 }
 
 impl EffectDto {
-    pub fn to_domain(self, next_effect_id: u32, dsp_sample_rate: u32) -> Box<dyn Effect> {
-        match self {
+    pub fn add_to_domain(self, next_effect_id: u32) -> Box<dyn Effect> {
+        match self { 
             EffectDto::HCDistortion(dto) => Box::new(HCDistortion::new(
                 next_effect_id,
                 dto.name,
@@ -31,6 +31,26 @@ impl EffectDto {
             )),
             EffectDto::Cabinet(dto) => Box::new(Cabinet::new(
                 next_effect_id,
+                dto.name,
+                dto.is_active,
+                dto.color,
+                dsp_sample_rate,
+            )),
+        }
+    }
+
+    pub fn to_domain(self) -> Box<dyn Effect> {
+        match self {
+            EffectDto::HCDistortion(dto) => Box::new(HCDistortion::new(
+                dto.id,
+                dto.name,
+                dto.is_active,
+                dto.threshold,
+                dto.level,
+                dto.color,
+            )),
+            EffectDto::Cabinet(dto) => Box::new(Cabinet::new(
+                dto.id,
                 dto.name,
                 dto.is_active,
                 dto.color,
