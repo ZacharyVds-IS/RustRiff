@@ -35,7 +35,12 @@ interface AmpState extends AmpConfigDto {
     updateEffectActiveState: (effectId: number, isActive: boolean) => void;
     updateHcDistortionParams: (effectId: number, patch: Partial<Pick<HcDistortionDto, "threshold" | "level">>) => void;
     removeEffect: (effectId: number) => void;
-    AddEffect: (effectDto: EffectDto) => Promise<void>;
+    addEffect: (effectDto: EffectDto) => Promise<void>;
+    moveEffect: (effectId: number, newIndex: number) => Promise<void>;
+    chain_snapshot: EffectDto[] | null;
+    startEditingChainOrder: () => void;
+    cancelEditingChainOrder: () => void;
+    applyChangesToChainOrder: () => Promise<void>;
 }
 
 export const useAmpStore = create<AmpState>((set) => ({
@@ -54,6 +59,7 @@ export const useAmpStore = create<AmpState>((set) => ({
             effect_chain: [],
         }],
         current_channel: 0,
+        chain_snapshot: null,
 
         init: async () => {
             try {
@@ -272,7 +278,7 @@ export const useAmpStore = create<AmpState>((set) => ({
             }
         },
 
-        AddEffect: async (effectDto: EffectDto) => {
+        addEffect: async (effectDto: EffectDto) => {
             try {
                 console.log("Adding Effect with name:", effectDto.data.name);
                 await addEffect({effectDto: effectDto});
@@ -283,6 +289,63 @@ export const useAmpStore = create<AmpState>((set) => ({
                 console.error("Failed to add Effect:", error);
             }
         },
+        moveEffect: async (effectId: number, newIndex: number) => {
+            set((state) => {
+                const channelIndex = state.channels.findIndex(c => c.id === state.current_channel);
+                if (channelIndex === -1) return state;
 
+                const currentChannel = state.channels[channelIndex];
+                const effectChain = currentChannel.effect_chain;
+
+                const currentIndex = effectChain.findIndex(e => e.data.id === effectId);
+                if (currentIndex === -1) return state;
+
+                console.log(`Moving effect ${effectId} from ${currentIndex} to ${newIndex}`);
+
+                const updatedChain = [...effectChain];
+                const [movedItem] = updatedChain.splice(currentIndex, 1);
+                updatedChain.splice(newIndex, 0, movedItem);
+
+                return {
+                    channels: state.channels.map((c, idx) =>
+                        idx === channelIndex
+                            ? {...c, effect_chain: updatedChain}
+                            : c
+                    )
+                };
+            });
+        },
+        startEditingChainOrder: () => {
+            set((state) => {
+                const currentChannel = state.channels.find(c => c.id === state.current_channel);
+
+                if (!currentChannel) {
+                    console.warn("Could not find current channel to snapshot.");
+                    return state;
+                }
+
+                return {
+                    chain_snapshot: [...currentChannel.effect_chain]
+                };
+            });
+        },
+
+        cancelEditingChainOrder: () => {
+            // Restore the chain from the snapshot
+            set((state) => ({
+                channels: state.channels.map((c) =>
+                    c.id === state.current_channel
+                        ? {...c, effect_chain: state.chain_snapshot!}
+                        : c
+                ),
+                chain_snapshot: null,
+            }));
+        },
+
+        applyChangesToChainOrder: async () => {
+            //Save to backend here
+            console.log("applyChangesToChainOrder");
+            set({chain_snapshot: null});
+        },
     }))
 ;

@@ -1,7 +1,7 @@
 import {Box, Button, IconButton, Stack, Typography} from "@mui/material";
 import {EffectPedalPreview} from "./EffectPedalPreview.tsx";
 import {EffectDto} from "../domain";
-import {AddCircle, Delete} from "@mui/icons-material";
+import {AddCircle, Delete, KeyboardArrowLeft, KeyboardArrowRight} from "@mui/icons-material";
 import {ConfirmationDialog} from "./dialogs/ConfirmationDialog.tsx";
 import {useState} from "react";
 import {AddEffectDialog} from "./dialogs/AddEffectDialog.tsx";
@@ -25,9 +25,10 @@ export function EffectChain({effects, selected, onSelectionChange, onReorderOpen
     let [removeDialogOpen, setRemoveDialogOpen] = useState(false);
     let [addDialogOpen, setAddDialogOpen] = useState(false);
     let [reorderOpen, setReorderOpen] = useState(false);
+    const { startEditingChainOrder, cancelEditingChainOrder, applyChangesToChainOrder, moveEffect } = useAmpStore();
 
     const handleAdd = (newEffect: EffectDto) => {
-        useAmpStore.getState().AddEffect(newEffect);
+        useAmpStore.getState().addEffect(newEffect);
 
         setAddDialogOpen(false);
         console.log("You tried to add an effect it isn't wired yet")
@@ -42,8 +43,28 @@ export function EffectChain({effects, selected, onSelectionChange, onReorderOpen
     }
 
     const handleToggleEffectReorder = () => {
-        onReorderOpen(!reorderOpen);
-        setReorderOpen(!reorderOpen)
+        if (!reorderOpen) {
+            startEditingChainOrder();
+        } else {
+            cancelEditingChainOrder();
+        }
+        setReorderOpen(!reorderOpen);
+    }
+
+    const handleApply = async () => {
+        await applyChangesToChainOrder();
+        setReorderOpen(false);
+    };
+
+    const handleMovePedal = (effectId: number, direction: "left" | "right") => {
+        const currentIndex = effects.findIndex(e => e.data.id === effectId);
+
+        const newIndex = direction === "left" ? currentIndex - 1 : currentIndex + 1;
+        if (newIndex < 0 || newIndex >= effects.length) return;
+
+        console.log(`It looks like you're trying to move effect ${effectId} from position ${currentIndex} to ${newIndex}`);
+
+        useAmpStore.getState().moveEffect(effectId, newIndex);
     }
 
     function isEffectSelected(effect: EffectDto) {
@@ -113,7 +134,8 @@ export function EffectChain({effects, selected, onSelectionChange, onReorderOpen
                 spacing={6}
                 sx={{width: '100%', position: 'relative', zIndex: 2, minHeight: 120}}
             >
-                <AmpBox onSelectionChange={onSelectionChange} isAmpSelected={isAmpSelected} selectedBorder={selectedBorder}/>
+                <AmpBox onSelectionChange={onSelectionChange} isAmpSelected={isAmpSelected}
+                        selectedBorder={selectedBorder}/>
 
                 {effects.map((item) => (
                     <Box
@@ -127,7 +149,8 @@ export function EffectChain({effects, selected, onSelectionChange, onReorderOpen
                             '&:hover .remove-button': {
                                 opacity: 1,
                                 transform: 'scale(1)',
-                            }
+                            },
+                            gap: 1
                         }}
                     >
                         <IconButton
@@ -158,26 +181,38 @@ export function EffectChain({effects, selected, onSelectionChange, onReorderOpen
                             title={`Remove effect "${item.data.name}"?`}
                             description={"Are you sure you want to remove this effect from the chain? This action cannot be undone."}
                         />
-                        <Box sx={{display: 'flex', alignItems: 'center', height: 75}}>
-                            <Box sx={{
-                                borderRadius: 2,
-                                transition: 'border 0.15s, box-shadow 0.15s',
-                                ...(isEffectSelected(item) && selectedBorder),
-                            }}>
-                                <EffectPedalPreview mainColor={item.data.color} isActive={item.data.is_active}/>
+                        <Box sx={{display: 'flex',flexDirection:"column" , alignItems: 'center', height: 75, width:60}}>
+                            <Box sx={{display: 'flex', alignItems: 'center', height: 75}}>
+                                <Box sx={{
+                                    borderRadius: 2,
+                                    transition: 'border 0.15s, box-shadow 0.15s',
+                                    ...(isEffectSelected(item) && selectedBorder),
+                                }}>
+                                    <EffectPedalPreview mainColor={item.data.color} isActive={item.data.is_active}/>
+                                </Box>
                             </Box>
+                            <Typography
+                                variant="caption"
+                                sx={{
+                                    mt: 1,
+                                    color: isEffectSelected(item) ? 'primary.main' : 'text.primary',
+                                    fontWeight: isEffectSelected(item) ? 700 : 500,
+                                    fontSize: '0.75rem',
+                                }}
+                            >
+                                {item.data.name}
+                            </Typography>
+                            { reorderOpen && isEffectSelected(item)  &&
+                            <Box sx={{display:"flex",flexDirection:"row" , alignItems:"center"}}>
+                                <IconButton onClick={() => handleMovePedal(item.data.id, "left")}>
+                                    <KeyboardArrowLeft/>
+                                </IconButton>
+                                <IconButton onClick={() => handleMovePedal(item.data.id, "right")}>
+                                    <KeyboardArrowRight/>
+                                </IconButton>
+                            </Box>
+                            }
                         </Box>
-                        <Typography
-                            variant="caption"
-                            sx={{
-                                mt: 1,
-                                color: isEffectSelected(item) ? 'primary.main' : 'text.primary',
-                                fontWeight: isEffectSelected(item) ? 700 : 500,
-                                fontSize: '0.75rem',
-                            }}
-                        >
-                            {item.data.name}
-                        </Typography>
                     </Box>
                 ))}
                 <Box key={"add-effect-wrapper"} sx={{
@@ -206,7 +241,7 @@ export function EffectChain({effects, selected, onSelectionChange, onReorderOpen
                 <Stack direction={"row"} sx={{position: "absolute", bottom: 16, right: 16, zIndex: 3, gap: 3}}>
                     <Button onClick={handleToggleEffectReorder} variant="contained"
                             sx={{bgcolor: "secondary.main"}}>Cancel</Button>
-                    <Button variant="contained">Apply Changes</Button>
+                    <Button variant="contained" onClick={handleApply}>Apply Changes</Button>
                 </Stack>
             }
         </Box>
