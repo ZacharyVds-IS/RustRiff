@@ -49,11 +49,13 @@ export function EffectChain({effects, selected, onSelectionChange, onReorderOpen
             cancelEditingChainOrder();
         }
         setReorderOpen(!reorderOpen);
+        onReorderOpen(!reorderOpen);
     }
 
     const handleApply = async () => {
         await applyChangesToChainOrder();
         setReorderOpen(false);
+        onReorderOpen(false);
     };
 
     const handleMovePedal = (effectId: number, direction: "left" | "right") => {
@@ -64,7 +66,7 @@ export function EffectChain({effects, selected, onSelectionChange, onReorderOpen
 
         console.log(`It looks like you're trying to move effect ${effectId} from position ${currentIndex} to ${newIndex}`);
 
-        useAmpStore.getState().moveEffect(effectId, newIndex);
+        moveEffect(effectId, newIndex);
     }
 
     function isEffectSelected(effect: EffectDto) {
