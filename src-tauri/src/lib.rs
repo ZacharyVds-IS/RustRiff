@@ -38,19 +38,79 @@ pub fn run() {
     let input = host.default_input_device().unwrap();
     let output = host.default_output_device().unwrap();
 
-    let input_supported = input.default_input_config().unwrap();
-    let output_supported = output.default_output_config().unwrap();
+    let input_name = input
+        .description()
+        .map(|d| d.name().to_string())
+        .unwrap_or_else(|_| "Unknown".to_string());
+    let output_name = output
+        .description()
+        .map(|d| d.name().to_string())
+        .unwrap_or_else(|_| "Unknown".to_string());
+
+    info!("Input device: {}", input_name);
+    info!("Output device: {}", output_name);
+
+    let input_supported = input
+        .default_input_config()
+        .map_err(|e| format!("Failed to get input device config: {}", e))
+        .unwrap();
+    let output_supported = output
+        .default_output_config()
+        .map_err(|e| format!("Failed to get output device config: {}", e))
+        .unwrap();
+    info!(
+        "Input config - Channels: {}, Sample Rate: {} Hz",
+        input_supported.channels(),
+        input_supported.sample_rate()
+    );
+    info!(
+        "Output config - Channels: {}, Sample Rate: {} Hz",
+        output_supported.channels(),
+        output_supported.sample_rate()
+    );
+    
+    let normalize_channels = |channels: u16| -> u16 {
+        match channels {
+            0 => {
+                error!("Device reported 0 channels, defaulting to stereo");
+                2
+            }
+            1 => 1, 
+            _ => {
+                if channels > 2 {
+                    info!(
+                        "Device reported {} channels, normalizing to stereo for stability",
+                        channels
+                    );
+                    2
+                } else {
+                    channels
+                }
+            }
+        }
+    };
+
+    let input_channels = normalize_channels(input_supported.channels());
+    let output_channels = normalize_channels(output_supported.channels());
 
     let input_config = StreamConfig {
-        channels: input_supported.channels(),
+        channels: input_channels,
         sample_rate: input_supported.sample_rate(),
         buffer_size: BufferSize::Default,
     };
     let output_config = StreamConfig {
-        channels: output_supported.channels(),
+        channels: output_channels,
         sample_rate: output_supported.sample_rate(),
         buffer_size: BufferSize::Default,
     };
+
+    info!(
+        "Configured stream - Input: {} ch @ {} Hz, Output: {} ch @ {} Hz",
+        input_config.channels,
+        input_config.sample_rate,
+        output_config.channels,
+        output_config.sample_rate
+    );
 
     let audio_service = AudioService::new(input, output, input_config, output_config);
 

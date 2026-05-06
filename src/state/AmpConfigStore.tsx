@@ -230,11 +230,22 @@ export const useAmpStore = create<AmpState>((set, get) => ({
                     c.id === state.current_channel
                         ? {
                             ...c,
-                            effect_chain: c.effect_chain.map((effect) =>
-                                effect.data.id === effectId
-                                    ? {...effect, data: {...effect.data, is_active: isActive}}
-                                    : effect
-                            ),
+                            effect_chain: c.effect_chain.map((effect) => {
+                                if (effect.data.id === effectId) {
+                                    if (effect.kind === "Cabinet") {
+                                        return {
+                                            ...effect,
+                                            data: {...effect.data, is_active: isActive} as typeof effect.data,
+                                        };
+                                    } else if (effect.kind === "HCDistortion") {
+                                        return {
+                                            ...effect,
+                                            data: {...effect.data, is_active: isActive} as typeof effect.data,
+                                        };
+                                    }
+                                }
+                                return effect;
+                            }),
                         }
                         : c
                 ),
