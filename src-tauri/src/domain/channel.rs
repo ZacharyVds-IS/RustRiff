@@ -231,12 +231,7 @@ impl Channel {
         Arc::clone(&self.effect_chain)
     }
 
-    /// Returns a previously taken effect chain back to the channel.
-    ///
-    /// Called by `AudioService::stop_loopback` after the audio worker thread
-    /// has exited and returned ownership of the effects. The `effect_handles`
-    /// Arcs were never cleared, so parameter and toggle commands remain valid
-    /// before and after this call.
+    /// Sets the effect chain to a new given chain of effects
     pub fn restore_effect_chain(&mut self, effects: Vec<Box<dyn Effect>>) {
         if let Ok(mut chain) = self.effect_chain.lock() {
             *chain = effects;
@@ -475,6 +470,40 @@ mod tests {
             let chain_after = channel.effect_chain.lock().unwrap();
             assert_eq!(chain_after.len(), 0);
             assert!(!channel.effect_handles.contains_key(&effect_id));
+        }
+
+        #[test]
+        fn restore_effect_chain_replaces_and_reorders_existing_chain() {
+            let mut channel = Channel::new(1, "Test".to_string(), None, None);
+
+            let id_1 = channel.next_effect_id();
+            let effect_1 = Box::new(HCDistortion::new(
+                id_1, "Effect 1".to_string(), false, 0.5, 0.0, "#color1".to_string(),
+            ));
+
+            let id_2 = channel.next_effect_id();
+            let effect_2 = Box::new(HCDistortion::new(
+                id_2, "Effect 2".to_string(), false, 0.5, 0.0, "#color2".to_string(),
+            ));
+
+            channel.add_effect_to_chain(effect_1);
+            channel.add_effect_to_chain(effect_2);
+
+            let reordered_1 = Box::new(HCDistortion::new(
+                id_1, "Effect 1".to_string(), false, 0.5, 0.0, "#color1".to_string(),
+            ));
+            let reordered_2 = Box::new(HCDistortion::new(
+                id_2, "Effect 2".to_string(), false, 0.5, 0.0, "#color2".to_string(),
+            ));
+
+            let new_order: Vec<Box<dyn Effect>> = vec![reordered_2, reordered_1];
+
+            channel.restore_effect_chain(new_order);
+
+            let chain = channel.effect_chain.lock().unwrap();
+            assert_eq!(chain.len(), 2, "Chain should still have 2 effects");
+            assert_eq!(chain[0].id(), id_2, "First effect should now be ID 2");
+            assert_eq!(chain[1].id(), id_1, "Second effect should now be ID 1");
         }
     }
 
