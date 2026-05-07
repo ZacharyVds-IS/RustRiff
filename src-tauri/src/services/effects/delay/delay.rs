@@ -3,7 +3,8 @@ use crate::domain::dto::effect::delay_dto::DelayDto;
 use crate::domain::dto::effect::effect_dto::EffectDto;
 use crate::domain::effect::Effect;
 use atomic_float::AtomicF32;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::Arc;
 
 pub struct Delay {
@@ -11,7 +12,7 @@ pub struct Delay {
     name: String,
     is_active: Arc<AtomicBool>,
     color: String,
-    delay_time: u32,       //20ms - 300ms
+    delay_time: Arc<AtomicU32>,       //20ms - 300ms
     level: Arc<AtomicF32>, //0.0-0.95
     delay_buffer: Vec<f32>,
     write_pos: usize,
@@ -30,13 +31,14 @@ impl Delay {
         level: f32,
     ) -> Self {
         let level_arc = Arc::new(AtomicF32::new(level.clamp(0.0, 0.95)));
+        let delay_time_arc = Arc::new(AtomicU32::new(delay_time.clamp(20, 300)));
 
         Self {
             id,
             name,
             is_active: Arc::new(AtomicBool::new(is_active)),
             color,
-            delay_time: delay_time.clamp(20, 300),
+            delay_time: delay_time_arc,
             level: level_arc,
             delay_buffer: Vec::new(),
             write_pos: 0,
@@ -47,12 +49,12 @@ impl Delay {
 
     fn calc_delay_in_samples(&mut self) {
         self.delay_in_samples =
-            (self.delay_time as f32 * self.sample_rate as f32 / 1000.0) as usize;
+            (self.delay_time.load(Ordering::Relaxed) as f32 * self.sample_rate as f32 / 1000.0) as usize;
     }
 
     // GETTERS
-    pub fn delay_time(&self) -> u32 {
-        self.delay_time.clamp(20, 300)
+    pub fn delay_time(&self) -> &Arc<AtomicU32> {
+        &self.delay_time
     }
 
     pub fn level(&self) -> &Arc<AtomicF32> {
@@ -73,7 +75,7 @@ impl Delay {
 
     // SETTERS
     pub fn set_delay_time(&mut self, delay_time: u32) {
-        self.delay_time = delay_time;
+        self.delay_time.store(delay_time.clamp(20,300), Ordering::Relaxed);
         self.calc_delay_in_samples()
     }
 
@@ -129,12 +131,24 @@ impl Effect for Delay {
             name: self.name.clone(),
             is_active: self.is_active(),
             color: self.color.clone(),
-            delay_time: self.delay_time,
+            delay_time: self.delay_time.load(Ordering::Relaxed),
             level: self.level.load(Ordering::Relaxed),
         })
     }
 
     fn active_flag(&self) -> Arc<AtomicBool> {
         self.is_active.clone()
+    }
+
+    fn f32_params(&self) -> HashMap<&'static str, Arc<AtomicF32>> {
+        let mut map = HashMap::new();
+        map.insert("level", Arc::clone(&self.level));
+        map
+    }
+
+    fn u32_params(&self) -> HashMap<&'static str, Arc<AtomicU32>> {
+        let mut map = HashMap::new();
+        map.insert("delay_time", Arc::clone(&self.delay_time));
+        map
     }
 }

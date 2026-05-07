@@ -4,7 +4,7 @@ use crate::domain::tone_stack::ToneStack;
 use crate::services::effects::distortion::hc_distortion::HCDistortion;
 use atomic_float::AtomicF32;
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
 use tracing::{error, info};
 
@@ -15,7 +15,7 @@ struct EffectHandles {
     is_active: Arc<AtomicBool>,
     /// Named f32 parameters (e.g. `"threshold"`). The Effect trait's
     /// `f32_params()` method populates this, so no downcasting is needed.
-    f32_params: HashMap<&'static str, Arc<AtomicF32>>,
+    params: HashMap<&'static str, ParamValue>,
 }
 
 /// Represents an audio channel with atomic gain, master volume, and tone stack parameters.
@@ -244,25 +244,31 @@ impl Channel {
     /// No downcasting — every effect self-reports its parameters via
     /// [`Effect::f32_params`](crate::domain::effect::Effect::f32_params).
     pub fn add_effect_to_chain(&mut self, effect: Box<dyn Effect>) {
-        info!(
-            "Added effect '{}' (id={}) to chain",
-            effect.name(),
-            effect.id()
-        );
+        info!("Added effect '{}' (id={}) to chain", effect.name(), effect.id());
+
+        let mut combined_params = HashMap::new();
+
+        // Collect f32 params
+        for (name, arc) in effect.f32_params() {
+            combined_params.insert(name, ParamValue::Float(arc));
+        }
+
+        // Collect u32 params (assuming this exists in your Effect trait)
+        for (name, arc) in effect.u32_params() {
+            combined_params.insert(name, ParamValue::Uint(arc));
+        }
 
         self.effect_handles.insert(
             effect.id(),
             EffectHandles {
                 is_active: effect.active_flag(),
-                f32_params: effect.f32_params(),
+                params: combined_params,
             },
         );
 
         if let Ok(mut chain) = self.effect_chain.lock() {
             chain.push(effect);
             self.next_effect_id += 1;
-        } else {
-            error!("Failed to lock effect chain for adding effect");
         }
     }
 
@@ -330,7 +336,7 @@ impl Channel {
         Ok(next)
     }
 
-    /// # Sets a Named Float32 Parameter on an Effect
+    /// # Sets a Named Float32 and Uint32 Parameter on an Effect
     /// Generic parameter update mechanism for effect settings. Parameters are identified
     /// by string names and stored as lock-free atomics (`Arc<AtomicF32>`).
     ///
@@ -343,7 +349,7 @@ impl Channel {
     ///
     /// ## Parameter Discovery
     ///
-    /// Parameters are exposed via `Effect::f32_params()` which returns a HashMap.
+    /// Parameters are exposed via `Effect::f32_params()` and `Effect::u32_params` which returns a HashMap.
     ///
     /// # Arguments
     /// * `effect_id` — ID of the effect to modify
@@ -355,20 +361,41 @@ impl Channel {
     /// * `Err(String)` — Error if:
     ///   - Effect with given ID not found
     ///   - Parameter name not recognised by the effect
-    pub fn set_effect_param(&self, effect_id: u32, param: &str, value: f32) -> Result<(), String> {
-        let h = self
-            .effect_handles
-            .get(&effect_id)
+
+    pub fn set_effect_param(&self, effect_id: u32, param: &str, value: impl Into<ParamInput>) -> Result<(), String> {
+        let h = self.effect_handles.get(&effect_id)
             .ok_or_else(|| format!("No effect with id {effect_id}"))?;
-        let arc = h
-            .f32_params
-            .get(param)
-            .ok_or_else(|| format!("Effect {effect_id} has no param '{param}'"))?;
-        arc.store(value, Ordering::Relaxed);
-        info!("Effect {effect_id} param '{param}' → {value:.4}");
+
+        let variant = h.params.get(param)
+            .ok_or_else(|| format!("Param '{param}' not found on effect {effect_id}"))?;
+
+        match (variant, value.into()) {
+            (ParamValue::Float(arc), ParamInput::F32(v)) => {
+                arc.store(v, Ordering::Relaxed);
+            }
+            (ParamValue::Uint(arc), ParamInput::U32(v)) => {
+                arc.store(v, Ordering::Relaxed);
+            }
+            _ => return Err(format!("Type mismatch for parameter '{param}'")),
+        }
+
         Ok(())
     }
 }
+
+pub enum ParamInput {
+    F32(f32),
+    U32(u32),
+}
+
+pub enum ParamValue {
+    Float(Arc<AtomicF32>),
+    Uint(Arc<AtomicU32>),
+}
+
+impl From<f32> for ParamInput { fn from(f: f32) -> Self { Self::F32(f) } }
+impl From<u32> for ParamInput { fn from(u: u32) -> Self { Self::U32(u) } }
+
 
 #[cfg(test)]
 mod tests {
@@ -422,9 +449,20 @@ mod tests {
                 "#e67e22".to_string(),
             )));
 
-            channel.set_effect_param(effect_id, "threshold", 0.3).unwrap();
-            let v = channel.effect_handles[&effect_id].f32_params["threshold"].load(Ordering::Relaxed);
-            assert!((v - 0.3).abs() < 1e-6);
+            // Update the parameter
+            channel.set_effect_param(effect_id, "threshold", 0.3f32).unwrap();
+
+            // Access the handle
+            let handle = &channel.effect_handles[&effect_id];
+            let param = &handle.params["threshold"];
+
+            // Match on the enum to load the value
+            if let ParamValue::Float(arc) = param {
+                let v = arc.load(Ordering::Relaxed);
+                assert!((v - 0.3).abs() < 1e-6);
+            } else {
+                panic!("Expected threshold to be a Float parameter");
+            }
         }
 
         #[test]

@@ -2,7 +2,7 @@ use crate::domain::audio_processor::AudioProcessor;
 use crate::domain::dto::effect::effect_dto::EffectDto;
 use atomic_float::AtomicF32;
 use std::collections::HashMap;
-use std::sync::atomic::AtomicBool;
+use std::sync::atomic::{AtomicBool, AtomicU32};
 use std::sync::Arc;
 
 /// A trait defining the shared behavior for audio effects within the signal chain.
@@ -58,6 +58,15 @@ pub trait Effect: AudioProcessor + Send + Sync {
     /// Implementing this is the **only** change required to make a new effect's
     /// parameters controllable from commands — no downcasting anywhere.
     fn f32_params(&self) -> HashMap<&'static str, Arc<AtomicF32>> {
+        HashMap::new()
+    }
+
+    /// Returns named u32 parameter Arcs shared with the audio thread.
+    /// Defaults to an empty map — override for effects with extra parameters.
+    ///
+    /// Implementing this is the **only** change required to make a new effect's
+    /// parameters controllable from commands — no downcasting anywhere.
+    fn u32_params(&self) -> HashMap<&'static str, Arc<AtomicU32>> {
         HashMap::new()
     }
 
