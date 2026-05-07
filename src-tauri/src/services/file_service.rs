@@ -1,4 +1,5 @@
 use crate::domain::dto::effect::ir_profile_dto::IrProfileDto;
+use crate::domain::validation::sanitize_wav_file_name;
 use crate::infrastructure::file_loader::FileLoaderTrait;
 use std::path::PathBuf;
 use tracing::{info, warn};
@@ -213,31 +214,6 @@ impl FileService {
     }
 }
 
-/// Sanitizes a user-supplied IR filename before it is used in a filesystem path.
-///
-/// Accepted filenames must:
-/// - be non-empty after trimming whitespace,
-/// - contain no path separators (`/`, `\`) or parent-directory segments (`..`),
-/// - end with `.wav` (case-insensitive).
-///
-/// Returns the trimmed filename on success, or a descriptive `Err` string.
-fn sanitize_wav_file_name(file_name: &str) -> Result<String, String> {
-    let trimmed = file_name.trim();
-
-    if trimmed.is_empty() {
-        return Err("IR file name cannot be empty".to_string());
-    }
-
-    if trimmed.contains('\\') || trimmed.contains('/') || trimmed.contains("..") {
-        return Err("Invalid IR file name".to_string());
-    }
-
-    if !trimmed.to_ascii_lowercase().ends_with(".wav") {
-        return Err("Only .wav IR files are supported".to_string());
-    }
-
-    Ok(trimmed.to_string())
-}
 
 /// Converts a `.wav` filename into a human-readable label for display in the UI.
 /// Transformations applied:
@@ -311,7 +287,7 @@ mod tests {
         #[test]
         fn to_readable_label_strips_extension_and_replaces_separators() {
             assert_eq!(to_readable_label("vintage-4x12_cab.WAV"), "vintage 4x12 cab");
-            assert_eq!(to_readable_label("info-support-halway.wav"), "info support halway");
+            assert_eq!(to_readable_label("info-support-hallway.wav"), "info support hallway");
         }
 
         #[test]

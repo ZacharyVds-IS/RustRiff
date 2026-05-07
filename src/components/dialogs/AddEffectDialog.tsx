@@ -129,7 +129,7 @@ export function AddEffectDialog({open, onClose, onCreate}: AddEffectDialogProps)
                     const fileBytes = new Uint8Array(await pickedFile.arrayBuffer());
                     selectedCabinetIrFile = await uploadIrProfile({
                         fileName: pickedFile.name,
-                        fileBytes: fileBytes as unknown as number[],
+                        fileBytes: Array.from(fileBytes),
                     });
                     await refreshIrProfiles();
                 } catch (error) {

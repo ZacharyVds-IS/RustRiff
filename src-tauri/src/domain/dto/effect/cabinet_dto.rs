@@ -18,7 +18,8 @@ pub struct CabinetDto {
     pub is_active: bool,
     /// UI color for the pedal chassis. Hex string format: `"#rrggbb"`.
     pub color: String,
-    /// IR file name loaded from `resources/default_ir`.
+    /// IR filename resolved from either bundled defaults (`resources/default_ir`)
+    /// or the user custom IR directory, depending on what the effect references.
     #[serde(default = "default_ir_file_path")]
     pub ir_file_path: String,
 }

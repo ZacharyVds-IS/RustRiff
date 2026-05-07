@@ -63,6 +63,39 @@ Errors are a product feature.
 Regression tests are required for all behavior changes.
 * **Rust:** Use focused inline `#[cfg(test)]` with `success_path` and `failure_path` modules.
 * **Coverage:** Ensure both the "happy path" and edge cases (e.g., file lock, invalid ID) are covered.
+
+## 8. How to Respond (Mandatory Review Output Format)
+Every review response must be short, concrete, and tied to this guide.
+
+* **For each finding, include all of these fields:**
+    * **What is wrong:** A 1-2 sentence explanation of the defect/risk.
+    * **Broken rule:** Quote the exact section title from this guide (for example: `2. Audio & DSP Performance (The "Hot Path")`).
+    * **Why it matters here:** One sentence linking impact to RustRiff behavior (latency, persistence, DTO contract, UX, etc.).
+    * **Suggested fix:** A minimal, actionable fix.
+    * **Severity:** `high`, `medium`, or `low`.
+
+* **Ordering:** List findings by severity (high -> low).
+* **No findings case:** Explicitly state: `No rule violations found.`
+
+### Response template
+```text
+Finding: <short title>
+Severity: <high|medium|low>
+What is wrong: <concise explanation>
+Broken rule: <section title from this guide>
+Why it matters here: <project-specific impact>
+Suggested fix: <minimal concrete action>
+```
+
+### Example
+```text
+Finding: Cabinet usage check can block the audio thread
+Severity: high
+What is wrong: The command path locks `effect_chain`, which is also locked in the DSP loop.
+Broken rule: 2. Audio & DSP Performance (The "Hot Path")
+Why it matters here: Lock contention can cause audible dropouts while opening/removing IRs.
+Suggested fix: Read cabinet usage from a non-RT metadata snapshot instead of locking the chain.
+```
 ---
 
 ### Maintainer's Quick Checklist

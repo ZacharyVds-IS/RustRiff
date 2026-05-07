@@ -3,6 +3,7 @@ use crate::domain::audio_processor::AudioProcessor;
 use crate::domain::dto::effect::cabinet_dto::CabinetDto;
 use crate::domain::dto::effect::effect_dto::EffectDto;
 use crate::domain::effect::Effect;
+use crate::domain::validation::sanitize_wav_file_name;
 use crate::infrastructure::file_loader::{FileLoader, FileLoaderTrait};
 use crate::services::processors::resampler::resampler::ResamplerImpl;
 use rustfft::num_complex::Complex;
@@ -103,7 +104,18 @@ impl Cabinet {
         let selected_ir_file = if ir_file_path.trim().is_empty() {
             DEFAULT_IR_FILE.to_string()
         } else {
-            ir_file_path
+            match sanitize_wav_file_name(&ir_file_path) {
+                Ok(sanitized) => sanitized,
+                Err(err) => {
+                    warn!(
+                        "Invalid cabinet IR file '{}': {}. Falling back to default '{}'.",
+                        ir_file_path,
+                        err,
+                        DEFAULT_IR_FILE
+                    );
+                    DEFAULT_IR_FILE.to_string()
+                }
+            }
         };
 
         let temp_file_path = Self::resolve_ir_file_path(&selected_ir_file)
@@ -213,22 +225,39 @@ impl Cabinet {
     /// Returns `None` when no candidate exists; the caller is responsible for
     /// logging a warning and supplying a fallback path.
     fn resolve_ir_file_path(file_name: &str) -> Option<PathBuf> {
+        let sanitized_file_name = match sanitize_wav_file_name(file_name) {
+            Ok(name) => name,
+            Err(err) => {
+                warn!(
+                    "Refusing to resolve invalid IR file name '{}': {}",
+                    file_name,
+                    err
+                );
+                return None;
+            }
+        };
+
         let mut candidates = Vec::new();
 
         if let Ok(custom_dir) = std::env::var(CUSTOM_IR_ENV_KEY) {
-            candidates.push(PathBuf::from(custom_dir).join(file_name));
+            candidates.push(PathBuf::from(custom_dir).join(&sanitized_file_name));
         }
 
         candidates.push(
             PathBuf::from(env!("CARGO_MANIFEST_DIR"))
                 .join("resources")
                 .join("default_ir")
-                .join(file_name),
+                .join(&sanitized_file_name),
         );
 
         if let Ok(exe_path) = std::env::current_exe() {
             if let Some(exe_dir) = exe_path.parent() {
-                candidates.push(exe_dir.join("resources").join("default_ir").join(file_name));
+                candidates.push(
+                    exe_dir
+                        .join("resources")
+                        .join("default_ir")
+                        .join(&sanitized_file_name),
+                );
             }
         }
 
@@ -626,6 +655,28 @@ mod tests {
             let cab = make_cabinet("", true);
             let _ = cab.ir_fft_size();
             let _ = cab.sample_rate();
+        }
+
+        #[test]
+        fn new_with_traversal_ir_path_falls_back_to_default_ir_file_name() {
+            let cab = make_cabinet("../secrets.wav", true);
+
+            if let EffectDto::Cabinet(dto) = cab.to_dto() {
+                assert_eq!(dto.ir_file_path, DEFAULT_IR_FILE);
+            } else {
+                panic!("Expected Cabinet effect DTO");
+            }
+        }
+
+        #[test]
+        fn new_with_non_wav_ir_path_falls_back_to_default_ir_file_name() {
+            let cab = make_cabinet("not-an-ir.mp3", true);
+
+            if let EffectDto::Cabinet(dto) = cab.to_dto() {
+                assert_eq!(dto.ir_file_path, DEFAULT_IR_FILE);
+            } else {
+                panic!("Expected Cabinet effect DTO");
+            }
         }
     }
 }
