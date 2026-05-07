@@ -245,11 +245,11 @@ export function EffectChain({effects, selected, onSelectionChange, onReorderOpen
                                                                 ...(isEffectSelected(item) && selectedBorder),
                                                             }}>
                                                                 {item.kind === "Cabinet"
-                                                                    ? <CabinetPreview mainColor={item.data.color} isActive={item.data.is_active}/>
-                                                                    : item.kind === "HCDistortion"
-                                                                    ? <EffectPedalPreview mainColor={item.data.color}
+                                                                    ? <CabinetPreview mainColor={item.data.color}
+                                                                                      isActive={item.data.is_active}/>
+                                                                    :
+                                                                    <EffectPedalPreview mainColor={item.data.color}
                                                                                         isActive={item.data.is_active}/>
-                                                                    : null
                                                                 }
                                                             </Box>
                                                         </Box>

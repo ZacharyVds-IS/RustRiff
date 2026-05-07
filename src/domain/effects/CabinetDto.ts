@@ -21,6 +21,7 @@ is_active: boolean,
  */
 color: string, 
 /**
- * IR file name loaded from `resources/default_ir`.
+ * IR filename resolved from either bundled defaults (`resources/default_ir`)
+ * or the user custom IR directory, depending on what the effect references.
  */
 ir_file_path: string, };

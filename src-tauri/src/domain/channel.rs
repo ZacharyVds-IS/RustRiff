@@ -60,9 +60,19 @@ impl Channel {
             _ => None,
         };
 
+        let mut params = HashMap::new();
+
+        for (name, arc) in effect.f32_params() {
+            params.insert(name, ParamValue::Float(arc));
+        }
+
+        for (name, arc) in effect.u32_params() {
+            params.insert(name, ParamValue::Uint(arc));
+        }
+
         EffectHandles {
             is_active: effect.active_flag(),
-            f32_params: effect.f32_params(),
+            params,
             cabinet_ir_file_path,
         }
     }

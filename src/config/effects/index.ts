@@ -1,9 +1,11 @@
-import {CabinetDto, type EffectDto, getDefaultIrFile, HcDistortionDto} from "../../domain";
+import {CabinetDto, DelayDto, type EffectDto, getDefaultIrFile, HcDistortionDto} from "../../domain";
 
 export type EffectKind = EffectDto["kind"];
 
 type EffectFactoryMap = {
-    [K in EffectKind]: (params: { name: string; color: string; cabinetIrFilePath?: string }) => Extract<EffectDto, { kind: K }>['data'];
+    [K in EffectKind]: (params: { name: string; color: string; cabinetIrFilePath?: string }) => Extract<EffectDto, {
+        kind: K
+    }>['data'];
 };
 
 /**
@@ -35,14 +37,15 @@ export async function resolveDefaultCabinetIrFile(): Promise<string> {
 
 export const EFFECT_METADATA: Record<EffectKind, { label: string }> = {
     HCDistortion: {label: "Hard-Clipping Distortion"},
-    Cabinet: {label:"Cabinet Simulation"}
+    Cabinet: {label: "Cabinet Simulation"},
+    Delay: {label: "Delay"}
 };
 
 export const CABINET_CUSTOM_IR_VALUE = "__CUSTOM_FILE__";
 
 
 export const EFFECT_FACTORIES: EffectFactoryMap = {
-    HCDistortion: ({ name, color }): HcDistortionDto => ({
+    HCDistortion: ({name, color}): HcDistortionDto => ({
         id: 0,
         name,
         color,
@@ -50,11 +53,19 @@ export const EFFECT_FACTORIES: EffectFactoryMap = {
         threshold: 1,
         level: 0,
     }),
-    Cabinet: ({name,color,cabinetIrFilePath}): CabinetDto => ({
-        id:0,
+    Cabinet: ({name, color, cabinetIrFilePath}): CabinetDto => ({
+        id: 0,
         name,
         color,
-        is_active:false,
+        is_active: false,
         ir_file_path: cabinetIrFilePath ?? DEFAULT_CABINET_IR_FILE,
+    }),
+    Delay: ({name, color}): DelayDto => ({
+        id: 0, // Is set to the correct value in the backend
+        name,
+        color,
+        is_active: false,
+        delay_time: 20,
+        level: 0.95,
     })
 };
