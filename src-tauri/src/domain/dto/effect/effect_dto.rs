@@ -1,5 +1,5 @@
-use crate::domain::dto::effect::delay_dto::DelayDto;
 use crate::domain::dto::effect::cabinet_dto::CabinetDto;
+use crate::domain::dto::effect::delay_dto::DelayDto;
 use crate::domain::dto::effect::hcdistortion_dto::HcDistortionDto;
 use crate::domain::effect::Effect;
 use crate::services::effects::cabinet::cabinet::Cabinet;
@@ -46,8 +46,8 @@ impl EffectDto {
                 dto.is_active,
                 dto.color,
                 dsp_sample_rate,
-                20,
-                0.95
+                dto.delay_time,
+                dto.level
             ))
         }
     }

@@ -21,6 +21,8 @@ pub struct Delay {
     last_feedback_output: f32
 }
 
+const MAX_DELAY_TIME_FLOAT: f32 = 800.0;
+
 impl Delay {
     pub fn new(
         id: u32,
@@ -34,7 +36,7 @@ impl Delay {
         let level_arc = Arc::new(AtomicF32::new(level.clamp(0.0, 0.95)));
         let delay_time_arc = Arc::new(AtomicU32::new(delay_time.clamp(20, 800)));
 
-        let max_samples = (800.0 * sample_rate as f32 / 1000.0) as usize;
+        let max_samples = (MAX_DELAY_TIME_FLOAT * sample_rate as f32 / 1000.0) as usize;
         let delay_buffer = vec![0.0; max_samples + 1];
 
         let mut instance = Self {
@@ -106,7 +108,7 @@ impl Delay {
     /// resizes the delay_buffer to accommodate for the new sample rate
     pub fn set_sample_rate(&mut self, sample_rate: u32) {
         self.sample_rate = sample_rate;
-        let max_samples = (300.0 * sample_rate as f32 / 1000.0) as usize;
+        let max_samples = (MAX_DELAY_TIME_FLOAT * sample_rate as f32 / 1000.0) as usize;
         self.delay_buffer.resize(max_samples + 1, 0.0);
         self.calc_delay_in_samples();
     }
@@ -148,7 +150,7 @@ impl AudioProcessor for Delay {
         self.write_pos = (self.write_pos + 1) % self.delay_buffer.len();
 
 
-        sample + (delayed_sample * 0.5)
+        sample + (delayed_sample * feedback_amount)
     }
 }
 

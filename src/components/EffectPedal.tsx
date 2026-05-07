@@ -70,7 +70,7 @@ function knobsForEffect(
 
             // Configurable range for Delay Time (ms)
             // You can adjust these based on your buffer size in Rust
-            const MIN_DELAY_MS = 0;
+            const MIN_DELAY_MS = 20;
             const MAX_DELAY_MS = 800;
 
             // Mapping level [0.0 - 0.95] to a 0-100 scale for the knob
