@@ -2,9 +2,17 @@ import {Box} from "@mui/material";
 import {EffectChain} from "../components/EffectChain.tsx";
 import {DefaultAmpControls} from "../components/DefaultAmpControls.tsx";
 import {EffectPedal} from "../components/EffectPedal.tsx";
+import {CabinetEffect} from "../components/CabinetEffect.tsx";
 import {useAmpStore} from "../state/AmpConfigStore.tsx";
 import {useEffect, useState} from "react";
 import {EffectDto} from "../domain";
+
+type EffectSelection =
+    | "amp"
+    | {
+        kind: EffectDto["kind"];
+        effectId: number;
+    };
 
 export function MainScreen() {
     const activeChannel = useAmpStore((state) =>
@@ -14,14 +22,19 @@ export function MainScreen() {
 
     let [editOrderOpen, setEditOrderOpen] = useState<boolean>(false);
 
-    const [selection, setSelection] = useState<number | "amp">("amp");
+    const [selection, setSelection] = useState<EffectSelection>("amp");
     useEffect(() => {
         setSelection("amp");
     }, [currentChannelId]);
+
     const resolvedSelection: EffectDto | "amp" | undefined =
         selection === "amp"
             ? "amp"
-            : activeChannel?.effect_chain.find((e) => e.data.id === selection);
+            : activeChannel?.effect_chain.find(
+                (effect) =>
+                    effect.kind === selection.kind &&
+                    effect.data.id === selection.effectId,
+            );
 
     return (
         <Box
@@ -39,8 +52,16 @@ export function MainScreen() {
                 <EffectChain
                     effects={activeChannel.effect_chain}
                     selected={resolvedSelection ?? "amp"}
-                    onSelectionChange={(selected) => {
-                        setSelection(selected === "amp" ? "amp" : selected.data.id);
+                    onSelectionChange={(selected: EffectDto | "amp") => {
+                        if (selected === "amp") {
+                            setSelection("amp");
+                            return;
+                        }
+
+                        setSelection({
+                            kind: selected.kind,
+                            effectId: selected.data.id,
+                        });
                     }}
                     onReorderOpen={setEditOrderOpen}
                 />
@@ -48,6 +69,8 @@ export function MainScreen() {
             {!editOrderOpen &&
                 ((resolvedSelection === "amp" || !resolvedSelection)
                     ? <DefaultAmpControls/>
+                    : resolvedSelection.kind === "Cabinet"
+                    ? <CabinetEffect effect={resolvedSelection}/>
                     : <EffectPedal effect={resolvedSelection}/>)
             }
         </Box>

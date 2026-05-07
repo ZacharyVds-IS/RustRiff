@@ -3,6 +3,26 @@ use crate::services::audio_service::AudioService;
 use crate::services::device_service::DeviceService;
 use cpal::traits::DeviceTrait;
 use std::sync::Mutex;
+use tracing::info;
+
+/// Normalizes channel count to a supported value (1 or 2).
+///
+/// Some devices report unusual channel counts that can cause audio issues.
+/// This function ensures we use either mono (1) or stereo (2) channels.
+///
+/// # Arguments
+///
+/// * `channels` - The reported channel count from the device
+///
+/// # Returns
+///
+/// A normalized channel count (1 or 2)
+fn normalize_channels(channels: u16) -> u16 {
+    match channels {
+        1 => 1,
+        _ => 2, // Default to stereo for any other count
+    }
+}
 
 /// Retrieves a list of all available input devices.
 ///
@@ -64,10 +84,29 @@ pub fn set_input_device(
         .find_input_device_by_id(&device_id)
         .ok_or("Device not found")?;
 
-    let input_config = device
+    let device_name = device
+        .description()
+        .map(|d| d.name().to_string())
+        .unwrap_or_else(|_| "Unknown".to_string());
+    let supported_config = device
         .default_input_config()
-        .map_err(|e| format!("Failed to get default input config: {e}"))?
-        .config();
+        .map_err(|e| format!("Failed to get default input config for '{}': {}", device_name, e))?;
+
+    let mut input_config = supported_config.config();
+    let normalized_channels = normalize_channels(input_config.channels);
+
+    if input_config.channels != normalized_channels {
+        info!(
+            "Input device '{}' reported {} channels, normalizing to {}",
+            device_name, input_config.channels, normalized_channels
+        );
+        input_config.channels = normalized_channels;
+    }
+
+    info!(
+        "Switching to input device '{}' - {} ch @ {} Hz",
+        device_name, input_config.channels, input_config.sample_rate
+    );
 
     let mut audio = audio_service
         .lock()
@@ -103,10 +142,29 @@ pub fn set_output_device(
         .find_output_device_by_id(&device_id)
         .ok_or("Device not found")?;
 
-    let output_config = device
+    let device_name = device
+        .description()
+        .map(|d| d.name().to_string())
+        .unwrap_or_else(|_| "Unknown".to_string());
+    let supported_config = device
         .default_output_config()
-        .map_err(|e| format!("Failed to get default output config: {e}"))?
-        .config();
+        .map_err(|e| format!("Failed to get default output config for '{}': {}", device_name, e))?;
+
+    let mut output_config = supported_config.config();
+    let normalized_channels = normalize_channels(output_config.channels);
+
+    if output_config.channels != normalized_channels {
+        info!(
+            "Output device '{}' reported {} channels, normalizing to {}",
+            device_name, output_config.channels, normalized_channels
+        );
+        output_config.channels = normalized_channels;
+    }
+
+    info!(
+        "Switching to output device '{}' - {} ch @ {} Hz",
+        device_name, output_config.channels, output_config.sample_rate
+    );
 
     let mut audio = audio_service
         .lock()

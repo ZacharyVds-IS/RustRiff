@@ -1,7 +1,7 @@
+use crate::domain::dto::effect::effect_dto::EffectDto;
 use crate::domain::dto::tone_stack_dto::ToneStackDto;
 use crate::domain::effect::Effect;
 use crate::domain::tone_stack::ToneStack;
-use crate::services::effects::distortion::hc_distortion::HCDistortion;
 use atomic_float::AtomicF32;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -16,6 +16,9 @@ struct EffectHandles {
     /// Named f32 parameters (e.g. `"threshold"`). The Effect trait's
     /// `f32_params()` method populates this, so no downcasting is needed.
     f32_params: HashMap<&'static str, Arc<AtomicF32>>,
+    /// Non-real-time cabinet metadata mirrored from the effect at mutation time.
+    /// Commands can read this without touching the hot `effect_chain` mutex.
+    cabinet_ir_file_path: Option<String>,
 }
 
 /// Represents an audio channel with atomic gain, master volume, and tone stack parameters.
@@ -51,6 +54,19 @@ pub struct Channel {
 }
 
 impl Channel {
+    fn build_effect_handles(effect: &dyn Effect) -> EffectHandles {
+        let cabinet_ir_file_path = match effect.to_dto() {
+            EffectDto::Cabinet(cabinet) => Some(cabinet.ir_file_path),
+            _ => None,
+        };
+
+        EffectHandles {
+            is_active: effect.active_flag(),
+            f32_params: effect.f32_params(),
+            cabinet_ir_file_path,
+        }
+    }
+
     /// Creates a new `Channel` with the given name and optional gain/master volume values.
     ///
     /// If `gain` or `master_volume` are not provided, they default to `1.0`.
@@ -233,6 +249,12 @@ impl Channel {
 
     /// Sets the effect chain to a new given chain of effects
     pub fn restore_effect_chain(&mut self, effects: Vec<Box<dyn Effect>>) {
+        self.effect_handles.clear();
+        for effect in &effects {
+            self.effect_handles
+                .insert(effect.id(), Self::build_effect_handles(effect.as_ref()));
+        }
+
         if let Ok(mut chain) = self.effect_chain.lock() {
             *chain = effects;
         }
@@ -252,10 +274,7 @@ impl Channel {
 
         self.effect_handles.insert(
             effect.id(),
-            EffectHandles {
-                is_active: effect.active_flag(),
-                f32_params: effect.f32_params(),
-            },
+            Self::build_effect_handles(effect.as_ref()),
         );
 
         if let Ok(mut chain) = self.effect_chain.lock() {
@@ -301,6 +320,17 @@ impl Channel {
         for effect in effects {
             self.add_effect_to_chain(effect);
         }
+    }
+
+    /// Returns the set of cabinet IR file names referenced by this channel.
+    ///
+    /// This reads mirrored effect metadata from `effect_handles` and therefore
+    /// does not touch the real-time `effect_chain` mutex.
+    pub fn used_cabinet_ir_profiles(&self) -> std::collections::HashSet<String> {
+        self.effect_handles
+            .values()
+            .filter_map(|handles| handles.cabinet_ir_file_path.clone())
+            .collect()
     }
 
     // ── Effect controls (written from command handlers) ───────────────────────
@@ -373,9 +403,12 @@ impl Channel {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::services::effects::distortion::hc_distortion::HCDistortion;
 
     mod success_path {
         use super::*;
+        use crate::services::effects::cabinet::cabinet::Cabinet;
+        use crate::services::effects::distortion::hc_distortion::HCDistortion;
 
         #[test]
         fn gain_set_to_positive_value_should_succeed() {
@@ -505,10 +538,62 @@ mod tests {
             assert_eq!(chain[0].id(), id_2, "First effect should now be ID 2");
             assert_eq!(chain[1].id(), id_1, "Second effect should now be ID 1");
         }
+
+        #[test]
+        fn used_cabinet_ir_profiles_tracks_added_and_removed_cabinet_effects_without_locking_chain() {
+            let mut channel = Channel::new(1, "Test".to_string(), None, None);
+            let cabinet_id = channel.next_effect_id();
+            channel.add_effect_to_chain(Box::new(Cabinet::new(
+                cabinet_id,
+                "Cab A".to_string(),
+                true,
+                "#111111".to_string(),
+                "Vox-ac30.wav".to_string(),
+                48_000,
+            )));
+
+            let used = channel.used_cabinet_ir_profiles();
+            assert_eq!(used.len(), 1);
+            assert!(used.contains("Vox-ac30.wav"));
+
+            channel.remove_effect_from_chain(cabinet_id);
+
+            let used_after_remove = channel.used_cabinet_ir_profiles();
+            assert!(used_after_remove.is_empty());
+        }
+
+        #[test]
+        fn restore_effect_chain_refreshes_cabinet_ir_metadata_snapshot() {
+            let mut channel = Channel::new(1, "Test".to_string(), None, None);
+
+            channel.add_effect_to_chain(Box::new(Cabinet::new(
+                0,
+                "Old Cab".to_string(),
+                true,
+                "#111111".to_string(),
+                "Vox-ac30.wav".to_string(),
+                48_000,
+            )));
+
+            channel.restore_effect_chain(vec![Box::new(Cabinet::new(
+                7,
+                "New Cab".to_string(),
+                true,
+                "#222222".to_string(),
+                "Reverb-oxford-lean.wav".to_string(),
+                48_000,
+            ))]);
+
+            let used = channel.used_cabinet_ir_profiles();
+            assert_eq!(used.len(), 1);
+            assert!(used.contains("Reverb-oxford-lean.wav"));
+            assert!(!used.contains("Vox-ac30.wav"));
+        }
     }
 
     mod failure_path {
         use super::*;
+        use crate::services::effects::distortion::hc_distortion::HCDistortion;
 
         #[test]
         #[should_panic(expected = "Gain must be positive")]

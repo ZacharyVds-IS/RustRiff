@@ -32,7 +32,7 @@ execSync("cargo test export_bindings --quiet", {
 // 3. Collect every .ts file that was generated in the effects directory.
 // Skip EffectDto.ts — tauri-typegen already emits the EffectDto union in types.ts
 // and a second export would cause a TypeScript duplicate-identifier error.
-const SKIP = new Set(["EffectDto.ts"]);
+const SKIP = new Set(["EffectDto.ts", "IrProfileDto.ts"]);
 const generatedFiles = readdirSync(effectsDir)
   .filter((f) => extname(f) === ".ts" && !SKIP.has(f))
   .sort();

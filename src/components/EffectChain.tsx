@@ -1,5 +1,6 @@
 import {Box, Button, IconButton, Stack, Typography} from "@mui/material";
 import {EffectPedalPreview} from "./EffectPedalPreview.tsx";
+import {CabinetPreview} from "./CabinetPreview.tsx";
 import {EffectDto} from "../domain";
 import {AddCircle, Delete, KeyboardArrowLeft, KeyboardArrowRight} from "@mui/icons-material";
 import {ConfirmationDialog} from "./dialogs/ConfirmationDialog.tsx";
@@ -13,7 +14,7 @@ export interface EffectChainProps {
     effects: EffectDto[];
     selected: EffectDto | "amp";
     /** "amp" = amp head selected, EffectDto = that effect is selected */
-    onSelectionChange: (selected: EffectDto | "amp") => void;
+    onSelectionChange: (selected: EffectDto | "amp", selectedIndex?: number) => void;
     onReorderOpen: (open: boolean) => void;
 }
 
@@ -59,26 +60,24 @@ export function EffectChain({effects, selected, onSelectionChange, onReorderOpen
         onReorderOpen(false);
     };
 
-    const handleMovePedal = (effectId: number, direction: "left" | "right") => {
-        const currentIndex = effects.findIndex(e => e.data.id === effectId);
-
+    const handleMovePedal = (currentIndex: number, direction: "left" | "right") => {
         const newIndex = direction === "left" ? currentIndex - 1 : currentIndex + 1;
         if (newIndex < 0 || newIndex >= effects.length) return;
 
-        moveEffect(effectId, newIndex);
+        moveEffect(currentIndex, newIndex);
     }
 
     const onDragEnd = (result: DropResult) => {
         if (!result.destination) return;
 
-        const effectId = parseInt(result.draggableId);
+        const sourceIndex = result.source.index;
         const newIndex = result.destination.index;
 
-        moveEffect(effectId, newIndex);
+        moveEffect(sourceIndex, newIndex);
     };
 
     function isEffectSelected(effect: EffectDto) {
-        return selected !== "amp" && selected.data.id === effect.data.id;
+        return selected !== "amp" && selected === effect;
     }
 
     const selectedBorder = {
@@ -178,15 +177,14 @@ export function EffectChain({effects, selected, onSelectionChange, onReorderOpen
 
                                     {effects.map((item, index) => (
                                         <Draggable
-                                            key={item.data.id}
-                                            draggableId={item.data.id.toString()}
+                                            key={`effect-${item.kind}-${item.data.id}`}
+                                            draggableId={`effect-${item.kind}-${item.data.id}`}
                                             index={index}
                                             isDragDisabled={!reorderOpen}
                                         >
                                             {(provided, snapshot) => (
                                                 <Box
-                                                    key={"effect-" + item.data.id}
-                                                    onClick={() => onSelectionChange(item)}
+                                                    onClick={() => onSelectionChange(item, index)}
                                                     ref={provided.innerRef}
                                                     {...provided.draggableProps}
                                                     {...provided.dragHandleProps}
@@ -246,8 +244,13 @@ export function EffectChain({effects, selected, onSelectionChange, onReorderOpen
                                                                 transition: 'border 0.15s, box-shadow 0.15s',
                                                                 ...(isEffectSelected(item) && selectedBorder),
                                                             }}>
-                                                                <EffectPedalPreview mainColor={item.data.color}
-                                                                                    isActive={item.data.is_active}/>
+                                                                {item.kind === "Cabinet"
+                                                                    ? <CabinetPreview mainColor={item.data.color} isActive={item.data.is_active}/>
+                                                                    : item.kind === "HCDistortion"
+                                                                    ? <EffectPedalPreview mainColor={item.data.color}
+                                                                                        isActive={item.data.is_active}/>
+                                                                    : null
+                                                                }
                                                             </Box>
                                                         </Box>
                                                         <Typography
@@ -268,11 +271,11 @@ export function EffectChain({effects, selected, onSelectionChange, onReorderOpen
                                                                 alignItems: "center"
                                                             }}>
                                                                 <IconButton
-                                                                    onClick={() => handleMovePedal(item.data.id, "left")}>
+                                                                    onClick={() => handleMovePedal(index, "left")}>
                                                                     <KeyboardArrowLeft/>
                                                                 </IconButton>
                                                                 <IconButton
-                                                                    onClick={() => handleMovePedal(item.data.id, "right")}>
+                                                                    onClick={() => handleMovePedal(index, "right")}>
                                                                     <KeyboardArrowRight/>
                                                                 </IconButton>
                                                             </Box>
