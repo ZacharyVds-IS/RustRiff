@@ -2,3 +2,4 @@
 
 pub mod audio_handler;
 pub mod persistence;
+pub mod file_loader;

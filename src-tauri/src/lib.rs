@@ -1,4 +1,5 @@
 pub mod commands;
+pub mod config;
 pub mod domain;
 pub mod infrastructure;
 pub mod services;
@@ -8,14 +9,20 @@ pub mod tests;
 
 use crate::commands::channels::{add_channel, get_all_channels, get_channel_id, remove_channel, set_channel_id};
 use crate::commands::default_controls::{get_amp_config, set_bass, set_gain, set_master_volume, set_middle, set_tone_stack, set_treble, set_volume, toggle_on_off};
+use crate::commands::effect_commands::cabinet_ir::{get_all_ir_profiles, remove_ir_profile, upload_ir_profile};
+use crate::commands::effect_commands::hc_distortion::{set_hc_distortion_level, set_hc_distortion_threshold};
 use crate::commands::effects::{add_effect, apply_effect_order_change, remove_effect, set_delay_delay_time, set_delay_level, set_hc_distortion_level, set_hc_distortion_threshold, toggle_effect};
 use crate::commands::latency_testing::{measure_all_dsp_algorithmic_latency, measure_all_dsp_cpu_timings, measure_buffer_latency, measure_round_trip_latency, test_gain_latency};
 use crate::commands::loopback::start_loopback;
 use crate::commands::settings::{get_buffer_size_frames, get_input_device_list, get_output_device_list, set_buffer_size_frames, set_input_device, set_output_device};
+use crate::config::{get_default_ir_file, init_tracing};
+use crate::infrastructure::file_loader::FileLoader;
 use crate::infrastructure::persistence::json_amp_config_repository::JsonFileAmpConfigRepository;
 use crate::services::amp_config_service::AmpConfigPersistenceService;
 use crate::services::audio_service::AudioService;
 use crate::services::device_service::DeviceService;
+use crate::services::file_service::FileService;
+use commands::effect_commands::effects::{add_effect, apply_effect_order_change, remove_effect, toggle_effect};
 use cpal::default_host;
 use cpal::traits::{DeviceTrait, HostTrait};
 use cpal::{BufferSize, StreamConfig};
@@ -28,29 +35,85 @@ const AMP_CONFIG_FILE_NAME: &str = "amp-config.json";
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")),
-        )
-        .init();
+    init_tracing();
 
     let host = default_host();
     let input = host.default_input_device().unwrap();
     let output = host.default_output_device().unwrap();
 
-    let input_supported = input.default_input_config().unwrap();
-    let output_supported = output.default_output_config().unwrap();
+    let input_name = input
+        .description()
+        .map(|d| d.name().to_string())
+        .unwrap_or_else(|_| "Unknown".to_string());
+    let output_name = output
+        .description()
+        .map(|d| d.name().to_string())
+        .unwrap_or_else(|_| "Unknown".to_string());
+
+    info!("Input device: {}", input_name);
+    info!("Output device: {}", output_name);
+
+    let input_supported = input
+        .default_input_config()
+        .map_err(|e| format!("Failed to get input device config: {}", e))
+        .unwrap();
+    let output_supported = output
+        .default_output_config()
+        .map_err(|e| format!("Failed to get output device config: {}", e))
+        .unwrap();
+    info!(
+        "Input config - Channels: {}, Sample Rate: {} Hz",
+        input_supported.channels(),
+        input_supported.sample_rate()
+    );
+    info!(
+        "Output config - Channels: {}, Sample Rate: {} Hz",
+        output_supported.channels(),
+        output_supported.sample_rate()
+    );
+
+    let normalize_channels = |channels: u16| -> u16 {
+        match channels {
+            0 => {
+                error!("Device reported 0 channels, defaulting to stereo");
+                2
+            }
+            1 => 1,
+            _ => {
+                if channels > 2 {
+                    info!(
+                        "Device reported {} channels, normalizing to stereo for stability",
+                        channels
+                    );
+                    2
+                } else {
+                    channels
+                }
+            }
+        }
+    };
+
+    let input_channels = normalize_channels(input_supported.channels());
+    let output_channels = normalize_channels(output_supported.channels());
 
     let input_config = StreamConfig {
-        channels: input_supported.channels(),
+        channels: input_channels,
         sample_rate: input_supported.sample_rate(),
         buffer_size: BufferSize::Default,
     };
     let output_config = StreamConfig {
-        channels: output_supported.channels(),
+        channels: output_channels,
         sample_rate: output_supported.sample_rate(),
         buffer_size: BufferSize::Default,
     };
+
+    info!(
+        "Configured stream - Input: {} ch @ {} Hz, Output: {} ch @ {} Hz",
+        input_config.channels,
+        input_config.sample_rate,
+        output_config.channels,
+        output_config.sample_rate
+    );
 
     let audio_service = AudioService::new(input, output, input_config, output_config);
 
@@ -89,10 +152,28 @@ pub fn run() {
                 }
             }
 
+            let resource_root = app
+                .path()
+                .resource_dir()
+                .unwrap_or_else(|_| std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("resources"));
+            info!("Using resource root: {}", resource_root.display());
+
+            let custom_ir_directory = config_dir.join("default_ir_custom");
+            info!("Using custom IR directory: {}", custom_ir_directory.display());
+            std::env::set_var("RUSTRIFF_CUSTOM_IR_DIR", &custom_ir_directory);
+
+            let file_service = FileService::new(
+                Box::new(FileLoader::new()),
+                resource_root,
+                custom_ir_directory,
+            );
+            app.manage(file_service);
+
             app.manage(Mutex::new(amp_config_persistence_service));
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            get_default_ir_file,
             start_loopback,
             set_gain,
             get_input_device_list,
@@ -125,6 +206,9 @@ pub fn run() {
             add_effect,
             remove_effect,
             apply_effect_order_change,
+            get_all_ir_profiles,
+            upload_ir_profile,
+            remove_ir_profile,
             set_delay_delay_time,
             set_delay_level,
         ])

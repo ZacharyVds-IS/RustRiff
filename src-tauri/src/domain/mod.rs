@@ -5,3 +5,4 @@ pub mod audio_processor;
 pub mod tone_stack;
 pub mod effect;
 pub mod dto;
+pub mod validation;

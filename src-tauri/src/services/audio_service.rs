@@ -4,6 +4,7 @@ use crate::domain::dto::amp_config_dto::AmpConfigDto;
 use crate::domain::dto::effect::effect_dto::EffectDto;
 use crate::infrastructure::audio_handler::{AudioHandler, AudioHandlerTrait};
 use crate::services::effects::delay::delay::Delay;
+use crate::services::effects::cabinet::cabinet::Cabinet;
 use crate::services::effects::distortion::hc_distortion::HCDistortion;
 use crate::services::processors::gain::gain_processor::GainProcessor;
 use crate::services::processors::resampler::resampler::ResamplePolicy;
@@ -483,6 +484,7 @@ impl AudioService {
     /// off even though this method is capable of applying either state.
     pub fn apply_amp_config(&mut self, config: AmpConfigDto) {
         let mut restored_channels = Vec::new();
+        let dsp_sample_rate = self.dsp_chain_sample_rate();
 
         // Backward compatibility: older snapshots stored tone values as 0..100.
         // New normalized format is 0.0..1.0 end-to-end.
@@ -550,6 +552,7 @@ mod tests {
     use super::*;
     use crate::domain::dto::amp_config_dto::AmpConfigDto;
     use crate::domain::dto::channel_dto::ChannelDto;
+    use crate::domain::dto::effect::cabinet_dto::CabinetDto;
     use crate::domain::dto::effect::effect_dto::EffectDto;
     use crate::domain::dto::effect::hcdistortion_dto::HcDistortionDto;
     use crate::domain::dto::tone_stack_dto::ToneStackDto;
@@ -585,6 +588,16 @@ mod tests {
             color: color.to_string(),
             threshold,
             level,
+        })
+    }
+
+    fn cabinet_effect(id: u32, name: &str, is_active: bool, color: &str, ir_file_path: &str) -> EffectDto {
+        EffectDto::Cabinet(CabinetDto {
+            id,
+            name: name.to_string(),
+            is_active,
+            color: color.to_string(),
+            ir_file_path: ir_file_path.to_string(),
         })
     }
 
@@ -728,8 +741,42 @@ mod tests {
         }
 
         #[test]
+        fn apply_amp_config_restores_cabinet_effect_ir_file_path() {
+            let mut service = build_service(make_mock_handler());
+            let config = AmpConfigDto {
+                master_volume: 0.8,
+                is_active: false,
+                channels: vec![channel_dto(
+                    2,
+                    "Cab Channel",
+                    1.0,
+                    1.0,
+                    tone_stack(0.5, 0.5, 0.5),
+                    vec![cabinet_effect(9, "Cab", true, "#445566", "Vox-ac30.wav")],
+                )],
+                current_channel: 2,
+            };
+
+            service.apply_amp_config(config);
+
+            let snapshot = AmpConfigDto::from_service(&service);
+            assert_eq!(snapshot.channels.len(), 1);
+            assert_eq!(snapshot.channels[0].effect_chain.len(), 1);
+
+            if let EffectDto::Cabinet(dto) = &snapshot.channels[0].effect_chain[0] {
+                assert_eq!(dto.id, 9);
+                assert_eq!(dto.name, "Cab");
+                assert!(dto.is_active);
+                assert_eq!(dto.color, "#445566");
+                assert_eq!(dto.ir_file_path, "Vox-ac30.wav");
+            } else {
+                panic!("Expected Cabinet effect");
+            }
+        }
+
+        #[test]
         fn apply_amp_config_clamps_non_positive_levels_and_falls_back_to_first_channel() {
-            let mut service = build_service(MockAudioHandlerTrait::new());
+            let mut service = build_service(make_mock_handler());
             let config = AmpConfigDto {
                 master_volume: 0.0,
                 is_active: false,
@@ -762,7 +809,7 @@ mod tests {
 
         #[test]
         fn apply_amp_config_with_no_channels_creates_default_channel() {
-            let mut service = build_service(MockAudioHandlerTrait::new());
+            let mut service = build_service(make_mock_handler());
 
             service.apply_amp_config(AmpConfigDto {
                 master_volume: 0.75,
@@ -831,7 +878,7 @@ mod tests {
         fn add_channel_should_panic_with_to_long_name() {
             let mock = MockAudioHandlerTrait::new();
             let mut service = AudioService::new_with_handler(Arc::new(mock));
-            let test_channel =
+            let _test_channel =
                 service.add_channel("Hippopotomonstrosesquippedaliophobia".to_string());
         }
     }
