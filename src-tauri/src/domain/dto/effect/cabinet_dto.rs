@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 fn default_ir_file_path() -> String {
-    "info-support-halway.wav".to_string()
+    "Vox-ac30.wav".to_string()
 }
 
 /// Data Transfer Object for the placeholder cabinet effect.

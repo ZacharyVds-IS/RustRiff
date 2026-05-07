@@ -13,7 +13,7 @@ use std::sync::Arc;
 use tracing::{info, warn};
 
 /// Default cabinet impulse-response WAV file loaded when no explicit profile is supplied.
-const DEFAULT_IR_FILE: &str = "info-support-halway.wav";
+const DEFAULT_IR_FILE: &str = "Vox-ac30.wav";
 const CUSTOM_IR_ENV_KEY: &str = "RUSTRIFF_CUSTOM_IR_DIR";
 /// Chunk size used by IR resampling during initialization.
 const IR_RESAMPLER_CHUNK_SIZE: usize = 256;
