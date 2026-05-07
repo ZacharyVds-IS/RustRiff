@@ -5,9 +5,14 @@ use std::io::Cursor;
 use std::path::Path;
 use tracing::{info, warn};
 
+/// Filesystem-backed implementation of [`FileLoaderTrait`].
+///
+/// Uses [`std::fs`] for directory and file operations, and the [`hound`] crate
+/// for WAV decoding and validation.
 pub struct FileLoader;
 
 impl FileLoader {
+    /// Creates a new `FileLoader`.
     pub fn new() -> Self {
         Self
     }
@@ -15,7 +20,9 @@ impl FileLoader {
 
 impl FileLoaderTrait for FileLoader {
     fn read_wav_sample_rate(&self, path: &Path) -> Option<u32> {
-        WavReader::open(path).ok().map(|reader| reader.spec().sample_rate)
+        WavReader::open(path)
+            .ok()
+            .map(|reader| reader.spec().sample_rate)
     }
 
     fn read_wav_to_buffer(&self, path: &Path) -> Vec<f32> {
@@ -62,10 +69,7 @@ impl FileLoaderTrait for FileLoader {
                                 buffer
                             }
                             Err(e) => {
-                                warn!(
-                                    "Failed to read int samples from '{}': {e}",
-                                    path.display()
-                                );
+                                warn!("Failed to read int samples from '{}': {e}", path.display());
                                 Vec::new()
                             }
                         }
@@ -91,7 +95,7 @@ impl FileLoaderTrait for FileLoader {
                     return None;
                 }
 
-                 if path
+                if path
                     .extension()
                     .and_then(|ext| ext.to_str())
                     .map(|ext| ext.eq_ignore_ascii_case("wav"))
@@ -193,6 +197,144 @@ impl FileLoaderTrait for FileLoader {
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use hound::{SampleFormat, WavSpec, WavWriter};
+    use std::path::{Path, PathBuf};
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn unique_test_dir() -> PathBuf {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("time should be monotonic")
+            .as_nanos();
+        std::env::temp_dir().join(format!("rustriff-file-loader-{nanos}"))
+    }
+
+    fn write_float_wav_file(path: &Path, samples: &[f32], sample_rate: u32) {
+        let spec = WavSpec {
+            channels: 1,
+            sample_rate,
+            bits_per_sample: 32,
+            sample_format: SampleFormat::Float,
+        };
+
+        let mut writer = WavWriter::create(path, spec).expect("wav file should be creatable");
+        for sample in samples {
+            writer.write_sample(*sample).expect("sample should be writable");
+        }
+        writer.finalize().expect("wav writer should finalize");
+    }
+
+    fn float_wav_bytes(samples: &[f32]) -> Vec<u8> {
+        let dir = unique_test_dir();
+        fs::create_dir_all(&dir).expect("test directory should be creatable");
+        let path = dir.join("buffer.wav");
+        write_float_wav_file(&path, samples, 48_000);
+        let bytes = fs::read(&path).expect("generated wav should be readable");
+        let _ = fs::remove_dir_all(dir);
+        bytes
+    }
+
+    #[cfg(test)]
+    mod success_path {
+        use super::*;
+
+        #[test]
+        fn list_ir_profile_file_names_returns_sorted_wav_files_only() {
+            let loader = FileLoader::new();
+            let dir = unique_test_dir();
+            fs::create_dir_all(dir.join("nested")).expect("test directory should be creatable");
+
+            write_float_wav_file(&dir.join("z-room.wav"), &[0.5, 0.0], 48_000);
+            write_float_wav_file(&dir.join("A-clean.WAV"), &[0.5, 0.0], 48_000);
+            write_float_wav_file(&dir.join("nested").join("ignored.wav"), &[0.5, 0.0], 48_000);
+            fs::write(dir.join("notes.txt"), b"not a wav").expect("text file should be writable");
+
+            let names = loader
+                .list_ir_profile_file_names(&dir)
+                .expect("listing IR profiles should succeed");
+
+            assert_eq!(names, vec!["A-clean.WAV".to_string(), "z-room.wav".to_string()]);
+
+            let _ = fs::remove_dir_all(dir);
+        }
+
+        #[test]
+        fn read_wav_helpers_return_sample_rate_and_buffer_for_valid_ir() {
+            let loader = FileLoader::new();
+            let dir = unique_test_dir();
+            fs::create_dir_all(&dir).expect("test directory should be creatable");
+            let path = dir.join("valid-ir.wav");
+            let samples = [0.75_f32, -0.25_f32, 0.125_f32];
+            write_float_wav_file(&path, &samples, 44_100);
+
+            let sample_rate = loader.read_wav_sample_rate(&path);
+            let buffer = loader.read_wav_to_buffer(&path);
+
+            assert_eq!(sample_rate, Some(44_100));
+            assert_eq!(buffer.len(), samples.len());
+            assert!((buffer[0] - 0.75).abs() < 1e-6);
+            assert!((buffer[1] + 0.25).abs() < 1e-6);
+            assert!((buffer[2] - 0.125).abs() < 1e-6);
+
+            let _ = fs::remove_dir_all(dir);
+        }
+
+        #[test]
+        fn validate_ir_wav_bytes_accepts_valid_impulse_wav() {
+            let loader = FileLoader::new();
+            let bytes = float_wav_bytes(&[0.25, 0.0, 0.0, 0.0]);
+
+            loader
+                .validate_ir_wav_bytes("cab.wav", &bytes, 1e-6)
+                .expect("impulse IR should validate");
+        }
+    }
+
+    #[cfg(test)]
+    mod failure_path {
+        use super::*;
+
+        #[test]
+        fn read_wav_sample_rate_returns_none_for_missing_file() {
+            let loader = FileLoader::new();
+            let missing = std::env::temp_dir().join("does-not-exist-rustriff.wav");
+            assert!(loader.read_wav_sample_rate(&missing).is_none());
+        }
+
+        #[test]
+        fn read_wav_to_buffer_returns_empty_for_missing_file() {
+            let loader = FileLoader::new();
+            let missing = std::env::temp_dir().join("does-not-exist-rustriff.wav");
+            assert!(loader.read_wav_to_buffer(&missing).is_empty());
+        }
+
+        #[test]
+        fn validate_ir_wav_bytes_rejects_non_wav_extension() {
+            let loader = FileLoader::new();
+            let bytes = float_wav_bytes(&[0.25, 0.0, 0.0, 0.0]);
+
+            let err = loader
+                .validate_ir_wav_bytes("cab.mp3", &bytes, 1e-6)
+                .expect_err("non-wav extension should be rejected");
+            assert!(err.contains("Only .wav IR files are supported"));
+        }
+
+        #[test]
+        fn validate_ir_wav_bytes_rejects_silent_file_start() {
+            let loader = FileLoader::new();
+            let bytes = float_wav_bytes(&[0.0; 32]);
+
+            let err = loader
+                .validate_ir_wav_bytes("silent.wav", &bytes, 1e-6)
+                .expect_err("silent IR should be rejected");
+            assert!(err.contains("no impulse detected"));
+        }
     }
 }
 

@@ -46,17 +46,38 @@ pub struct Cabinet {
     name: String,
     is_active: Arc<AtomicBool>,
     color: String,
+    /// Filename of the currently loaded IR (e.g. `"vintage-4x12.wav"`).
+    ///
+    /// Stored so it can be serialized into [`CabinetDto`] for persistence and
+    /// used to re-initialize the cabinet after a configuration reload.
     ir_file_path: String,
+    /// Time-domain IR samples after optional resampling and truncation.
+    /// Retained in memory because `ir_buffer.len()` is needed on every block
+    /// to compute the correct overlap-add region length.
     ir_buffer: Vec<f32>,
+    /// Frequency-domain FFT of the IR — the convolution kernel `H[k]`.
+    /// Pre-computed once in `new()` so the hot audio path only multiplies
+    /// rather than re-computing the IR FFT every block.
     ir_fft_kernel: Vec<Complex<f32>>,
     ir_fft_size: usize,
     fft_forward: Arc<dyn Fft<f32>>,
     fft_inverse: Arc<dyn Fft<f32>>,
+    /// Reusable working buffer of length `ir_fft_size` for in-place FFT ops.
+    /// Preallocated to avoid heap allocation on the real-time audio thread.
     fft_scratch: Vec<Complex<f32>>,
+    /// Attenuation factor derived from the IR peak; prevents output clipping
+    /// caused by high-amplitude IR files.
     cabinet_gain: f32,
+    /// Guards against flooding the log with repeated "IR unavailable" warnings.
     has_logged_ir_unavailable: bool,
+    /// Accumulates incoming samples until a full `CONV_BLOCK_SIZE` block is
+    /// ready for FFT convolution.
     input_block: Vec<f32>,
+    /// Ring buffer of ready-to-deliver processed samples.
+    /// Overlap-add writes ahead into positions that represent future blocks,
+    /// and [`AudioProcessor::process`] pops one sample per call.
     output_queue: VecDeque<f32>,
+    /// Sample rate of the DSP pipeline; used to resample the IR if needed.
     dsp_sample_rate: u32,
 }
 
@@ -179,6 +200,19 @@ impl Cabinet {
         (forward, inverse)
     }
 
+    /// Searches several well-known directories for an IR file and returns the
+    /// first path that resolves to an existing regular file.
+    ///
+    /// Search order:
+    /// 1. `$RUSTRIFF_CUSTOM_IR_DIR/<file_name>` — user-defined override via the
+    ///    [`CUSTOM_IR_ENV_KEY`] environment variable (useful during development
+    ///    or when testing a custom cabinet).
+    /// 2. `CARGO_MANIFEST_DIR/resources/default_ir/<file_name>` — bundled
+    ///    default IRs when running under `cargo run` / `cargo tauri dev`.
+    /// 3. `<exe_dir>/resources/default_ir/<file_name>` — bundled resources
+    ///    relative to the installed executable in release builds.
+    /// Returns `None` when no candidate exists; the caller is responsible for
+    /// logging a warning and supplying a fallback path.
     fn resolve_ir_file_path(file_name: &str) -> Option<PathBuf> {
         let mut candidates = Vec::new();
 
@@ -413,6 +447,11 @@ impl Effect for Cabinet {
         self.color.clone()
     }
 
+    /// Serializes the current cabinet state into a [`CabinetDto`].
+    ///
+    /// The DTO captures everything the frontend needs to re-render the pedal
+    /// and everything the persistence layer needs to restore it on next launch,
+    /// including the `ir_file_path` used to reload the correct IR.
     fn to_dto(&self) -> EffectDto {
         EffectDto::Cabinet(CabinetDto {
             id: self.id,
@@ -423,7 +462,171 @@ impl Effect for Cabinet {
         })
     }
 
+    /// Returns a shared reference to the atomic active/bypass flag.
+    ///
+    /// The flag may be toggled from the UI thread without locking the audio
+    /// thread, because [`AtomicBool`] operations are lock-free.
     fn active_flag(&self) -> Arc<AtomicBool> {
         Arc::clone(&self.is_active)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::domain::audio_processor::AudioProcessor;
+    use crate::domain::effect::Effect;
+
+    const TEST_SAMPLE_RATE: u32 = 48_000;
+    const BLOCK_SIZE: usize = 256;
+
+    fn make_cabinet(ir_file: &str, is_active: bool) -> Cabinet {
+        Cabinet::new(
+            0,
+            "Test Cabinet".to_string(),
+            is_active,
+            "#112233".to_string(),
+            ir_file.to_string(),
+            TEST_SAMPLE_RATE,
+        )
+    }
+
+    fn feed_samples(cabinet: &mut Cabinet, samples: &[f32]) -> Vec<f32> {
+        samples.iter().map(|&s| cabinet.process(s)).collect()
+    }
+
+    #[cfg(test)]
+    mod success_path {
+        use super::*;
+
+        #[test]
+        fn new_with_valid_ir_initializes_non_empty_fft_kernel() {
+            let cab = make_cabinet("Vox-ac30.wav", true);
+            assert!(
+                !cab.ir_fft_kernel().is_empty(),
+                "A valid IR file should produce a non-empty FFT kernel"
+            );
+        }
+
+        #[test]
+        fn new_with_valid_ir_fft_size_is_a_power_of_two() {
+            let cab = make_cabinet("Vox-ac30.wav", true);
+            let size = cab.ir_fft_size();
+            assert!(size > 0);
+            assert_eq!(
+                size & (size - 1),
+                0,
+                "FFT size {size} is not a power of two"
+            );
+        }
+
+        #[test]
+        fn new_returns_the_configured_dsp_sample_rate() {
+            let cab = make_cabinet("Vox-ac30.wav", true);
+            assert_eq!(cab.sample_rate(), TEST_SAMPLE_RATE);
+        }
+
+        #[test]
+        fn to_dto_round_trips_all_cabinet_fields() {
+            let cab = make_cabinet("Vox-ac30.wav", true);
+            if let EffectDto::Cabinet(dto) = cab.to_dto() {
+                assert_eq!(dto.id, 0);
+                assert_eq!(dto.name, "Test Cabinet");
+                assert_eq!(dto.color, "#112233");
+                assert_eq!(dto.ir_file_path, "Vox-ac30.wav");
+                assert!(dto.is_active);
+            } else {
+                panic!("to_dto should return a Cabinet variant");
+            }
+        }
+
+        #[test]
+        fn process_produces_non_zero_output_after_one_full_block() {
+            let mut cab = make_cabinet("Vox-ac30.wav", true);
+
+            // Feed two blocks of constant input.  The first BLOCK_SIZE returns
+            // are all 0.0 (queue underrun).  From index BLOCK_SIZE onward the
+            // first convolution result emerges from the queue.
+            let input = vec![0.5_f32; BLOCK_SIZE * 2];
+            let output = feed_samples(&mut cab, &input);
+
+            let post_block = &output[BLOCK_SIZE..];
+            assert!(
+                post_block.iter().any(|&s| s.abs() > 1e-6),
+                "Convolution with a real IR should produce non-zero output after the first block"
+            );
+        }
+
+        #[test]
+        fn process_if_active_false_returns_input_sample_unchanged_without_block_delay() {
+            let mut cab = make_cabinet("Vox-ac30.wav", false);
+
+            let output = cab.process_if_active(0.75_f32);
+            assert!(
+                (output - 0.75).abs() < 1e-6,
+                "Bypassed cabinet should return the input sample unchanged"
+            );
+        }
+
+        #[test]
+        fn output_is_clamped_to_output_clamp_range() {
+            let mut cab = make_cabinet("Vox-ac30.wav", true);
+            let input = vec![1.0_f32; BLOCK_SIZE * 2];
+            let output = feed_samples(&mut cab, &input);
+            for &sample in &output {
+                assert!(
+                    sample.abs() <= OUTPUT_CLAMP + f32::EPSILON,
+                    "Output sample {sample} exceeds clamp limit {OUTPUT_CLAMP}"
+                );
+            }
+        }
+    }
+
+    #[cfg(test)]
+    mod failure_path {
+        use super::*;
+
+        #[test]
+        fn new_with_missing_ir_file_produces_empty_fft_kernel() {
+            let cab = make_cabinet("nonexistent-ir-file.wav", true);
+            assert!(
+                cab.ir_fft_kernel().is_empty(),
+                "A missing IR file should result in an empty FFT kernel (passthrough mode)"
+            );
+        }
+
+        #[test]
+        fn process_with_empty_kernel_passes_signal_through_after_one_block_delay() {
+            let mut cab = make_cabinet("nonexistent-ir-file.wav", true);
+            assert!(cab.ir_fft_kernel().is_empty());
+
+            let input: Vec<f32> = (0..BLOCK_SIZE * 2).map(|i| i as f32 * 0.001).collect();
+            let output = feed_samples(&mut cab, &input);
+
+            for i in 0..BLOCK_SIZE {
+                assert!(
+                    output[i].abs() < 1e-6,
+                    "Pre-block output should be silent (got {} at index {i})",
+                    output[i]
+                );
+            }
+
+            for i in 0..BLOCK_SIZE {
+                assert!(
+                    (output[BLOCK_SIZE + i] - input[i]).abs() < 1e-6,
+                    "Post-block output[{}] ({}) should equal input[{i}] ({})",
+                    BLOCK_SIZE + i,
+                    output[BLOCK_SIZE + i],
+                    input[i]
+                );
+            }
+        }
+
+        #[test]
+        fn new_with_empty_ir_path_does_not_panic() {
+            let cab = make_cabinet("", true);
+            let _ = cab.ir_fft_size();
+            let _ = cab.sample_rate();
+        }
     }
 }

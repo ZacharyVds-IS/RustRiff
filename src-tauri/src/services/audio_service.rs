@@ -573,6 +573,7 @@ mod tests {
     use super::*;
     use crate::domain::dto::amp_config_dto::AmpConfigDto;
     use crate::domain::dto::channel_dto::ChannelDto;
+    use crate::domain::dto::effect::cabinet_dto::CabinetDto;
     use crate::domain::dto::effect::effect_dto::EffectDto;
     use crate::domain::dto::effect::hcdistortion_dto::HcDistortionDto;
     use crate::domain::dto::tone_stack_dto::ToneStackDto;
@@ -608,6 +609,16 @@ mod tests {
             color: color.to_string(),
             threshold,
             level,
+        })
+    }
+
+    fn cabinet_effect(id: u32, name: &str, is_active: bool, color: &str, ir_file_path: &str) -> EffectDto {
+        EffectDto::Cabinet(CabinetDto {
+            id,
+            name: name.to_string(),
+            is_active,
+            color: color.to_string(),
+            ir_file_path: ir_file_path.to_string(),
         })
     }
 
@@ -747,6 +758,40 @@ mod tests {
                 assert!((dto.level - 0.7).abs() < 1e-5);
             } else {
                 panic!("Expected HCDistortion effect");
+            }
+        }
+
+        #[test]
+        fn apply_amp_config_restores_cabinet_effect_ir_file_path() {
+            let mut service = build_service(make_mock_handler());
+            let config = AmpConfigDto {
+                master_volume: 0.8,
+                is_active: false,
+                channels: vec![channel_dto(
+                    2,
+                    "Cab Channel",
+                    1.0,
+                    1.0,
+                    tone_stack(0.5, 0.5, 0.5),
+                    vec![cabinet_effect(9, "Cab", true, "#445566", "Vox-ac30.wav")],
+                )],
+                current_channel: 2,
+            };
+
+            service.apply_amp_config(config);
+
+            let snapshot = AmpConfigDto::from_service(&service);
+            assert_eq!(snapshot.channels.len(), 1);
+            assert_eq!(snapshot.channels[0].effect_chain.len(), 1);
+
+            if let EffectDto::Cabinet(dto) = &snapshot.channels[0].effect_chain[0] {
+                assert_eq!(dto.id, 9);
+                assert_eq!(dto.name, "Cab");
+                assert!(dto.is_active);
+                assert_eq!(dto.color, "#445566");
+                assert_eq!(dto.ir_file_path, "Vox-ac30.wav");
+            } else {
+                panic!("Expected Cabinet effect");
             }
         }
 
