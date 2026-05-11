@@ -3,9 +3,6 @@ use crate::domain::channel::Channel;
 use crate::domain::dto::amp_config_dto::AmpConfigDto;
 use crate::domain::dto::effect::effect_dto::EffectDto;
 use crate::infrastructure::audio_handler::{AudioHandler, AudioHandlerTrait};
-use crate::services::effects::cabinet::cabinet::Cabinet;
-use crate::services::effects::delay::delay::Delay;
-use crate::services::effects::distortion::hc_distortion::HCDistortion;
 use crate::services::processors::gain::gain_processor::GainProcessor;
 use crate::services::processors::resampler::resampler::ResamplePolicy;
 use crate::services::processors::tone_stack::tone_stack_processor::ToneStackProcessor;
@@ -219,12 +216,10 @@ impl AudioService {
                             let _ = o_producer.try_push(processed_sample);
                         }
                     } else {
-                        thread::park()
+                        thread::sleep(Duration::from_millis(1));
                     }
                 }
 
-                // Drain any samples still sitting in the resampler's input buffer
-                // when the loopback is stopped so we don't lose the tail.
                 for processed_sample in
                     policy.flush(&mut |resampled_sample| run_dsp(resampled_sample))
                 {
@@ -387,7 +382,7 @@ impl AudioService {
             let id = self.next_channel_id;
             self.next_channel_id += 1;
 
-            let new_channel = Channel::new(id, channel_name.into(), None, None);
+            let new_channel = Channel::new(id, channel_name, None, None);
 
             self.channels.push(new_channel);
             self.set_current_channel_id(id);

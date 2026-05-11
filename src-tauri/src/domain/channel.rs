@@ -394,7 +394,6 @@ impl Channel {
     /// * `Err(String)` — Error if:
     ///   - Effect with given ID not found
     ///   - Parameter name not recognised by the effect
-
     pub fn set_effect_param(
         &self,
         effect_id: u32,
@@ -449,7 +448,6 @@ impl From<u32> for ParamInput {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::services::effects::distortion::hc_distortion::HCDistortion;
 
     mod success_path {
         use super::*;

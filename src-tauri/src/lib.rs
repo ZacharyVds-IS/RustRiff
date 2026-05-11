@@ -46,7 +46,6 @@ use cpal::{BufferSize, StreamConfig};
 use std::sync::Mutex;
 use tauri::Manager;
 use tracing::{error, info};
-use tracing_subscriber::EnvFilter;
 
 const AMP_CONFIG_FILE_NAME: &str = "amp-config.json";
 

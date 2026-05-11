@@ -37,11 +37,7 @@ impl AmpConfigDto {
         Self {
             master_volume: service.master_volume().load(Ordering::Relaxed),
             is_active: *service.is_active(),
-            channels: service
-                .channels()
-                .iter()
-                .map(|c| ChannelDto::from(c))
-                .collect(),
+            channels: service.channels().iter().map(ChannelDto::from).collect(),
             current_channel: channel.id(),
         }
     }

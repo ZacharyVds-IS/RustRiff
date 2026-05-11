@@ -110,6 +110,12 @@ impl ToneStack {
     }
 }
 
+impl Default for ToneStack {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

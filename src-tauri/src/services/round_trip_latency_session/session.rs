@@ -81,9 +81,8 @@ impl RoundTripLatencySession {
             }
         }
 
-        let configured_frames = frames_or_default(handler.input_config().buffer_size.clone()).max(
-            frames_or_default(handler.output_config().buffer_size.clone()),
-        );
+        let configured_frames = frames_or_default(handler.input_config().buffer_size)
+            .max(frames_or_default(handler.output_config().buffer_size));
         let ringbuffer_size = (configured_frames * 4).max(512);
 
         let (i_producer, mut i_consumer) = AudioHandler::create_ringbuffer(ringbuffer_size);

@@ -7,6 +7,7 @@ pub enum EQType {
     /// High-frequency shelf filter.
     High,
     /// Band-pass filter (combination of low and high shelves).
+    #[allow(dead_code)]
     Band,
     /// Peak filter for mid-range frequencies.
     Peak,
@@ -22,12 +23,6 @@ pub struct RangeEQ {
     low_shelf: Biquad,
     /// High-frequency biquad filter (used for High and Band modes).
     high_shelf: Biquad,
-    /// Sample rate of the audio signal.
-    sample_rate: f32,
-    /// Low cutoff/cutoff frequency in Hz.
-    low_hz: f32,
-    /// High cutoff frequency in Hz (used for Band and High modes).
-    high_hz: f32,
     /// Type of equalization.
     eq_type: EQType,
 }
@@ -69,9 +64,6 @@ impl RangeEQ {
         Self {
             low_shelf,
             high_shelf,
-            sample_rate,
-            low_hz,
-            high_hz,
             eq_type,
         }
     }

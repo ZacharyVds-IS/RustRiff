@@ -192,7 +192,7 @@ impl Biquad {
             }
         };
         //Normalize Coefficients so that a0 is 1
-        (b0 / a0, b1 / a0, b2 / a0, a0 / a0, a1 / a0, a2 / a0)
+        (b0 / a0, b1 / a0, b2 / a0, 1.0, a1 / a0, a2 / a0)
     }
 }
 

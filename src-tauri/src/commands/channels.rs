@@ -124,11 +124,7 @@ pub(crate) fn get_all_channels(
     audio_service: tauri::State<Mutex<AudioService>>,
 ) -> Vec<ChannelDto> {
     let service = audio_service.inner().lock().unwrap();
-    service
-        .channels()
-        .iter()
-        .map(|channel| ChannelDto::from(channel))
-        .collect()
+    service.channels().iter().map(ChannelDto::from).collect()
 }
 
 /// Removes a channel from the audio service.

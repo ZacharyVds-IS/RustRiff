@@ -252,7 +252,7 @@ impl ResamplePolicy {
             Self::PreDsp(resampler) => resampler
                 .process_sample(sample)
                 .into_iter()
-                .map(|s| dsp(s))
+                .map(dsp)
                 .collect(),
             Self::PostDsp(resampler) => resampler.process_sample(dsp(sample)),
         }
@@ -280,7 +280,7 @@ impl ResamplePolicy {
     pub fn flush(&mut self, dsp: &mut impl FnMut(f32) -> f32) -> Vec<f32> {
         match self {
             Self::Bypass => Vec::new(),
-            Self::PreDsp(resampler) => resampler.flush().into_iter().map(|s| dsp(s)).collect(),
+            Self::PreDsp(resampler) => resampler.flush().into_iter().map(dsp).collect(),
             Self::PostDsp(resampler) => resampler.flush(),
         }
     }

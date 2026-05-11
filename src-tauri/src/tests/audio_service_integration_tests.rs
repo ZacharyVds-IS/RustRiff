@@ -1,5 +1,5 @@
 #[cfg(test)]
-mod audio_service_integration_tests {
+mod suite {
     use std::sync::Arc;
 
     use crate::infrastructure::audio_handler::MockAudioHandlerTrait;

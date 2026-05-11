@@ -7,7 +7,7 @@
 //!   `BufferLatencyDto`, `RoundTripLatencyDto`)
 
 #[cfg(test)]
-mod latency_measurement_tests {
+mod suite {
     use crate::infrastructure::audio_handler::MockAudioHandlerTrait;
     use crate::services::audio_latency_measurement_service::AudioLatencyMeasurementService;
     use crate::services::audio_service::AudioService;

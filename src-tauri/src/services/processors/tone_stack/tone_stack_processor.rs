@@ -77,7 +77,7 @@ impl ToneStackProcessor {
         fft_buffer.push(gain_sample);
 
         if fft_buffer.len() == fft_size {
-            let windowed = hann_window(&fft_buffer);
+            let windowed = hann_window(fft_buffer);
 
             let spectrum =
                 samples_fft_to_spectrum(&windowed, 48_000, FrequencyLimit::All, None).unwrap();
@@ -89,11 +89,11 @@ impl ToneStackProcessor {
             for (freq, magnitude) in spectrum.data().iter() {
                 let f = freq.val();
 
-                if f >= PRINT_BASS_MIN && f <= PRINT_BASS_MAX {
+                if (PRINT_BASS_MIN..=PRINT_BASS_MAX).contains(&f) {
                     bass_energy += magnitude.val();
-                } else if f > PRINT_MID_MIN && f <= PRINT_MID_MAX {
+                } else if (PRINT_MID_MIN..=PRINT_MID_MAX).contains(&f) {
                     mid_energy += magnitude.val();
-                } else if f > PRINT_TREBLE_MIN && f <= PRINT_TREBLE_MAX {
+                } else if (PRINT_TREBLE_MIN..=PRINT_TREBLE_MAX).contains(&f) {
                     treble_energy += magnitude.val();
                 }
             }

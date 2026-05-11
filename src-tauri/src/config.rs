@@ -2,8 +2,8 @@
 ///
 /// This module provides a single source of truth for configuration values
 /// that are referenced throughout the application, ensuring consistency
+///
 /// between backend logic, frontend defaults, and bundled resources.
-
 /// Default cabinet impulse-response WAV file name loaded when no explicit
 /// profile is selected by the user.
 ///
@@ -11,10 +11,8 @@
 /// `resources/default_ir/` so that newly created Cabinet effects work
 /// out-of-the-box without falling back to passthrough mode.
 pub const DEFAULT_IR_FILE: &str = "Vox-ac30.wav";
-
 /// Filename used for the persisted amplifier configuration JSON document.
 pub const AMP_CONFIG_FILE_NAME: &str = "amp-config.json";
-
 /// Initializes the application's tracing subscriber for structured logging.
 ///
 /// Reads the log filter from the `RUST_LOG` environment variable if present,

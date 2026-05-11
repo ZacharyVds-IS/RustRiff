@@ -48,6 +48,12 @@ impl FileLoader {
     }
 }
 
+impl Default for FileLoader {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl FileLoaderTrait for FileLoader {
     fn read_wav_sample_rate(&self, path: &Path) -> Option<u32> {
         WavReader::open(path)

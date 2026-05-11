@@ -144,9 +144,7 @@ impl RoundTripMeasurementState {
             return false;
         }
 
-        self.threshold = (self.ambient_peak * 2.0)
-            .max(0.05)
-            .min(IMPULSE_AMPLITUDE * 0.5);
+        self.threshold = (self.ambient_peak * 2.0).clamp(0.05, IMPULSE_AMPLITUDE * 0.5);
 
         println!(
             "[RT-MEASURE] Calibration done. Peak: {:.4}, threshold: {:.4}",
@@ -306,6 +304,12 @@ impl RoundTripMeasurementState {
     }
 }
 
+impl Default for RoundTripMeasurementState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -434,7 +438,7 @@ mod tests {
             let mut state = RoundTripMeasurementState::new();
             let peak = 0.1_f32;
             complete_calibration_with_peak(&mut state, peak);
-            let expected = (peak * 2.0).max(0.05).min(IMPULSE_AMPLITUDE * 0.5);
+            let expected = (peak * 2.0).clamp(0.05, IMPULSE_AMPLITUDE * 0.5);
             assert!((state.threshold - expected).abs() < 1e-6);
         }
 

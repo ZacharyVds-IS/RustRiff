@@ -45,7 +45,6 @@ use std::sync::Arc;
 ///
 /// This allows the audio thread to read parameter changes from command handlers
 /// without any locks or synchronisation overhead.
-
 pub struct HCDistortion {
     id: u32,
     name: String,
@@ -72,9 +71,9 @@ impl HCDistortion {
     /// * `name` — Human-readable name (e.g., "Distortion")
     /// * `is_active` — Whether the effect is initially enabled
     /// * `threshold` — Clip level in `(0.0, 1.0]`. Will be clamped to `[0.001, 1.0]`.
-    ///                 Lower values produce heavier distortion.
+    ///   Lower values produce heavier distortion.
     /// * `level` — Initial output boost in `[0.0, 1.0]`. Will be clamped to `[0.0, 1.0]`.
-    ///             Maps internally to gain `[1.0, 2.0]`.
+    ///   Maps internally to gain `[1.0, 2.0]`.
     /// * `color` — Hex colour string for UI pedal chassis (e.g., `"#e67e22"`)
     pub fn new(
         id: u32,

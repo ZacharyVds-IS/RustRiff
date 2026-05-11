@@ -27,8 +27,8 @@ impl GainProcessor {
     /// # Arguments
     ///
     /// * `gain` - An [`Arc<AtomicF32>`] that holds the target gain value.
-    ///            This value can be updated from other threads, and changes
-    ///            will be smoothly transitioned.
+    ///   This value can be updated from other threads, and changes
+    ///   will be smoothly transitioned.
     pub fn new(gain: Arc<AtomicF32>) -> Self {
         info!("initi gain processor");
         let initial = gain.load(Ordering::Relaxed);

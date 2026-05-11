@@ -100,8 +100,10 @@ impl FileService {
     ///    impulse via [`FileLoaderTrait::validate_ir_wav_bytes`].
     /// 3. A file with the same name must not already exist in the default IR set —
     ///    uploading a custom profile that would shadow a default one is rejected.
+    ///
     /// On success, the sanitized file name (which may differ from `file_name` only
     /// in surrounding whitespace) is returned so the caller can display it.
+    ///
     /// ## Errors
     /// Returns `Err` if any validation step fails or the file cannot be written.
     pub fn save_custom_ir_profile(
@@ -183,6 +185,7 @@ impl FileService {
     /// - **Release builds**: checks `resource_root/default_ir` and
     ///   `resource_root/resources/default_ir` as fallback, matching
     ///   different Tauri resource embedding strategies.
+    ///
     /// The first candidate path that is an existing directory is returned.
     /// All skipped paths are logged at `WARN` level to aid debugging.
     fn resolve_default_ir_directory(&self) -> Result<PathBuf, String> {
@@ -225,9 +228,11 @@ impl FileService {
 }
 
 /// Converts a `.wav` filename into a human-readable label for display in the UI.
+///
 /// Transformations applied:
 /// - file extension stripped (using `file_stem()`, handles any capitalization),
 /// - hyphens (`-`) and underscores (`_`) replaced with spaces.
+///
 /// Example: `"vintage-4x12_cab.wav"` → `"vintage 4x12 cab"`.
 fn to_readable_label(file_name: &str) -> String {
     std::path::Path::new(file_name)

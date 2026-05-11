@@ -219,6 +219,7 @@ impl Cabinet {
     ///    default IRs when running under `cargo run` / `cargo tauri dev`.
     /// 3. `<exe_dir>/resources/default_ir/<file_name>` — bundled resources
     ///    relative to the installed executable in release builds.
+    ///
     /// Returns `None` when no candidate exists; the caller is responsible for
     /// logging a warning and supplying a fallback path.
     fn resolve_ir_file_path(file_name: &str) -> Option<PathBuf> {
@@ -627,11 +628,11 @@ mod tests {
             let input: Vec<f32> = (0..BLOCK_SIZE * 2).map(|i| i as f32 * 0.001).collect();
             let output = feed_samples(&mut cab, &input);
 
-            for i in 0..BLOCK_SIZE {
+            for (i, sample) in output.iter().enumerate().take(BLOCK_SIZE) {
                 assert!(
-                    output[i].abs() < 1e-6,
+                    sample.abs() < 1e-6,
                     "Pre-block output should be silent (got {} at index {i})",
-                    output[i]
+                    sample
                 );
             }
 
