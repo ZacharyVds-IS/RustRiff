@@ -1,4 +1,4 @@
-import {CabinetDto, DelayDto, type EffectDto, getDefaultIrFile, HcDistortionDto} from "../../domain";
+import {CabinetDto, DelayDto, type EffectDto, getDefaultIrFile, HcDistortionDto, ScDistortionDto} from "../../domain";
 
 export type EffectKind = EffectDto["kind"];
 
@@ -37,6 +37,7 @@ export async function resolveDefaultCabinetIrFile(): Promise<string> {
 
 export const EFFECT_METADATA: Record<EffectKind, { label: string }> = {
     HCDistortion: {label: "Hard-Clipping Distortion"},
+    SCDistortion: {label: "Soft-Clipping Distortion"},
     Cabinet: {label: "Cabinet Simulation"},
     Delay: {label: "Delay"}
 };
@@ -51,6 +52,15 @@ export const EFFECT_FACTORIES: EffectFactoryMap = {
         color,
         is_active: false,
         threshold: 1,
+        level: 0,
+    }),
+    SCDistortion: ({name, color}): ScDistortionDto => ({
+        id: 0,
+        name,
+        color,
+        is_active: false,
+        threshold: 1,
+        smoothing: 5,
         level: 0,
     }),
     Cabinet: ({name, color, cabinetIrFilePath}): CabinetDto => ({

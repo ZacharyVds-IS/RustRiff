@@ -46,6 +46,7 @@ use cpal::{BufferSize, StreamConfig};
 use std::sync::Mutex;
 use tauri::Manager;
 use tracing::{error, info};
+use crate::commands::effect_commands::sc_distortion::{set_sc_distortion_level, set_sc_distortion_smoothing, set_sc_distortion_threshold};
 
 const AMP_CONFIG_FILE_NAME: &str = "amp-config.json";
 
@@ -228,6 +229,9 @@ pub fn run() {
             remove_ir_profile,
             set_delay_delay_time,
             set_delay_level,
+            set_sc_distortion_threshold,
+            set_sc_distortion_level,
+            set_sc_distortion_smoothing,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -19,7 +19,7 @@ is_active: boolean,
  */
 color: string, 
 /**
- * Time (ms) between the original sample and the echo's 
+ * Time (ms) between the original sample and the echo's
  */
 delay_time: number, 
 /**

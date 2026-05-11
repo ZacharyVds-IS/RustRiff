@@ -5,10 +5,14 @@ import {
     DelayDto,
     EffectDto,
     HcDistortionDto,
+    ScDistortionDto,
     setDelayDelayTime,
     setDelayLevel,
     setHcDistortionLevel,
     setHcDistortionThreshold,
+    setScDistortionLevel,
+    setScDistortionSmoothing,
+    setScDistortionThreshold,
     toggleEffect
 } from "../domain";
 import {useEffect, useState} from "react";
@@ -25,6 +29,7 @@ function knobsForEffect(
         onThresholdChange: (effectId: number, threshold: number, previousThreshold: number) => void;
         onLevelChange: (effectId: number, level: number, previousLevel: number) => void;
         onDelayTimeChange: (effectId: number, delayTime: number, previousDelayTime: number) => void;
+        onSmoothingChange: (effectId: number, smoothing: number, previousSmoothing: number) => void;
     }
 ): React.ReactNode {
     switch (effect.kind) {
@@ -64,6 +69,61 @@ function knobsForEffect(
                     />
                 </>
             );
+        }
+        case "SCDistortion": {
+            const data = effect.data as ScDistortionDto;
+            const THRESHOLD_CLEAN = 1.0;
+            const THRESHOLD_HOT = 0.05;
+            const driveKnobValue = (1 - (data.threshold - THRESHOLD_HOT) / (THRESHOLD_CLEAN - THRESHOLD_HOT)) * 100;
+            const levelKnobValue = data.level * 100;
+            const smoothingKnobValue = 100 - (data.smoothing * 10);
+            return (
+                <Stack sx={{width:200}}>
+                    <Stack direction="row" sx={{justifyContent:"space-around"}}>
+                        <Knob
+                            label="Drive"
+                            value={Math.max(0, Math.min(100, driveKnobValue))}
+                            min={0}
+                            max={100}
+                            step={0.5}
+                            size={40}
+                            valueDisplay="min-max"
+                            onChange={(v) => {
+                                const threshold = THRESHOLD_CLEAN - (v / 100) * (THRESHOLD_CLEAN - THRESHOLD_HOT);
+                                handlers.onThresholdChange(data.id, threshold, data.threshold);
+                            }}
+                        />
+                        <Knob
+                            label="Level"
+                            value={Math.max(0, Math.min(100, levelKnobValue))}
+                            min={0}
+                            max={100}
+                            step={0.5}
+                            size={40}
+                            valueDisplay="min-max"
+                            onChange={(v) => {
+                                const level = v / 100;
+                                handlers.onLevelChange(data.id, level, data.level);
+                            }}
+                        />
+                    </Stack>
+                    <Stack sx={{alignItems:"center"}}>
+                        <Knob
+                            label="Smoothing"
+                            value={Math.max(1, Math.min(100, smoothingKnobValue))}
+                            min={1}
+                            max={100}
+                            step={0.5}
+                            size={30}
+                            valueDisplay="min-max"
+                            onChange={(v) => {
+                                const smoothing = (100-v) / 10;
+                                handlers.onSmoothingChange(data.id, smoothing, data.smoothing);
+                            }}
+                        />
+                    </Stack>
+                </Stack>
+            )
         }
         case "Delay": {
             const data = effect.data as DelayDto;
@@ -117,6 +177,7 @@ export function EffectPedal({effect, onToggle}: EffectPedalProps) {
     const [isActive, setIsActive] = useState(effect.data.is_active);
     const updateEffectActiveState = useAmpStore((state) => state.updateEffectActiveState);
     const updateHcDistortionParams = useAmpStore((state) => state.updateHcDistortionParams);
+    const updateScDistortionParams = useAmpStore((state) => state.updateScDistortionParams);
     const updateDelayParams = useAmpStore((state) => state.updateDelayParams);
     const chassisColor = chroma(effect.data.color).hex();
 
@@ -139,11 +200,19 @@ export function EffectPedal({effect, onToggle}: EffectPedalProps) {
         }
     }
 
-    function handleThresholdChange(effectId: number, threshold: number, previousThreshold: number) {
+    function handleHCThresholdChange(effectId: number, threshold: number, previousThreshold: number) {
         updateHcDistortionParams(effectId, {threshold});
         void setHcDistortionThreshold({effectId, threshold}).catch((error) => {
             console.error("Failed to update HC distortion threshold:", error);
             updateHcDistortionParams(effectId, {threshold: previousThreshold});
+        });
+    }
+
+    function handleSCThresholdChange(effectId: number, threshold: number, previousThreshold: number) {
+        updateScDistortionParams(effectId, {threshold});
+        void setScDistortionThreshold({effectId, threshold}).catch((error) => {
+            console.error("Failed to update SC distortion threshold:", error);
+            updateScDistortionParams(effectId, {threshold: previousThreshold});
         });
     }
 
@@ -152,6 +221,22 @@ export function EffectPedal({effect, onToggle}: EffectPedalProps) {
         void setHcDistortionLevel({effectId, level}).catch((error) => {
             console.error("Failed to update HC distortion level:", error);
             updateHcDistortionParams(effectId, {level: previousLevel});
+        });
+    }
+
+    function handleSCLevelChange(effectId: number, level: number, previousLevel: number) {
+        updateScDistortionParams(effectId, {level: level});
+        void setScDistortionLevel({effectId, level}).catch((error) => {
+            console.error("Failed to update SC distortion level:", error);
+            updateScDistortionParams(effectId, {level: previousLevel});
+        });
+    }
+
+    function handleSmoothingChange(effectId: number, smoothing: number, previousSmoothing: number) {
+        updateScDistortionParams(effectId, {smoothing: smoothing});
+        void setScDistortionSmoothing({effectId, smoothing}).catch((error) => {
+            console.error("Failed to update SC smoothing:", error);
+            updateScDistortionParams(effectId, {smoothing: previousSmoothing});
         });
     }
 
@@ -176,7 +261,7 @@ export function EffectPedal({effect, onToggle}: EffectPedalProps) {
         <Box
             sx={{
                 width: 180,
-                height: 280,
+                minHeight: 280,
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
@@ -188,7 +273,8 @@ export function EffectPedal({effect, onToggle}: EffectPedalProps) {
             <Box
                 sx={{
                     width: '100%',
-                    height: '60%',
+                    height: 'auto',
+                    flexGrow: 1,
                     background: `linear-gradient(180deg, ${chroma(chassisColor).brighten(0.3)}, ${chassisColor})`,
                     borderRadius: '6px 6px 0 0',
                     border: '1px solid rgba(0,0,0,0.4)',
@@ -213,9 +299,10 @@ export function EffectPedal({effect, onToggle}: EffectPedalProps) {
 
                 <Stack direction="row" spacing={1} sx={{justifyContent: 'center'}}>
                     {knobsForEffect(effect, {
-                        onThresholdChange: handleThresholdChange,
-                        onLevelChange: effect.kind == "Delay" ? handleDelayLevelChange :handleHCDLevelChange,
-                        onDelayTimeChange: handleDelayTimeChange
+                        onThresholdChange: effect.kind == "HCDistortion" ?  handleHCThresholdChange : handleSCThresholdChange,
+                        onLevelChange: effect.kind == "Delay" ? handleDelayLevelChange : effect.kind == "HCDistortion" ? handleHCDLevelChange : handleSCLevelChange,
+                        onDelayTimeChange: handleDelayTimeChange,
+                        onSmoothingChange: handleSmoothingChange
                     })}
                 </Stack>
 
@@ -239,7 +326,8 @@ export function EffectPedal({effect, onToggle}: EffectPedalProps) {
                 onClick={handleFootswitchClick}
                 sx={{
                     width: 'calc(100% + 8px)',
-                    height: '40%',
+                    height: 110,
+                    flexShrink: 0,
                     bgcolor: '#1a1a1a',
                     borderRadius: '2px 2px 8px 8px',
                     border: '2px solid #000',
