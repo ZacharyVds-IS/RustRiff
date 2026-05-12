@@ -18,7 +18,7 @@ use std::thread;
 use std::thread::JoinHandle;
 use std::time::Duration;
 use tracing::{error, info};
-use uuid::{uuid, Uuid};
+use uuid::{Uuid};
 
 const DEFAULT_ANALYZER_SAMPLE_RATE_HZ: u32 = 48_000;
 

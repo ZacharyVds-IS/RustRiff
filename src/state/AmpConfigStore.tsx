@@ -36,10 +36,10 @@ function withUpdatedEffectActiveState<T extends EffectDto>(effect: T, isActive: 
 
 interface AmpState extends AmpConfigDto {
     init: () => Promise<void>;
-    setChannelById: (index: number) => Promise<void>;
+    setChannelById: (index: string) => Promise<void>;
     addChannel: (channelName: string) => Promise<void>;
     addChannelFromBackend: (channelDto: ChannelDto) => Promise<void>;
-    removeChannel: (channelId: number) => void;
+    removeChannel: (channelId: string) => void;
     setGain: (val: number) => void;
     setVolume: (val: number) => void;
     setMasterVolume: (val: number) => void;
@@ -47,10 +47,10 @@ interface AmpState extends AmpConfigDto {
     setBass: (val: number) => void;
     setMiddle: (val: number) => void;
     setTreble: (val: number) => void;
-    updateEffectActiveState: (effectId: number, isActive: boolean) => void;
-    updateHcDistortionParams: (effectId: number, patch: Partial<Pick<HcDistortionDto, "threshold" | "level">>) => void;
-    updateDelayParams: (effectId: number, patch: Partial<Pick<DelayDto, "delay_time" | "level">>) => void;
-    removeEffect: (effectId: number) => void;
+    updateEffectActiveState: (effectId: string, isActive: boolean) => void;
+    updateHcDistortionParams: (effectId: string, patch: Partial<Pick<HcDistortionDto, "threshold" | "level">>) => void;
+    updateDelayParams: (effectId: string, patch: Partial<Pick<DelayDto, "delay_time" | "level">>) => void;
+    removeEffect: (effectId: string) => void;
     addEffect: (effectDto: EffectDto) => Promise<void>;
     moveEffect: (currentIndex: number, newIndex: number) => Promise<void>;
     chain_snapshot: EffectDto[] | null;
@@ -63,7 +63,7 @@ export const useAmpStore = create<AmpState>((set, get) => ({
         master_volume: 1,
         is_active: false,
         channels: [{
-            id: 0,
+            id: "0",
             name: "Default",
             gain: 1.0,
             tone_stack: {
@@ -74,7 +74,7 @@ export const useAmpStore = create<AmpState>((set, get) => ({
             volume: 1,
             effect_chain: [],
         }],
-        current_channel: 0,
+        current_channel: "0",
         chain_snapshot: null,
 
         init: async () => {
@@ -89,7 +89,7 @@ export const useAmpStore = create<AmpState>((set, get) => ({
             }
         },
 
-        setChannelById: async (id: number) => {
+        setChannelById: async (id: string) => {
             try {
                 set({current_channel: id});
 
@@ -135,7 +135,7 @@ export const useAmpStore = create<AmpState>((set, get) => ({
             });
         },
 
-        removeChannel: async (channelId: number) => {
+        removeChannel: async (channelId: string) => {
             try {
                 console.log("Removing channel:", channelId);
 
@@ -250,7 +250,7 @@ export const useAmpStore = create<AmpState>((set, get) => ({
             }));
         },
 
-        updateEffectActiveState: (effectId: number, isActive: boolean) => {
+        updateEffectActiveState: (effectId: string, isActive: boolean) => {
             set((state) => ({
                 channels: state.channels.map((c) =>
                     c.id === state.current_channel
@@ -313,7 +313,7 @@ export const useAmpStore = create<AmpState>((set, get) => ({
             }));
         },
 
-        removeEffect: async (effectId: number) => {
+        removeEffect: async (effectId: string) => {
             try {
                 console.log("Removing effect:", effectId);
 

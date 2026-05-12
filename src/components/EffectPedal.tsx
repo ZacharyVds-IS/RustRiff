@@ -16,15 +16,15 @@ import {useAmpStore} from "../state/AmpConfigStore.tsx";
 
 interface EffectPedalProps {
     effect: EffectDto;
-    onToggle?: (effectId: number, isActive: boolean) => void;
+    onToggle?: (effectId: string, isActive: boolean) => void;
 }
 
 function knobsForEffect(
     effect: EffectDto,
     handlers: {
-        onThresholdChange: (effectId: number, threshold: number, previousThreshold: number) => void;
-        onLevelChange: (effectId: number, level: number, previousLevel: number) => void;
-        onDelayTimeChange: (effectId: number, delayTime: number, previousDelayTime: number) => void;
+        onThresholdChange: (effectId: string, threshold: number, previousThreshold: number) => void;
+        onLevelChange: (effectId: string, level: number, previousLevel: number) => void;
+        onDelayTimeChange: (effectId: string, delayTime: number, previousDelayTime: number) => void;
     }
 ): React.ReactNode {
     switch (effect.kind) {
@@ -139,7 +139,7 @@ export function EffectPedal({effect, onToggle}: EffectPedalProps) {
         }
     }
 
-    function handleThresholdChange(effectId: number, threshold: number, previousThreshold: number) {
+    function handleThresholdChange(effectId: string, threshold: number, previousThreshold: number) {
         updateHcDistortionParams(effectId, {threshold});
         void setHcDistortionThreshold({effectId, threshold}).catch((error) => {
             console.error("Failed to update HC distortion threshold:", error);
@@ -147,7 +147,7 @@ export function EffectPedal({effect, onToggle}: EffectPedalProps) {
         });
     }
 
-    function handleHCDLevelChange(effectId: number, level: number, previousLevel: number) {
+    function handleHCDLevelChange(effectId: string, level: number, previousLevel: number) {
         updateHcDistortionParams(effectId, {level});
         void setHcDistortionLevel({effectId, level}).catch((error) => {
             console.error("Failed to update HC distortion level:", error);
@@ -155,7 +155,7 @@ export function EffectPedal({effect, onToggle}: EffectPedalProps) {
         });
     }
 
-    function handleDelayLevelChange(effectId: number, level: number, previousLevel: number) {
+    function handleDelayLevelChange(effectId: string, level: number, previousLevel: number) {
         updateDelayParams(effectId, {level: level});
         void setDelayLevel({effectId, level}).catch((error) => {
             console.error("Failed to update Delay level:", error);
@@ -163,7 +163,7 @@ export function EffectPedal({effect, onToggle}: EffectPedalProps) {
         });
     }
 
-    function handleDelayTimeChange(effectId: number, delayTime: number, previousDelayTime: number) {
+    function handleDelayTimeChange(effectId: string, delayTime: number, previousDelayTime: number) {
         const sanitizedTime = Math.round(delayTime);
         updateDelayParams(effectId, {delay_time: sanitizedTime});
         void setDelayDelayTime({effectId, delayTime}).catch((error) => {

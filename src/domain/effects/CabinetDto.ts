@@ -7,7 +7,7 @@ export type CabinetDto = {
 /**
  * Unique identifier for this effect instance.
  */
-id: number, 
+id: string, 
 /**
  * Human-readable name displayed in the UI.
  */
