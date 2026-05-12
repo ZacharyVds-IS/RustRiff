@@ -9,7 +9,7 @@ use tracing::info;
 /// Adjusts the Drive parameter: lower thresholds produce heavier distortion.
 ///
 /// # Arguments
-/// * `effect_id` — ID of the HCDistortion effect to modify
+/// * `effect_id` — ID of the SCDistortion effect to modify
 /// * `threshold` — Clipping level in range `(0.0, 1.0]`
 ///                 * Values < 0.001 are clamped to 0.001
 ///                 * Values > 1.0 are clamped to 1.0
@@ -67,7 +67,7 @@ pub fn set_sc_distortion_threshold(
 /// Adjusts the Level parameter: controls output amplitude after clipping.
 ///
 /// # Arguments
-/// * `effect_id` — ID of the HCDistortion effect to modify
+/// * `effect_id` — ID of the SCDistortion effect to modify
 /// * `level` — Normalised level in range `[0.0, 1.0]`
 ///            * `0.0` = unity gain (no boost)
 ///            * `1.0` = ×2.0 boost
@@ -131,7 +131,7 @@ pub fn set_sc_distortion_level(
 /// Adjusts the Smoothing parameter: controls curve towards clipping threshold
 ///
 /// # Arguments
-/// * `effect_id` — ID of the HCDistortion effect to modify
+/// * `effect_id` — ID of the SCDistortion effect to modify
 /// * `smoothing` — Smoothing in range `[1.0, 10.0]`
 ///            * `1.0` = hardest curving smoothing
 ///            * `10.0` = least curving smoothing

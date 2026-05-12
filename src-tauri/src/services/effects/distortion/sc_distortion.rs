@@ -103,14 +103,14 @@ impl SCDistortion {
         self.smoothing.load(Ordering::Relaxed)
     }
 
-    pub fn set_smoothing(&mut self, smoothing: f32) {
+    pub fn set_smoothing(&self, smoothing: f32) {
         self.smoothing
             .store(smoothing.clamp(1.0, 10.0), Ordering::Relaxed);
     }
 }
 
 impl AudioProcessor for SCDistortion {
-    /// Processes a single audio sample through hard clipping and level boost.
+    /// Processes a single audio sample through soft clipping and level boost.
     ///
     /// # Algorithm
     ///

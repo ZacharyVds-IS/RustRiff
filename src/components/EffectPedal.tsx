@@ -76,7 +76,9 @@ function knobsForEffect(
             const THRESHOLD_HOT = 0.05;
             const driveKnobValue = (1 - (data.threshold - THRESHOLD_HOT) / (THRESHOLD_CLEAN - THRESHOLD_HOT)) * 100;
             const levelKnobValue = data.level * 100;
-            const smoothingKnobValue = 100 - (data.smoothing * 10);
+            const SMOOTHING_MIN = 1.0;
+            const SMOOTHING_MAX = 10.0;
+            const smoothingKnobValue = ((SMOOTHING_MAX - data.smoothing) / (SMOOTHING_MAX - SMOOTHING_MIN)) * 100;
             return (
                 <Stack sx={{width:200}}>
                     <Stack direction="row" sx={{justifyContent:"space-around"}}>
@@ -110,14 +112,14 @@ function knobsForEffect(
                     <Stack sx={{alignItems:"center"}}>
                         <Knob
                             label="Smoothing"
-                            value={Math.max(1, Math.min(100, smoothingKnobValue))}
-                            min={1}
+                            value={Math.max(0, Math.min(100, smoothingKnobValue))}
+                            min={0}
                             max={100}
                             step={0.5}
                             size={30}
                             valueDisplay="min-max"
                             onChange={(v) => {
-                                const smoothing = (100-v) / 10;
+                                const smoothing = SMOOTHING_MAX - (v / 100) * (SMOOTHING_MAX - SMOOTHING_MIN);
                                 handlers.onSmoothingChange(data.id, smoothing, data.smoothing);
                             }}
                         />

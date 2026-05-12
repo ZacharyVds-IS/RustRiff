@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-/// # Data Transfer Object for HC Distortion Effect
+/// # Data Transfer Object for SC Distortion Effect
 ///
 /// `ScDistortionDto` is the serialisable representation of an [`SCDistortion`] effect
 /// for communication between the Rust backend and the TypeScript frontend.
