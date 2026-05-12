@@ -8,6 +8,7 @@ For the current frontend test setup, we use:
 - `React Testing Library` (`@testing-library/react`) for rendering and interacting with React components in tests
 - `User Event` (`@testing-library/user-event`) for realistic user interaction simulation
 - `Vitest Coverage (V8)` (`@vitest/coverage-v8`) for coverage reports
+- `Stryker` (`@stryker-mutator/core` + `@stryker-mutator/vitest-runner`) for mutation testing
 
 # Types of tests
 At the moment, the frontend test scope includes:
@@ -46,3 +47,9 @@ A mutation tool makes small changes ("mutations") to real code, such as:
 Then it runs the test suite:
 - if tests fail, the mutation is **killed** (good: tests detected incorrect behavior)
 - if tests still pass, the mutation **survives** (warning: tests likely missed a behavior check)
+
+
+### Our project uses [Stryker](https://stryker-mutator.io/) for mutation testing.
+Our main branch has a mutation score of 
+
+[![Mutation testing badge](https://img.shields.io/endpoint?style=flat&url=https%3A%2F%2Fbadge-api.stryker-mutator.io%2Fgithub.com%2FZacharyVds-IS%2FGuitar-Amplifier%2Fmain)](https://dashboard.stryker-mutator.io/reports/github.com/ZacharyVds-IS/Guitar-Amplifier/main)
