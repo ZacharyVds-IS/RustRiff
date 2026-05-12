@@ -1,4 +1,4 @@
-import {beforeEach, describe, expect, it} from "vitest";
+import {beforeEach, describe, expect, it, vi} from "vitest";
 import {useUIStore} from "../../state/UIStore";
 
 function resetUIStore() {
@@ -15,6 +15,16 @@ describe("UIStore", () => {
     });
 
     describe("success_path", () => {
+        it("starts with expected default values", async () => {
+            vi.resetModules();
+            const fresh = await import("../../state/UIStore");
+            const state = fresh.useUIStore.getState();
+
+            expect(state.developerMode).toBe(false);
+            expect(state.selectedInputId).toBe("");
+            expect(state.selectedOutputId).toBe("");
+        });
+
         it("setDeveloperMode toggles developer mode", () => {
             // Arrange
             const setDeveloperMode = useUIStore.getState().setDeveloperMode;
@@ -24,6 +34,8 @@ describe("UIStore", () => {
 
             // Assert
             expect(useUIStore.getState().developerMode).toBe(true);
+            expect(useUIStore.getState().selectedInputId).toBe("");
+            expect(useUIStore.getState().selectedOutputId).toBe("");
         });
 
         it("setSelectedInputId updates selected input id", () => {
@@ -35,6 +47,7 @@ describe("UIStore", () => {
 
             // Assert
             expect(useUIStore.getState().selectedInputId).toBe("input-123");
+            expect(useUIStore.getState().selectedOutputId).toBe("");
         });
 
         it("setSelectedOutputId updates selected output id", () => {
@@ -46,6 +59,7 @@ describe("UIStore", () => {
 
             // Assert
             expect(useUIStore.getState().selectedOutputId).toBe("output-456");
+            expect(useUIStore.getState().selectedInputId).toBe("");
         });
     });
 

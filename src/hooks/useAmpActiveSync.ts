@@ -15,6 +15,9 @@ export function useAmpActiveSync() {
                 }
 
                 unlisten = await listen<boolean>(AMP_ACTIVE_CHANGED_EVENT, (event) => {
+                    if (disposed) {
+                        return;
+                    }
                     useAmpStore.setState({is_active: event.payload});
                 });
             } catch (error) {

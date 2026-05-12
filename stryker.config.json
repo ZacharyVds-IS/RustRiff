@@ -1,0 +1,31 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "packageManager": "npm",
+  "mutate": [
+    "src/**/*.{ts,tsx}",
+    "!src/**/*.d.ts", "!src/**/*.{test,spec}.{ts,tsx}",
+    "!src/main.tsx",
+    "!src/vite-env.d.ts"
+  ],
+  "ignorePatterns": [
+    "coverage",
+    "docs/public",
+    "src-tauri"
+  ],
+  "reporters": [
+    "html",
+    "clear-text",
+    "progress",
+    "dashboard"
+  ],
+  "testRunner": "vitest",
+  "vitest": {
+    "configFile": "vite.config.ts"
+  },
+  "coverageAnalysis": "perTest",
+  "thresholds": {
+    "high": 80,
+    "low": 65,
+    "break": 60
+  }
+}

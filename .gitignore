@@ -39,3 +39,7 @@ docs/backend/
 # The correct output is src/domain/effects/, set via TS_RS_EXPORT_DIR in scripts/generate-effect-types.mjs
 /src-tauri/bindings/
 /coverage/
+
+# stryker temp files
+.stryker-tmp
+/reports/
