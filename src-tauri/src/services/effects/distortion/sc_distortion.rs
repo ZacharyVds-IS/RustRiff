@@ -129,9 +129,10 @@ impl AudioProcessor for SCDistortion {
     fn process(&mut self, sample: f32) -> f32 {
         let limit = self.limit.load(Ordering::Relaxed);
         let smoothing = self.smoothing.load(Ordering::Relaxed);
-        let normalized_sample = sample/limit;
+        let normalized_sample = sample / limit;
         let abs_normalized_sample = normalized_sample.abs();
-        let smoothed = normalized_sample / (1.0 + abs_normalized_sample.powf(smoothing)).powf(1.0 / smoothing);
+        let smoothed =
+            normalized_sample / (1.0 + abs_normalized_sample.powf(smoothing)).powf(1.0 / smoothing);
         let denormalized_sample = smoothed * limit;
         self.level_gain.process(denormalized_sample)
     }
@@ -217,7 +218,9 @@ mod tests {
         #[test]
         fn sample_within_threshold_is_slightly_compressed() {
             let mut fx = distortion(1.0, 1.0);
-            for _ in 0..10_000 { fx.process(0.0); }
+            for _ in 0..10_000 {
+                fx.process(0.0);
+            }
 
             let input = 0.1;
             let output = fx.process(input);
@@ -230,7 +233,9 @@ mod tests {
         fn sample_is_pushed_towards_limit() {
             let limit = 0.5;
             let mut fx = distortion(limit, 5.0);
-            for _ in 0..10_000 { fx.process(0.0); }
+            for _ in 0..10_000 {
+                fx.process(0.0);
+            }
 
             let out = fx.process(100.0);
 
@@ -257,7 +262,7 @@ mod tests {
 
         #[test]
         fn process_if_active_passes_through_when_inactive() {
-            let mut fx = distortion(0.5,10.0);
+            let mut fx = distortion(0.5, 10.0);
             fx.set_active(false);
             assert_eq!(fx.process_if_active(0.9), 0.9);
         }
@@ -276,7 +281,11 @@ mod tests {
             let output = fx.process(0.9);
 
             assert!(output < 0.9);
-            assert!((output - 0.3).abs() < 0.05, "Expected output to be near 0.3, got {}", output);
+            assert!(
+                (output - 0.3).abs() < 0.05,
+                "Expected output to be near 0.3, got {}",
+                output
+            );
 
             let massive_input = 100.0;
             let limited_output = fx.process(massive_input);
@@ -304,7 +313,7 @@ mod tests {
 
         #[test]
         fn level_unity_at_zero() {
-            let mut fx = distortion(1.0,10.0); // level=0.0
+            let mut fx = distortion(1.0, 10.0); // level=0.0
             for _ in 0..10_000 {
                 fx.process(0.0);
             }

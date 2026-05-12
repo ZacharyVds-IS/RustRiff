@@ -28,5 +28,5 @@ pub struct ScDistortionDto {
     /// - `1.0` = ×2.0 boost
     pub level: f32,
     /// The smoothing factor that determines how much the curve is curved towards the clipping threshold `[1.0,10.0]`.
-    pub smoothing: f32
+    pub smoothing: f32,
 }

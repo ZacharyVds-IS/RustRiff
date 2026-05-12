@@ -63,7 +63,6 @@ impl EffectDto {
                 dto.delay_time,
                 dto.level,
             )),
-
         }
     }
 
