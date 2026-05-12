@@ -67,6 +67,17 @@ jobs:
       - name: Run React/Vitest tests
         run: npm run test -- --run
 
+      - name: Run mutation tests (Stryker)
+        run: npm run test:mutation
+
+      - name: Upload mutation report as artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutation-report
+          path: reports/mutation/mutation.html
+          retention-days: 30
+
       - name: Run Rust tests
         working-directory: src-tauri
         run: cargo test --verbose
