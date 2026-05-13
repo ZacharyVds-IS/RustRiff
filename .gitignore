@@ -38,3 +38,6 @@ docs/backend/
 # ts-rs generated TypeScript bindings (default fallback output when TS_RS_EXPORT_DIR is not set)
 # The correct output is src/domain/effects/, set via TS_RS_EXPORT_DIR in scripts/generate-effect-types.mjs
 /src-tauri/bindings/
+/.stryker-tmp/
+/coverage/
+/reports/

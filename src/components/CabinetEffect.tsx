@@ -6,7 +6,7 @@ import {useAmpStore} from "../state/AmpConfigStore.tsx";
 
 interface CabinetEffectProps {
     effect: EffectDto;
-    onToggle?: (effectId: number, isActive: boolean) => void;
+    onToggle?: (effectId: string, isActive: boolean) => void;
 }
 
 export function CabinetEffect({ effect, onToggle }: CabinetEffectProps) {

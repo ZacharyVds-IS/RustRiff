@@ -11,7 +11,7 @@ type EffectSelection =
     | "amp"
     | {
         kind: EffectDto["kind"];
-        effectId: number;
+        effectId: string;
     };
 
 export function MainScreen() {
