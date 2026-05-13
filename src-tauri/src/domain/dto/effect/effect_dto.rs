@@ -1,10 +1,12 @@
 use crate::domain::dto::effect::cabinet_dto::CabinetDto;
 use crate::domain::dto::effect::delay_dto::DelayDto;
 use crate::domain::dto::effect::hcdistortion_dto::HcDistortionDto;
+use crate::domain::dto::effect::scdistortion_dto::ScDistortionDto;
 use crate::domain::effect::Effect;
 use crate::services::effects::cabinet::cabinet::Cabinet;
 use crate::services::effects::delay::delay::Delay;
 use crate::services::effects::distortion::hc_distortion::HCDistortion;
+use crate::services::effects::distortion::sc_distortion::SCDistortion;
 use serde::{Deserialize, Serialize};
 
 /// A serialisable, tagged representation of any effect in the signal chain.
@@ -16,6 +18,9 @@ use serde::{Deserialize, Serialize};
 pub enum EffectDto {
     /// Hard-clipping distortion effect.
     HCDistortion(HcDistortionDto),
+    /// Soft-clipping distortion effect.
+    SCDistortion(ScDistortionDto),
+    /// Delay effect.
     Delay(DelayDto),
     /// Placeholder impulse-response cabinet effect.
     Cabinet(CabinetDto),
@@ -30,6 +35,15 @@ impl EffectDto {
                 dto.is_active,
                 dto.threshold,
                 dto.level,
+                dto.color,
+            )),
+            EffectDto::SCDistortion(dto) => Box::new(SCDistortion::new(
+                next_effect_id,
+                dto.name,
+                dto.is_active,
+                dto.threshold,
+                dto.level,
+                dto.smoothing,
                 dto.color,
             )),
             EffectDto::Cabinet(dto) => Box::new(Cabinet::new(
@@ -60,6 +74,15 @@ impl EffectDto {
                 dto.is_active,
                 dto.threshold,
                 dto.level,
+                dto.color,
+            )),
+            EffectDto::SCDistortion(dto) => Box::new(SCDistortion::new(
+                dto.id,
+                dto.name,
+                dto.is_active,
+                dto.threshold,
+                dto.level,
+                dto.smoothing,
                 dto.color,
             )),
             EffectDto::Cabinet(dto) => Box::new(Cabinet::new(

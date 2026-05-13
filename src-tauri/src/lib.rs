@@ -25,6 +25,9 @@ use crate::commands::effect_commands::delay::{set_delay_delay_time, set_delay_le
 use crate::commands::effect_commands::hc_distortion::{
     set_hc_distortion_level, set_hc_distortion_threshold,
 };
+use crate::commands::effect_commands::sc_distortion::{
+    set_sc_distortion_level, set_sc_distortion_smoothing, set_sc_distortion_threshold,
+};
 use crate::commands::latency_testing::{
     measure_all_dsp_algorithmic_latency, measure_all_dsp_cpu_timings, measure_buffer_latency,
     measure_round_trip_latency, test_gain_latency,
@@ -237,6 +240,9 @@ pub fn run() {
             get_spectrum_contract,
             start_live_spectrum_stream,
             stop_live_spectrum_stream,
+            set_sc_distortion_threshold,
+            set_sc_distortion_level,
+            set_sc_distortion_smoothing,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -1,6 +1,7 @@
 import DefaultTheme from 'vitepress/theme'
-import { EnhanceAppContext } from 'vitepress'
+import {EnhanceAppContext} from 'vitepress'
 import './custom.css'
+import 'katex/dist/katex.min.css'
 
 export default {
   ...DefaultTheme,

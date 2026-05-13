@@ -1,4 +1,5 @@
 import {defineConfig} from 'vitepress'
+import {katex} from "@mdit/plugin-katex";
 
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
@@ -43,6 +44,7 @@ export default defineConfig({
         text:'Effects',
         items:[
           {text:'Effect chain', link:'/guide/effects/chain'},
+          {text:'Distortion', link:'/guide/effects/distortion'},
           {text:'Cabinet Simulation (IR)', link:'/guide/effects/cabinet_simulation_ir'},
           {text:'Recording an impulse response', link:'/guide/effects/custom_ir_recording'},
         ]
@@ -65,5 +67,10 @@ export default defineConfig({
     socialLinks: [
       { icon: 'github', link: 'https://github.com/ZacharyVds-IS/Guitar-Amplifier' }
     ]
+  },
+  markdown:{
+    config: (md) => {
+      md.use(katex)
+    }
   }
 })
