@@ -1,132 +1,168 @@
 // @vitest-environment jsdom
+import React from "react";
+import {cleanup, render, screen} from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import {afterEach, beforeEach, describe, expect, it, vi} from "vitest";
+import {ChannelSelector} from "../../components/ChannelSelector";
 
-/**
- * Unit tests for ChannelSelector component logic
- *
- * The ChannelSelector component specifically contains logic for:
- * 1. Finding the selected channel object from the list
- * 2. Converting string values (from selects) to numbers safely
- * 3. Calling the callback with the correct numeric ID
- */
-describe("ChannelSelector logic", () => {
-    // Helper to extract the logic logic from the component
-    function findSelectedChannel(channels: {label: string; value: number}[], currentChannelId: number) {
-        return channels.find((ch) => ch.value === currentChannelId);
-    }
+const dropdownMock = vi.hoisted(() => vi.fn());
 
-    function handleSelectionChange(value: string | number, callback: (id: number) => void) {
-        const nextChannelId = typeof value === "number" ? value : Number(value);
-        if (!Number.isNaN(nextChannelId)) {
-            callback(nextChannelId);
-        }
-    }
+vi.mock("../../components/selection/DropdownSelector.tsx", () => ({
+    DropdownSelector: (props: any) => {
+        dropdownMock(props);
+        return (
+            <div>
+                <button onClick={() => props.onSelectionChange("2")}>pick-string</button>
+                <button onClick={() => props.onSelectionChange("invalid")}>pick-invalid</button>
+                <button onClick={() => props.onSelectionChange(3)}>pick-number</button>
+                <button onClick={() => props.onAdd?.()}>add-channel</button>
+            </div>
+        );
+    },
+}));
 
-    const mockChannels = [
+describe("ChannelSelector", () => {
+    const channels = [
         {label: "Clean", value: 1},
         {label: "Lead", value: 2},
         {label: "Crunch", value: 3},
     ];
 
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    afterEach(() => {
+        cleanup();
+    });
+
     describe("success_path", () => {
-        it("finds the currently selected channel from the list", () => {
-            // Arrange
-            const currentId = 2;
-
-            // Act
-            const selected = findSelectedChannel(mockChannels, currentId);
-
-            // Assert
-            expect(selected).toEqual({label: "Lead", value: 2});
-        });
-
-        it("converts string channel ID to number and calls callback", () => {
+        it("passes the current selected channel value to DropdownSelector", () => {
             // Arrange
             const onChannelChange = vi.fn();
 
             // Act
-            handleSelectionChange("3", onChannelChange);
+            render(
+                <ChannelSelector
+                    channels={channels}
+                    currentChannelId={2}
+                    onChannelChange={onChannelChange}
+                    onAdd={vi.fn()}
+                />
+            );
 
             // Assert
-            expect(onChannelChange).toHaveBeenCalledWith(3);
-            expect(typeof onChannelChange.mock.calls[0][0]).toBe("number");
+            const props = dropdownMock.mock.calls[0][0];
+            expect(props.selectedValue).toBe(2);
+            expect(props.hasBorder).toBe(false);
+            expect(props.hasLabel).toBe(false);
+            expect(props.options).toEqual(channels);
         });
 
-        it("passes numeric value directly to callback", () => {
+        it("passes empty selectedValue when current channel id does not exist", () => {
+            // Arrange & Act
+            render(
+                <ChannelSelector
+                    channels={channels}
+                    currentChannelId={999}
+                    onChannelChange={vi.fn()}
+                    onAdd={vi.fn()}
+                />
+            );
+
+            // Assert
+            const props = dropdownMock.mock.calls[0][0];
+            expect(props.selectedValue).toBe("");
+        });
+
+        it("fires onChannelChange with a parsed number when a string value is selected", async () => {
             // Arrange
             const onChannelChange = vi.fn();
+            const onAdd = vi.fn();
+            const user = userEvent.setup();
+
+            render(
+                <ChannelSelector
+                    channels={channels}
+                    currentChannelId={1}
+                    onChannelChange={onChannelChange}
+                    onAdd={onAdd}
+                />
+            );
 
             // Act
-            handleSelectionChange(2, onChannelChange);
+            await user.click(screen.getByRole("button", {name: "pick-string"}));
 
             // Assert
             expect(onChannelChange).toHaveBeenCalledWith(2);
+            expect(typeof onChannelChange.mock.calls[0][0]).toBe("number");
         });
 
-        it("handles all channels in the list", () => {
-            // Arrange & Act & Assert
-            mockChannels.forEach((channel) => {
-                const selected = findSelectedChannel(mockChannels, channel.value);
-                expect(selected).toEqual(channel);
-            });
+        it("fires onChannelChange with numeric values unchanged", async () => {
+            // Arrange
+            const onChannelChange = vi.fn();
+            const onAdd = vi.fn();
+            const user = userEvent.setup();
+
+            render(
+                <ChannelSelector
+                    channels={channels}
+                    currentChannelId={2}
+                    onChannelChange={onChannelChange}
+                    onAdd={onAdd}
+                />
+            );
+
+            // Act
+            await user.click(screen.getByRole("button", {name: "pick-number"}));
+
+            // Assert
+            expect(onChannelChange).toHaveBeenCalledWith(3);
+        });
+
+        it("fires onAdd when the add action is triggered", async () => {
+            // Arrange
+            const onChannelChange = vi.fn();
+            const onAdd = vi.fn();
+            const user = userEvent.setup();
+
+            render(
+                <ChannelSelector
+                    channels={channels}
+                    currentChannelId={2}
+                    onChannelChange={onChannelChange}
+                    onAdd={onAdd}
+                />
+            );
+
+            // Act
+            await user.click(screen.getByRole("button", {name: "add-channel"}));
+
+            // Assert
+            expect(onAdd).toHaveBeenCalledTimes(1);
         });
     });
 
     describe("failure_path", () => {
-        it("does not call callback when string value is not a valid number", () => {
+        it("does not fire onChannelChange for invalid values", async () => {
             // Arrange
             const onChannelChange = vi.fn();
+            const user = userEvent.setup();
+
+            render(
+                <ChannelSelector
+                    channels={channels}
+                    currentChannelId={1}
+                    onChannelChange={onChannelChange}
+                    onAdd={vi.fn()}
+                />
+            );
 
             // Act
-            handleSelectionChange("invalid", onChannelChange);
+            await user.click(screen.getByRole("button", {name: "pick-invalid"}));
 
             // Assert
             expect(onChannelChange).not.toHaveBeenCalled();
-        });
-
-        it("does not call callback when value converts to NaN", () => {
-            // Arrange
-            const onChannelChange = vi.fn();
-
-            // Act
-            handleSelectionChange(NaN, onChannelChange);
-
-            // Assert
-            expect(onChannelChange).not.toHaveBeenCalled();
-        });
-
-        it("returns undefined when channel ID is not in the list", () => {
-            // Arrange
-            const currentId = 999;
-
-            // Act
-            const selected = findSelectedChannel(mockChannels, currentId);
-
-            // Assert
-            expect(selected).toBeUndefined();
-        });
-
-        it("returns undefined when channels list is empty", () => {
-            // Arrange
-            const emptyChannels: {label: string; value: number}[] = [];
-
-            // Act
-            const selected = findSelectedChannel(emptyChannels, 1);
-
-            // Assert
-            expect(selected).toBeUndefined();
-        });
-
-        it("handles zero as a valid channel ID", () => {
-            // Arrange
-            const channels = [{label: "Default", value: 0}, ...mockChannels];
-
-            // Act
-            const selected = findSelectedChannel(channels, 0);
-
-            // Assert
-            expect(selected).toEqual({label: "Default", value: 0});
         });
     });
 });
-
-import {describe, expect, it, vi} from "vitest";

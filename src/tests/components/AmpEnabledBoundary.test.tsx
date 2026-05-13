@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import React from "react";
+import React, {act} from "react";
 import {createRoot} from "react-dom/client";
 import {beforeAll, beforeEach, describe, expect, it, vi} from "vitest";
 import {AmpEnabledBoundary} from "../../components/boundary/AmpEnabledBoundary";
@@ -23,11 +23,13 @@ function renderComponent(ampActive: boolean, fallback?: React.ReactNode): Render
 
     useAmpStore.setState({is_active: ampActive});
 
-    root.render(
-        <AmpEnabledBoundary fallback={fallback || <div>Amp is inactive</div>}>
-            <div>Amp is active</div>
-        </AmpEnabledBoundary>
-    );
+    act(() => {
+        root.render(
+            <AmpEnabledBoundary fallback={fallback || <div>Amp is inactive</div>}>
+                <div>Amp is active</div>
+            </AmpEnabledBoundary>
+        );
+    });
 
     return {
         container,
@@ -131,11 +133,13 @@ describe("AmpEnabledBoundary", () => {
 
             // Act - Should not throw when fallback is not provided
             const testFn = () => {
-                root.render(
-                    <AmpEnabledBoundary fallback={undefined}>
-                        <div>Children</div>
-                    </AmpEnabledBoundary>
-                );
+                act(() => {
+                    root.render(
+                        <AmpEnabledBoundary fallback={undefined}>
+                            <div>Children</div>
+                        </AmpEnabledBoundary>
+                    );
+                });
             };
 
             // Assert

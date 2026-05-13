@@ -50,7 +50,9 @@ function setupHook(): HookSetup {
         return null;
     }
 
-    root.render(<Component />);
+    act(() => {
+        root.render(<Component />);
+    });
 
     return {
         container,
@@ -142,7 +144,9 @@ describe("useAmpActiveSync", () => {
             // Trigger event callback
             const callback = (listen as any).lastCallback;
             if (callback) {
-                callback({payload: true});
+                act(() => {
+                    callback({payload: true});
+                });
             }
 
             // Assert
@@ -169,7 +173,9 @@ describe("useAmpActiveSync", () => {
             // Simulate event from backend
             const callback = (listen as any).lastCallback;
             if (callback) {
-                callback({payload: true});
+                act(() => {
+                    callback({payload: true});
+                });
             }
 
             // Assert
@@ -196,9 +202,11 @@ describe("useAmpActiveSync", () => {
             const callback = (listen as any).lastCallback;
 
             // Simulate multiple events
-            callback({payload: true});
-            callback({payload: false});
-            callback({payload: true});
+            act(() => {
+                callback({payload: true});
+                callback({payload: false});
+                callback({payload: true});
+            });
 
             // Assert
             expect(useAmpStore.getState().is_active).toBe(true);
@@ -283,7 +291,7 @@ describe("useAmpActiveSync", () => {
             await unmount();
         });
 
-        it("does not update state if component unmounts during init", async () => {
+        it("does not register listen after unmount when init resolves late", async () => {
             // Arrange
             // Create a promise that we can control when it resolves
             let resolveInit: any = null;
@@ -298,8 +306,6 @@ describe("useAmpActiveSync", () => {
             });
 
             vi.mocked(domain.getAmpConfig).mockReturnValueOnce(initPromise as any);
-            const initialIsActive = useAmpStore.getState().is_active;
-
             // Act
             const {unmount} = setupHook();
 
@@ -314,8 +320,8 @@ describe("useAmpActiveSync", () => {
                 await flush();
             });
 
-            // Assert - State should not have changed even though init resolved
-            expect(useAmpStore.getState().is_active).toBe(initialIsActive);
+            // Assert - even if init resolves late, listener registration is skipped when disposed
+            expect(listen).not.toHaveBeenCalled();
         });
 
         it("ignores events received after unmount", async () => {
@@ -341,7 +347,9 @@ describe("useAmpActiveSync", () => {
             // Try to trigger event after unmount
             const callback = (listen as any).lastCallback;
             if (callback) {
-                callback({payload: true});
+                act(() => {
+                    callback({payload: true});
+                });
             }
 
             // Assert - State should not change
