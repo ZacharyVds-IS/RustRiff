@@ -50,6 +50,12 @@ export default defineConfig({
         ]
       },
       {
+        text:'Testing',
+        items:[
+          {text:'Frontend testing', link:'/guide/testing/frontend-testing/testing.md'},
+        ]
+      },
+      {
         text: 'API References',
         items: [
           { text: 'Frontend API (TypeDoc)', link: '/frontend/index.html' },

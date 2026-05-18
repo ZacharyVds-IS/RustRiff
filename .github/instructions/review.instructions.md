@@ -86,6 +86,7 @@ Broken rule: <section title from this guide>
 Why it matters here: <project-specific impact>
 Suggested fix: <minimal concrete action>
 ```
+Do not create an actual commit, simply response with the suggestions in the above template.
 
 ### Example
 ```text

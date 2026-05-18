@@ -13,6 +13,9 @@ export default tseslint.config(
 	  "docs/.vitepress/cache",
 	  "src/domain",
 	  "src-tauri/target",
+	  ".stryker-tmp",
+	  "coverage",
+	  "reports",
 	],
   },
   {
@@ -32,6 +35,12 @@ export default tseslint.config(
 		"warn",
 		{ allowConstantExport: true },
 	  ],
+	},
+  },
+  {
+	files: ["**/*.test.{ts,tsx}", "**/*.spec.{ts,tsx}"],
+	rules: {
+	  "@typescript-eslint/no-explicit-any": "off",
 	},
   },
 );
