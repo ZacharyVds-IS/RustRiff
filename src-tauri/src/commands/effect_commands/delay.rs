@@ -51,10 +51,10 @@ pub fn set_delay_delay_time(
         .find(|c| c.id() == *service.current_channel_id())
         .ok_or("No active channel")?;
     channel.set_effect_param(effect_id, "delay_time", delay_time)?;
-    info!(
+    /* info!(
         channel_id = *service.current_channel_id(),
         effect_id, delay_time, "Delay delay_time updated"
-    );
+    );*/
     persist_amp_config(&service, &persistence_service);
     Ok(())
 }

@@ -13,6 +13,7 @@ pub struct Delay {
     is_active: Arc<AtomicBool>,
     color: String,
     delay_time: Arc<AtomicU32>, //20ms - 800ms
+    prev_delay_time: u32,       //20ms - 800ms
     level: Arc<AtomicF32>,      //0.0-0.95
     delay_buffer: Vec<f32>,
     write_pos: usize,
@@ -44,7 +45,8 @@ impl Delay {
             name,
             is_active: Arc::new(AtomicBool::new(is_active)),
             color,
-            delay_time: delay_time_arc,
+            delay_time: delay_time_arc.clone(),
+            prev_delay_time: 0,
             level: level_arc,
             delay_buffer,
             write_pos: 0,
@@ -64,6 +66,7 @@ impl Delay {
         self.delay_in_samples = (self.delay_time.load(Ordering::Relaxed) as f32
             * self.sample_rate as f32
             / 1000.0) as usize;
+        self.prev_delay_time = self.delay_time.load(Ordering::Relaxed);
     }
 
     // GETTERS
@@ -126,6 +129,10 @@ impl AudioProcessor for Delay {
     fn process(&mut self, sample: f32) -> f32 {
         if self.delay_buffer.is_empty() {
             return sample;
+        }
+
+        if self.delay_time.load(Ordering::Relaxed) != self.prev_delay_time {
+            self.calc_delay_in_samples();
         }
 
         let feedback_amount = self.level.load(Ordering::Relaxed);

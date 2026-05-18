@@ -423,7 +423,7 @@ impl Channel {
         Ok(())
     }
 }
-
+#[derive(Debug)]
 pub enum ParamInput {
     F32(f32),
     U32(u32),
