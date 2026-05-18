@@ -18,7 +18,8 @@ export function CabinetPreview({ mainColor, isActive = false }: CabinetPreviewPr
                 display: "flex",
                 flexDirection: "column",
                 position: "relative",
-                filter: "drop-shadow(0 3px 6px rgba(0,0,0,0.4))",
+                filter: isActive ? 'drop-shadow(0 4px 6px rgba(0,0,0,0.5))': 'grayscale(60%)',
+                opacity: isActive ? 1 : 0.75,
             }}
         >
             {/* Cabinet body */}
@@ -60,6 +61,7 @@ export function CabinetPreview({ mainColor, isActive = false }: CabinetPreviewPr
                 <Box
                     sx={{
                         flex: 1,
+                        mt:1,
                         borderRadius: 0.5,
                         border: `2px solid ${baseColor}`,
                         background: `repeating-linear-gradient(

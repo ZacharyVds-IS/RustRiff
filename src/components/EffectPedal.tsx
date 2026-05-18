@@ -292,6 +292,7 @@ export function EffectPedal({effect, onToggle}: EffectPedalProps) {
                         width: 8,
                         height: 8,
                         borderRadius: '50%',
+                        border: '1px solid rgba(0,0,0,0.3)',
                         bgcolor: isActive ? '#00ff00' : '#ff0000',
                         boxShadow: isActive ? '0 0 6px #00ff00' : '0 0 6px #ff0000',
                         mb: 2,

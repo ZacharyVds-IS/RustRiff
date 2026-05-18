@@ -3,6 +3,7 @@ import chroma from "chroma-js";
 import {useEffect, useState} from "react";
 import {EffectDto, toggleEffect} from "../domain";
 import {useAmpStore} from "../state/AmpConfigStore.tsx";
+import {OnOffSwitch} from "./selection/OnOffSwitch.tsx";
 
 interface CabinetEffectProps {
     effect: EffectDto;
@@ -76,24 +77,7 @@ export function CabinetEffect({ effect, onToggle }: CabinetEffectProps) {
                         justifyContent: "flex-end",
                     }}
                 >
-                    <Box
-                        component={"button"}
-                        onClick={handlePowerToggle}
-                        sx={{
-                            width: 10,
-                            height: 10,
-                            borderRadius: "50%",
-                            bgcolor: isActive ? "#00ff00" : "#ff0000",
-                            boxShadow: isActive ? "0 0 6px #00ff00" : "0 0 6px #ff0000",
-                            border: "1px solid rgba(0,0,0,0.3)",
-                            cursor: "pointer",
-                            padding: 0,
-                            minWidth: 0,
-                            lineHeight: 0,
-                            display: "block",
-                            flexShrink: 0,
-                        }}
-                    />
+                    <OnOffSwitch isActive={isActive} onClick={handlePowerToggle} />
                 </Box>
 
                 {/* Speaker grille area */}

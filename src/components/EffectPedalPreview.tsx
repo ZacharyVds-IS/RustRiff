@@ -6,7 +6,7 @@ interface EffectPedalProps {
     isActive?: boolean;
 }
 
-export function EffectPedalPreview({ mainColor, isActive = false }: EffectPedalProps) {
+export function EffectPedalPreview({mainColor, isActive = false}: EffectPedalProps) {
     return (
         <Box
             sx={{
@@ -16,7 +16,8 @@ export function EffectPedalPreview({ mainColor, isActive = false }: EffectPedalP
                 flexDirection: 'column',
                 alignItems: 'center',
                 position: 'relative',
-                filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.5))',
+                filter: isActive ? 'drop-shadow(0 4px 6px rgba(0,0,0,0.5))': 'grayscale(60%)',
+                opacity: isActive ? 1 : 0.75,
             }}
         >
             <Box
@@ -38,13 +39,14 @@ export function EffectPedalPreview({ mainColor, isActive = false }: EffectPedalP
                         width: 5,
                         height: 5,
                         borderRadius: '50%',
+                        border: '1px solid rgba(0,0,0,0.3)',
                         bgcolor: isActive ? '#00ff00' : '#ff0000',
                         boxShadow: isActive ? '0 0 4px #00ff00' : '0 0 4px #ff0000',
                         mb: 1,
                         transition: 'background-color 0.1s, box-shadow 0.1s',
                     }}
                 />
-                <Box sx={{ display: 'flex', flexDirection: 'row', alignItems: 'center' }}>
+                <Box sx={{display: 'flex', flexDirection: 'row', alignItems: 'center'}}>
 
                     <Knob
                         key={"placeholder-1"}
