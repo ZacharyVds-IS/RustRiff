@@ -39,7 +39,7 @@ impl EffectDto {
                 dto.color,
             )),
             EffectDto::SCDistortion(dto) => Box::new(SCDistortion::new(
-                next_effect_id,
+                Uuid::new_v4(),
                 dto.name,
                 dto.is_active,
                 dto.threshold,
@@ -78,7 +78,7 @@ impl EffectDto {
                 dto.color,
             )),
             EffectDto::SCDistortion(dto) => Box::new(SCDistortion::new(
-                dto.id,
+                Uuid::parse_str(dto.id.as_str()).expect("invalid uuid"),
                 dto.name,
                 dto.is_active,
                 dto.threshold,

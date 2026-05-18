@@ -210,7 +210,7 @@ export function EffectPedal({effect, onToggle}: EffectPedalProps) {
         });
     }
 
-    function handleSCThresholdChange(effectId: number, threshold: number, previousThreshold: number) {
+    function handleSCThresholdChange(effectId: string, threshold: number, previousThreshold: number) {
         updateScDistortionParams(effectId, {threshold});
         void setScDistortionThreshold({effectId, threshold}).catch((error) => {
             console.error("Failed to update SC distortion threshold:", error);
@@ -226,7 +226,7 @@ export function EffectPedal({effect, onToggle}: EffectPedalProps) {
         });
     }
 
-    function handleSCLevelChange(effectId: number, level: number, previousLevel: number) {
+    function handleSCLevelChange(effectId: string, level: number, previousLevel: number) {
         updateScDistortionParams(effectId, {level: level});
         void setScDistortionLevel({effectId, level}).catch((error) => {
             console.error("Failed to update SC distortion level:", error);
@@ -234,7 +234,7 @@ export function EffectPedal({effect, onToggle}: EffectPedalProps) {
         });
     }
 
-    function handleSmoothingChange(effectId: number, smoothing: number, previousSmoothing: number) {
+    function handleSmoothingChange(effectId: string, smoothing: number, previousSmoothing: number) {
         updateScDistortionParams(effectId, {smoothing: smoothing});
         void setScDistortionSmoothing({effectId, smoothing}).catch((error) => {
             console.error("Failed to update SC smoothing:", error);

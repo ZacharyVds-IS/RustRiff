@@ -55,7 +55,7 @@ export const EFFECT_FACTORIES: EffectFactoryMap = {
         level: 0,
     }),
     SCDistortion: ({name, color}): ScDistortionDto => ({
-        id: 0,
+        id: "0",
         name,
         color,
         is_active: false,
