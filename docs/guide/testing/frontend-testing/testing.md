@@ -48,6 +48,10 @@ Then it runs the test suite:
 - if tests fail, the mutation is **killed** (good: tests detected incorrect behavior)
 - if tests still pass, the mutation **survives** (warning: tests likely missed a behavior check)
 
+Mutation testing in our project is mainly used to identify gaps in our business logic, hooks and state flows. Striving for a high score (or killing all mutations) helps ensure our tests are robust and catch regressions effectively.
+While aiming fora high score is great, fighting to eliminate every single surviving mutation often reaches a point of diminishing returns.
+
+Ex. equivalent Mutations: Sometimes Stryker changes a line of code in a way that modifies the syntax but preserves the exact same logic behaviour. Because the program's output does not change, no test can possibly fail, leaving the mutation permanently "alive";
 
 ### Our project uses [Stryker](https://stryker-mutator.io/) for mutation testing.
 Our main branch has a mutation score of 
