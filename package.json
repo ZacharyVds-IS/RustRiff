@@ -18,6 +18,7 @@
     "test:rust": "cd ./src-tauri && cargo test",
     "test:rust-mutation": "cd ./src-tauri && cargo mutants",
     "test:ui": "vitest run",
+    "test:ui-ui": "vitest run --ui --watch",
     "test:ui-coverage": "vitest run --coverage",
     "test:ui-mutation": "stryker run",
     "test:ui-mutation:dry": "stryker run --dryRunOnly",

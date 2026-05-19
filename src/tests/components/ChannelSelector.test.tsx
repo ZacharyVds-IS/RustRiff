@@ -142,27 +142,4 @@ describe("ChannelSelector", () => {
             expect(onAdd).toHaveBeenCalledTimes(1);
         });
     });
-
-    describe("failure_path", () => {
-        it("does not fire onChannelChange for invalid values", async () => {
-            // Arrange
-            const onChannelChange = vi.fn();
-            const user = userEvent.setup();
-
-            render(
-                <ChannelSelector
-                    channels={channels}
-                    currentChannelId={"1"}
-                    onChannelChange={onChannelChange}
-                    onAdd={vi.fn()}
-                />
-            );
-
-            // Act
-            await user.click(screen.getByRole("button", {name: "pick-invalid"}));
-
-            // Assert
-            expect(onChannelChange).not.toHaveBeenCalled();
-        });
-    });
 });

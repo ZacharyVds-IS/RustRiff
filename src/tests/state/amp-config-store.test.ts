@@ -31,7 +31,7 @@ async function flushMicrotasks() {
 const distortionEffect = {
     kind: "HCDistortion",
     data: {
-        id: 10,
+        id: "10",
         name: "Drive",
         is_active: true,
         threshold: 0.4,
@@ -42,7 +42,7 @@ const distortionEffect = {
 const delayEffect = {
     kind: "Delay",
     data: {
-        id: 11,
+        id: "11",
         name: "Delay",
         is_active: true,
         delay_time: 220,
@@ -109,8 +109,8 @@ describe("AmpConfigStore", () => {
             const backendConfig = {
                 master_volume: 0.9,
                 is_active: true,
-                current_channel: 1,
-                channels: [{id: 1, name: "Lead", gain: 1.2, tone_stack: {bass: 0.7, middle: 0.6, treble: 0.8}, volume: 0.75, effect_chain: []}],
+                current_channel: "1",
+                channels: [{id: "1", name: "Lead", gain: 1.2, tone_stack: {bass: 0.7, middle: 0.6, treble: 0.8}, volume: 0.75, effect_chain: []}],
             };
             vi.mocked(domain.setChannelId).mockResolvedValueOnce(undefined);
             vi.mocked(domain.getAmpConfig).mockResolvedValueOnce(backendConfig as any);
@@ -119,9 +119,9 @@ describe("AmpConfigStore", () => {
             await useAmpStore.getState().setChannelById("1");
 
             // Assert
-            expect(domain.setChannelId).toHaveBeenCalledWith({channelId: 1});
+            expect(domain.setChannelId).toHaveBeenCalledWith({channelId: "1"});
             expect(domain.getAmpConfig).toHaveBeenCalledTimes(1);
-            expect(useAmpStore.getState().current_channel).toBe(1);
+            expect(useAmpStore.getState().current_channel).toBe("1");
             expect(useAmpStore.getState().master_volume).toBe(0.9);
             expect(logSpy).toHaveBeenCalledWith("Channel changed, store updated:", backendConfig);
             logSpy.mockRestore();
@@ -145,7 +145,7 @@ describe("AmpConfigStore", () => {
             const pending = useAmpStore.getState().setChannelById("1");
 
             // Assert
-            expect(useAmpStore.getState().current_channel).toBe(1);
+            expect(useAmpStore.getState().current_channel).toBe("1");
             continueBackend();
             await pending;
         });
@@ -166,14 +166,14 @@ describe("AmpConfigStore", () => {
 
         it("addChannelFromBackend appends new channel", async () => {
             // Arrange
-            const dto = {id: 5, name: "Rhythm", gain: 1, tone_stack: {bass: 0.5, middle: 0.5, treble: 0.5}, volume: 1, effect_chain: []};
+            const dto = {id: "5", name: "Rhythm", gain: 1, tone_stack: {bass: 0.5, middle: 0.5, treble: 0.5}, volume: 1, effect_chain: []};
 
             // Act
             await useAmpStore.getState().addChannelFromBackend(dto as any);
 
             // Assert
             expect(useAmpStore.getState().channels.some((c) => c.id === "5")).toBe(true);
-            expect(useAmpStore.getState().current_channel).toBe(5);
+            expect(useAmpStore.getState().current_channel).toBe("5");
         });
 
         it("removeChannel refreshes config after backend call", async () => {
@@ -191,9 +191,9 @@ describe("AmpConfigStore", () => {
             await useAmpStore.getState().removeChannel("1");
 
             // Assert
-            expect(domain.removeChannel).toHaveBeenCalledWith({channelId: 1});
+            expect(domain.removeChannel).toHaveBeenCalledWith({channelId: "1"});
             expect(useAmpStore.getState().channels).toHaveLength(1);
-            expect(logSpy).toHaveBeenCalledWith("Removing channel:", 1);
+            expect(logSpy).toHaveBeenCalledWith("Removing channel:", "1");
             expect(logSpy).toHaveBeenCalledWith("Channel removed, store updated:", expect.any(Object));
             logSpy.mockRestore();
         });
@@ -285,8 +285,8 @@ describe("AmpConfigStore", () => {
 
             // Assert
             const effects = useAmpStore.getState().channels[0].effect_chain as any[];
-            expect(effects.find((e) => e.data.id === 10)?.data).toMatchObject({threshold: 0.8, level: 0.9});
-            expect(effects.find((e) => e.data.id === 11)?.data).toMatchObject({delay_time: 300, level: 0.2});
+            expect(effects.find((e) => e.data.id === "10")?.data).toMatchObject({threshold: 0.8, level: 0.9});
+            expect(effects.find((e) => e.data.id === "11")?.data).toMatchObject({delay_time: 300, level: 0.2});
 
             // Cross-check kind/channel guards
             useAmpStore.setState({
@@ -296,8 +296,8 @@ describe("AmpConfigStore", () => {
                         effect_chain: [
                             distortionEffect,
                             delayEffect,
-                            {kind: "Delay", data: {...delayEffect.data, id: 10}} as any,
-                            {kind: "HCDistortion", data: {...distortionEffect.data, id: 11}} as any,
+                            {kind: "Delay", data: {...delayEffect.data, id: "10"}} as any,
+                            {kind: "HCDistortion", data: {...distortionEffect.data, id: "11"}} as any,
                         ],
                     } as any,
                     {
@@ -310,8 +310,8 @@ describe("AmpConfigStore", () => {
             useAmpStore.getState().updateDelayParams("11", {delay_time: 111});
 
             const updatedChain = useAmpStore.getState().channels[0].effect_chain as any[];
-            expect(updatedChain.find((e) => e.kind === "Delay" && e.data.id === 10)?.data.delay_time).toBe(220);
-            expect(updatedChain.find((e) => e.kind === "HCDistortion" && e.data.id === 11)?.data.threshold).toBe(0.4);
+            expect(updatedChain.find((e) => e.kind === "Delay" && e.data.id === "10")?.data.delay_time).toBe(220);
+            expect(updatedChain.find((e) => e.kind === "HCDistortion" && e.data.id === "11")?.data.threshold).toBe(0.4);
             expect((useAmpStore.getState().channels[1].effect_chain as any[])[0].data.threshold).toBe(0.4);
         });
 
@@ -328,9 +328,9 @@ describe("AmpConfigStore", () => {
             await useAmpStore.getState().removeEffect("10");
 
             // Assert
-            expect(domain.removeEffect).toHaveBeenCalledWith({effectId: 10});
+            expect(domain.removeEffect).toHaveBeenCalledWith({effectId: "10"});
             expect(useAmpStore.getState().channels[0].effect_chain).toHaveLength(1);
-            expect(logSpy).toHaveBeenCalledWith("Removing effect:", 10);
+            expect(logSpy).toHaveBeenCalledWith("Removing effect:", "10");
             expect(logSpy).toHaveBeenCalledWith("Effect removed, store updated:", expect.any(Object));
             logSpy.mockRestore();
         });
@@ -363,15 +363,15 @@ describe("AmpConfigStore", () => {
             // Arrange
             const logSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
             const before = useAmpStore.getState().channels[0].effect_chain as any[];
-            expect(before[0].data.id).toBe(10);
+            expect(before[0].data.id).toBe("10");
 
             // Act
             await useAmpStore.getState().moveEffect(0, 1);
 
             // Assert
             const after = useAmpStore.getState().channels[0].effect_chain as any[];
-            expect(after[0].data.id).toBe(11);
-            expect(after[1].data.id).toBe(10);
+            expect(after[0].data.id).toBe("11");
+            expect(after[1].data.id).toBe("10");
             expect(logSpy).toHaveBeenCalledWith("Moving effect from 0 to 1");
             logSpy.mockRestore();
         });
@@ -386,7 +386,7 @@ describe("AmpConfigStore", () => {
 
             // Assert
             const restored = useAmpStore.getState().channels[0].effect_chain as any[];
-            expect(restored[0].data.id).toBe(10);
+            expect(restored[0].data.id).toBe("10");
             expect(useAmpStore.getState().chain_snapshot).toBeNull();
         });
 
@@ -422,8 +422,8 @@ describe("AmpConfigStore", () => {
                     {
                         ...useAmpStore.getState().channels[1],
                         effect_chain: [
-                            {...delayEffect, data: {...delayEffect.data, id: 21}},
-                            {...distortionEffect, data: {...distortionEffect.data, id: 22}},
+                            {...delayEffect, data: {...delayEffect.data, id: "21"}},
+                            {...distortionEffect, data: {...distortionEffect.data, id: "22"}},
                         ] as any,
                     },
                 ],
@@ -435,8 +435,8 @@ describe("AmpConfigStore", () => {
             // Assert
             const firstChannelIds = (useAmpStore.getState().channels[0].effect_chain as any[]).map((e) => e.data.id);
             const secondChannelIds = (useAmpStore.getState().channels[1].effect_chain as any[]).map((e) => e.data.id);
-            expect(firstChannelIds).toEqual([10, 11]);
-            expect(secondChannelIds).toEqual([22, 21]);
+            expect(firstChannelIds).toEqual(["10", "11"]);
+            expect(secondChannelIds).toEqual(["22", "21"]);
         });
 
         it("moveEffect allows moving to index 0", async () => {
@@ -448,7 +448,7 @@ describe("AmpConfigStore", () => {
 
             // Assert
             const ids = (useAmpStore.getState().channels[0].effect_chain as any[]).map((e) => e.data.id);
-            expect(ids).toEqual([10, 11]);
+            expect(ids).toEqual(["10", "11"]);
         });
 
         it("moveEffect ignores indices that are exactly the chain length", async () => {
@@ -578,9 +578,9 @@ describe("AmpConfigStore", () => {
                     {
                         ...useAmpStore.getState().channels[0],
                         effect_chain: [
-                            {kind: "HCDistortion", data: {...distortionEffect.data, id: 1}} as any,
-                            {kind: "Delay", data: {...delayEffect.data, id: 1}} as any,
-                            {kind: "Delay", data: {...delayEffect.data, id: 2}} as any,
+                            {kind: "HCDistortion", data: {...distortionEffect.data, id: "1"}} as any,
+                            {kind: "Delay", data: {...delayEffect.data, id: "1"}} as any,
+                            {kind: "Delay", data: {...delayEffect.data, id: "2"}} as any,
                         ],
                     },
                     {
@@ -597,9 +597,9 @@ describe("AmpConfigStore", () => {
             const channel0 = useAmpStore.getState().channels[0].effect_chain as any[];
             const channel1 = useAmpStore.getState().channels[1].effect_chain as any[];
 
-            const c0Distortion = channel0.find((e) => e.kind === "HCDistortion" && e.data.id === 1);
-            const c0DelaySameId = channel0.find((e) => e.kind === "Delay" && e.data.id === 1);
-            const c0DelayOtherId = channel0.find((e) => e.kind === "Delay" && e.data.id === 2);
+            const c0Distortion = channel0.find((e) => e.kind === "HCDistortion" && e.data.id === "1");
+            const c0DelaySameId = channel0.find((e) => e.kind === "Delay" && e.data.id === "1");
+            const c0DelayOtherId = channel0.find((e) => e.kind === "Delay" && e.data.id === "2");
 
             expect(c0Distortion.data.threshold).toBe(0.99);
             expect(c0Distortion.data.delay_time).toBeUndefined();
@@ -691,7 +691,7 @@ describe("AmpConfigStore", () => {
             const state = fresh.useAmpStore.getState();
 
             expect(state.is_active).toBe(false);
-            expect(state.current_channel).toBe(0);
+            expect(state.current_channel).toBe("0");
             expect(state.channels[0].name).toBe("Default");
             expect(state.channels[0].tone_stack).toEqual({bass: 1, middle: 1, treble: 1});
             expect(state.channels[0].effect_chain).toEqual([]);
@@ -724,8 +724,8 @@ describe("AmpConfigStore", () => {
                     {
                         ...useAmpStore.getState().channels[1],
                         effect_chain: [
-                            {...delayEffect, data: {...delayEffect.data, id: 30}},
-                            {...distortionEffect, data: {...distortionEffect.data, id: 31}},
+                            {...delayEffect, data: {...delayEffect.data, id: "30"}},
+                            {...distortionEffect, data: {...distortionEffect.data, id: "31"}},
                         ] as any,
                     },
                 ],
@@ -737,8 +737,8 @@ describe("AmpConfigStore", () => {
 
             const firstIds = (useAmpStore.getState().channels[0].effect_chain as any[]).map((e) => e.data.id);
             const secondIds = (useAmpStore.getState().channels[1].effect_chain as any[]).map((e) => e.data.id);
-            expect(firstIds).toEqual([11, 10]);
-            expect(secondIds).toEqual([30, 31]);
+            expect(firstIds).toEqual(["11", "10"]);
+            expect(secondIds).toEqual(["30", "31"]);
         });
     });
 });
