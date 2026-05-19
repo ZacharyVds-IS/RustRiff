@@ -506,8 +506,9 @@ mod tests {
             let inputs = service.get_input_devices();
             let outputs = service.get_output_devices();
             if is_test_host_available() {
-                assert!(!inputs.is_empty() || true);
-                assert!(!outputs.is_empty() || true);
+                // Fixed: Removed the redundant `|| true` to properly assert execution outcomes.
+                assert!(!inputs.is_empty());
+                assert!(!outputs.is_empty());
             }
         }
 
@@ -515,9 +516,9 @@ mod tests {
         fn test_default_devices_for_selected_driver() {
             let service = DeviceService::new();
             if is_test_host_available() {
-                if let Ok((_in_dev, _out_dev)) = service.default_devices_for_selected_driver() {
-                    assert!(true);
-                }
+                let result = service.default_devices_for_selected_driver();
+                // Fixed: Asserting that the result is an Ok variant instead of executing `assert!(true)` inside a match block.
+                assert!(result.is_ok());
             }
         }
 
