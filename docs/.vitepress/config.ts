@@ -63,9 +63,9 @@ export default defineConfig({
         ]
       },
       {
-        text: 'Arc42 Descriptions',
+        text: 'Arc42 Description',
         items:[
-          {text: 'Why choose Rust?', link:'/arc42/programming-language-choice'}
+          {text: 'Architecture Description', link:'/arc42/arc42_project_descriptions.md'}
         ]
       }
     ],
