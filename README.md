@@ -20,25 +20,43 @@ impulse-response (IR).
 - Rust stable toolchain
 - Tauri system dependencies for your OS
 
-### Running locally
+### Before running (windows development only!)
+On windows our project utilizes ASIO drivers for low latency audio processing, which requires some additional configuration.
 
-#### Setting things up (Windows development only)
-Windows users will need to configure their local environment for support with ASIO drivers.
-This requires LLVM installed (cpal uses bindgen to bridge ASIO sdk C++ code to Rust);
+#### LLVM  (cpal uses bindgen to bridge ASIO sdk C++ code to Rust)
+Installation of LLVM is simple using winget, just execute the following command in your terminal:
 ```powershell
-//install via winget as follows:s
 winget install LLVM.LLVM
-
-//Restart terminal and execute:
+```
+ after running the comand make sure to restart your terminal
+Now we need to add LIBCLANG to our environment variables this can be done with the following command
+```powershell
 setx LIBCLANG_PATH "C:\Program Files\LLVM\bin"
 ```
-In combination with this make sure you have installed **Desktop Development with C++** workload in [Visual Studio Installer](https://visualstudio.microsoft.com/downloads/).
+#### Desktop Development with C++ workload
+This can be installed via **Visual Studio** [Installer](https://visualstudio.microsoft.com/downloads/).
 
 or download this toolchain with this command:
 ```powershell
 winget install Microsoft.VisualStudio.2022.BuildTools --override "--add Microsoft.VisualStudio.Workload.VCTools --includeRecommended --passive"
 ```
+#### ASIO SDK Driver
+Lastly for builds to succeed we will need to have the ASIO SDK installed, you can download it from the [Steinberg website](https://www.steinberg.net/developers/)
+Place the contents of this new folder inside a known location for ex . ```C:\ASIO_SDK```
 
+Example structure:
+```
+C:\ASIO_SDK
+├── asio
+├── common
+├── driver
+├── host
+├── ...
+```
+
+Lastly add the folder to your environment variables with the following name: ```CPAL_ASIO_DIR``` the value in the example would be ```C:\ASIO_SDK```
+
+### Running locally
 ```powershell
 npm install
 npm run tauri dev
