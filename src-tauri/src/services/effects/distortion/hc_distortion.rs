@@ -7,6 +7,7 @@ use atomic_float::AtomicF32;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use uuid::Uuid;
 
 /// # Hard-Clipping Distortion Effect
 ///
@@ -46,7 +47,7 @@ use std::sync::Arc;
 /// This allows the audio thread to read parameter changes from command handlers
 /// without any locks or synchronisation overhead.
 pub struct HCDistortion {
-    id: u32,
+    id: Uuid,
     name: String,
     is_active: Arc<AtomicBool>,
     /// Clip level in `(0.0, 1.0]`. Lower = heavier distortion.
@@ -76,7 +77,7 @@ impl HCDistortion {
     ///   Maps internally to gain `[1.0, 2.0]`.
     /// * `color` — Hex colour string for UI pedal chassis (e.g., `"#e67e22"`)
     pub fn new(
-        id: u32,
+        id: Uuid,
         name: String,
         is_active: bool,
         threshold: f32,
@@ -167,7 +168,7 @@ impl AudioProcessor for HCDistortion {
 }
 
 impl Effect for HCDistortion {
-    fn id(&self) -> u32 {
+    fn id(&self) -> Uuid {
         self.id
     }
     fn name(&self) -> &str {
@@ -212,7 +213,7 @@ impl Effect for HCDistortion {
     /// [`EffectDto::HCDistortion`] with all current parameters
     fn to_dto(&self) -> EffectDto {
         EffectDto::HCDistortion(HcDistortionDto {
-            id: self.id,
+            id: self.id.to_string(),
             name: self.name.clone(),
             is_active: self.is_active.load(Ordering::Relaxed),
             color: self.color.clone(),
@@ -247,7 +248,7 @@ mod tests {
 
     fn distortion(threshold: f32) -> HCDistortion {
         HCDistortion::new(
-            0,
+            Uuid::new_v4(),
             "HC".to_string(),
             true,
             threshold,
@@ -309,8 +310,14 @@ mod tests {
 
         #[test]
         fn level_boost_doubles_output_at_max() {
-            let mut fx =
-                HCDistortion::new(0, "HC".to_string(), true, 1.0, 1.0, "#e67e22".to_string());
+            let mut fx = HCDistortion::new(
+                Uuid::new_v4(),
+                "HC".to_string(),
+                true,
+                1.0,
+                1.0,
+                "#e67e22".to_string(),
+            );
             // Converge gain processor to ×2.0
             for _ in 0..20_000 {
                 fx.process(0.0);

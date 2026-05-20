@@ -6,9 +6,10 @@ use atomic_float::AtomicF32;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::Arc;
+use uuid::Uuid;
 
 pub struct Delay {
-    id: u32,
+    id: Uuid,
     name: String,
     is_active: Arc<AtomicBool>,
     color: String,
@@ -26,7 +27,7 @@ const MAX_DELAY_TIME_FLOAT: f32 = 800.0;
 
 impl Delay {
     pub fn new(
-        id: u32,
+        id: Uuid,
         name: String,
         is_active: bool,
         color: String,
@@ -160,7 +161,7 @@ impl AudioProcessor for Delay {
 }
 
 impl Effect for Delay {
-    fn id(&self) -> u32 {
+    fn id(&self) -> Uuid {
         self.id
     }
 
@@ -181,7 +182,7 @@ impl Effect for Delay {
     /// [`EffectDto::Delay`] with all current parameters
     fn to_dto(&self) -> EffectDto {
         EffectDto::Delay(DelayDto {
-            id: self.id(),
+            id: self.id().to_string(),
             name: self.name.clone(),
             is_active: self.is_active(),
             color: self.color.clone(),
@@ -219,7 +220,7 @@ mod tests {
             let sample_rate = 44100;
             let delay_time_ms = 100;
             let delay = Delay::new(
-                1,
+                Uuid::new_v4(),
                 "Test".to_string(),
                 true,
                 "blue".to_string(),
@@ -236,7 +237,7 @@ mod tests {
         #[test]
         fn test_signal_passthrough_on_first_sample() {
             let mut delay = Delay::new(
-                1,
+                Uuid::new_v4(),
                 "Test".to_string(),
                 true,
                 "blue".to_string(),
@@ -257,7 +258,7 @@ mod tests {
             let sample_rate = 1000; // Low SR for easier math
             let delay_time_ms = 100; // 100ms = 100 samples at 1000Hz
             let mut delay = Delay::new(
-                1,
+                Uuid::new_v4(),
                 "Test".to_string(),
                 true,
                 "blue".to_string(),
@@ -287,7 +288,7 @@ mod tests {
         fn test_parameter_clamping() {
             // Test level clamping (max 0.95)
             let mut delay = Delay::new(
-                1,
+                Uuid::new_v4(),
                 "Test".to_string(),
                 true,
                 "blue".to_string(),
@@ -308,7 +309,7 @@ mod tests {
         #[test]
         fn test_empty_buffer_safety() {
             let mut delay = Delay::new(
-                1,
+                Uuid::new_v4(),
                 "Test".to_string(),
                 true,
                 "blue".to_string(),

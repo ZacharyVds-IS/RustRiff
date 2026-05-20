@@ -5,6 +5,7 @@ use crate::services::amp_config_service::AmpConfigPersistenceService;
 use crate::services::audio_service::AudioService;
 use std::sync::Mutex;
 use tracing::info;
+use uuid::Uuid;
 
 #[tauri::command]
 pub(crate) fn add_effect(
@@ -21,7 +22,7 @@ pub(crate) fn add_effect(
         .iter_mut()
         .find(|c| c.id() == target_channel_id)
     {
-        let effect = effect_dto.add_to_domain(channel.next_effect_id(), dsp_sample_rate);
+        let effect = effect_dto.add_to_domain(dsp_sample_rate);
         channel.add_effect_to_chain(effect);
         persist_amp_config(&service, &persistence_service);
         Ok(())
@@ -34,7 +35,7 @@ pub(crate) fn add_effect(
 pub(crate) fn remove_effect(
     audio_service: tauri::State<Mutex<AudioService>>,
     persistence_service: tauri::State<Mutex<AmpConfigPersistenceService>>,
-    effect_id: u32,
+    effect_id: String,
 ) {
     let mut service = audio_service.inner().lock().unwrap();
     let channel_id = *service.current_channel_id();
@@ -43,7 +44,8 @@ pub(crate) fn remove_effect(
         .iter_mut()
         .find(|c| c.id() == channel_id)
         .unwrap();
-    current_channel.remove_effect_from_chain(effect_id);
+    current_channel
+        .remove_effect_from_chain(Uuid::parse_str(&effect_id).expect("failed to parse id"));
     persist_amp_config(&service, &persistence_service);
 }
 
@@ -88,7 +90,7 @@ pub(crate) fn apply_effect_order_change(
 pub fn toggle_effect(
     audio_service: tauri::State<Mutex<AudioService>>,
     persistence_service: tauri::State<Mutex<AmpConfigPersistenceService>>,
-    effect_id: u32,
+    effect_id: String,
 ) -> Result<bool, String> {
     let service = audio_service
         .lock()
@@ -98,9 +100,10 @@ pub fn toggle_effect(
         .iter()
         .find(|c| c.id() == *service.current_channel_id())
         .ok_or("No active channel")?;
-    let new_state = channel.toggle_effect(effect_id)?;
+    let new_state =
+        channel.toggle_effect(Uuid::parse_str(&effect_id).expect("failed to parse id"))?;
     info!(
-        channel_id = *service.current_channel_id(),
+        channel_id = service.current_channel_id().to_string(),
         effect_id,
         is_active = new_state,
         "Effect toggled"

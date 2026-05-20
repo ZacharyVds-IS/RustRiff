@@ -1,9 +1,9 @@
 import {DropdownSelector} from "./selection/DropdownSelector.tsx";
 
 interface ChannelSelectorProps {
-    channels: { label: string; value: number }[];
-    currentChannelId: number;
-    onChannelChange: (index: number) => void;
+    channels: { label: string; value: string }[];
+    currentChannelId: string;
+    onChannelChange: (id: string) => void;
     onAdd: () => void;
 }
 
@@ -11,11 +11,8 @@ export function ChannelSelector({channels, currentChannelId, onChannelChange, on
     const selectedChannel = channels.find(ch => ch.value === currentChannelId);
 
     const handleSelectionChange = (value: string | number) => {
-        const nextChannelId = typeof value === "number" ? value : Number(value);
-
-        if (!Number.isNaN(nextChannelId)) {
-            onChannelChange(nextChannelId);
-        }
+        const nextChannelId = typeof value === "string" ? value : String(value);
+        onChannelChange(nextChannelId);
     };
 
     return (

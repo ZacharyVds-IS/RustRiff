@@ -28,7 +28,7 @@ pub struct JsonFileAmpConfigRepository {
 struct PersistedAmpConfig {
     master_volume: f32,
     channels: Vec<ChannelDto>,
-    current_channel: u32,
+    current_channel: String,
 }
 
 impl From<&AmpConfigDto> for PersistedAmpConfig {
@@ -36,7 +36,7 @@ impl From<&AmpConfigDto> for PersistedAmpConfig {
         Self {
             master_volume: config.master_volume,
             channels: config.channels.clone(),
-            current_channel: config.current_channel,
+            current_channel: config.current_channel.clone(),
         }
     }
 }
@@ -172,7 +172,7 @@ mod tests {
             master_volume: 0.5,
             is_active: false,
             channels: Vec::new(),
-            current_channel: 0,
+            current_channel: "0".to_string(),
         };
 
         repo.save(&config).expect("save should succeed");
@@ -195,7 +195,7 @@ mod tests {
             master_volume: 0.8,
             is_active: true,
             channels: Vec::new(),
-            current_channel: 0,
+            current_channel: "0".to_string(),
         };
 
         repo.save(&config).expect("save should succeed");

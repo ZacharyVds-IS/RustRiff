@@ -4,6 +4,7 @@ use atomic_float::AtomicF32;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, AtomicU32};
 use std::sync::Arc;
+use uuid::Uuid;
 
 /// A trait defining the shared behavior for audio effects within the signal chain.
 ///
@@ -17,7 +18,7 @@ use std::sync::Arc;
 /// primary [`process`](AudioProcessor::process) method used for manipulating audio samples.
 pub trait Effect: AudioProcessor + Send + Sync {
     /// Returns the unique numeric identifier for this specific effect instance.
-    fn id(&self) -> u32;
+    fn id(&self) -> Uuid;
 
     /// Returns the human-readable name of the effect (e.g., "Overdrive", "Delay").
     fn name(&self) -> &str;

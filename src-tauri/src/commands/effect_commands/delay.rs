@@ -2,13 +2,13 @@ use crate::commands::helpers::persist_amp_config;
 use crate::services::amp_config_service::AmpConfigPersistenceService;
 use crate::services::audio_service::AudioService;
 use std::sync::Mutex;
-use tracing::info;
+use uuid::Uuid;
 
 #[tauri::command]
 pub fn set_delay_level(
     audio_service: tauri::State<Mutex<AudioService>>,
     persistence_service: tauri::State<Mutex<AmpConfigPersistenceService>>,
-    effect_id: u32,
+    effect_id: String,
     level: f32,
 ) -> Result<(), String> {
     if !level.is_finite() {
@@ -26,11 +26,11 @@ pub fn set_delay_level(
         .iter()
         .find(|c| c.id() == *service.current_channel_id())
         .ok_or("No active channel")?;
-    channel.set_effect_param(effect_id, "level", level)?;
-    info!(
-        channel_id = *service.current_channel_id(),
-        effect_id, level, "Delay level updated"
-    );
+    channel.set_effect_param(
+        Uuid::parse_str(&effect_id).expect("failed to parse id"),
+        "level",
+        level,
+    )?;
     persist_amp_config(&service, &persistence_service);
     Ok(())
 }
@@ -39,7 +39,7 @@ pub fn set_delay_level(
 pub fn set_delay_delay_time(
     audio_service: tauri::State<Mutex<AudioService>>,
     persistence_service: tauri::State<Mutex<AmpConfigPersistenceService>>,
-    effect_id: u32,
+    effect_id: String,
     delay_time: u32,
 ) -> Result<(), String> {
     let service = audio_service
@@ -50,11 +50,11 @@ pub fn set_delay_delay_time(
         .iter()
         .find(|c| c.id() == *service.current_channel_id())
         .ok_or("No active channel")?;
-    channel.set_effect_param(effect_id, "delay_time", delay_time)?;
-    /* info!(
-        channel_id = *service.current_channel_id(),
-        effect_id, delay_time, "Delay delay_time updated"
-    );*/
+    channel.set_effect_param(
+        Uuid::parse_str(&effect_id).expect("failed to parse id"),
+        "delay_time",
+        delay_time,
+    )?;
     persist_amp_config(&service, &persistence_service);
     Ok(())
 }

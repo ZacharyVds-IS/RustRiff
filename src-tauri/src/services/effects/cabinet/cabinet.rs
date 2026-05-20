@@ -13,6 +13,7 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tracing::{info, warn};
+use uuid::Uuid;
 
 const CUSTOM_IR_ENV_KEY: &str = "RUSTRIFF_CUSTOM_IR_DIR";
 /// Chunk size used by IR resampling during initialization.
@@ -42,7 +43,7 @@ const OUTPUT_CLAMP: f32 = 0.98;
 /// Public-facing behavior is sample-by-sample through [`AudioProcessor::process`],
 /// while internally processing is block-based for efficiency.
 pub struct Cabinet {
-    id: u32,
+    id: Uuid,
     name: String,
     is_active: Arc<AtomicBool>,
     color: String,
@@ -91,7 +92,7 @@ impl Cabinet {
     /// - precompute IR FFT kernel,
     /// - preallocate buffers used by the audio thread.
     pub fn new(
-        id: u32,
+        id: Uuid,
         name: String,
         is_active: bool,
         color: String,
@@ -460,7 +461,7 @@ impl AudioProcessor for Cabinet {
 }
 
 impl Effect for Cabinet {
-    fn id(&self) -> u32 {
+    fn id(&self) -> Uuid {
         self.id
     }
 
@@ -479,7 +480,7 @@ impl Effect for Cabinet {
     /// including the `ir_file_path` used to reload the correct IR.
     fn to_dto(&self) -> EffectDto {
         EffectDto::Cabinet(CabinetDto {
-            id: self.id,
+            id: self.id.to_string(),
             name: self.name.clone(),
             is_active: self.is_active.load(Ordering::Relaxed),
             color: self.color.clone(),
@@ -507,7 +508,7 @@ mod tests {
 
     fn make_cabinet(ir_file: &str, is_active: bool) -> Cabinet {
         Cabinet::new(
-            0,
+            Uuid::new_v4(),
             "Test Cabinet".to_string(),
             is_active,
             "#112233".to_string(),
@@ -555,7 +556,7 @@ mod tests {
         fn to_dto_round_trips_all_cabinet_fields() {
             let cab = make_cabinet("Vox-ac30.wav", true);
             if let EffectDto::Cabinet(dto) = cab.to_dto() {
-                assert_eq!(dto.id, 0);
+                assert_eq!(dto.id, cab.id.to_string());
                 assert_eq!(dto.name, "Test Cabinet");
                 assert_eq!(dto.color, "#112233");
                 assert_eq!(dto.ir_file_path, "Vox-ac30.wav");

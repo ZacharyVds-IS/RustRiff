@@ -7,7 +7,7 @@ import {OnOffSwitch} from "./selection/OnOffSwitch.tsx";
 
 interface CabinetEffectProps {
     effect: EffectDto;
-    onToggle?: (effectId: number, isActive: boolean) => void;
+    onToggle?: (effectId: string, isActive: boolean) => void;
 }
 
 export function CabinetEffect({ effect, onToggle }: CabinetEffectProps) {
@@ -47,7 +47,9 @@ export function CabinetEffect({ effect, onToggle }: CabinetEffectProps) {
                 flexDirection: "column",
                 alignItems: "center",
                 position: "relative",
-                filter: "drop-shadow(0 8px 16px rgba(0,0,0,0.45))",
+                filter: (theme) => theme.palette.mode === 'dark'
+                    ? 'drop-shadow(0 12px 24px rgba(255, 255, 255, 0.3))'
+                    : 'drop-shadow(0 6px 12px rgba(0,0,0,0.4))',
             }}
         >
             {/* Cabinet body with gradient slope - Marshall inspired */}

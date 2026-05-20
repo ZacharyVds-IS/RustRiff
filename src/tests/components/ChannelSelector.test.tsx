@@ -23,9 +23,9 @@ vi.mock("../../components/selection/DropdownSelector.tsx", () => ({
 
 describe("ChannelSelector", () => {
     const channels = [
-        {label: "Clean", value: 1},
-        {label: "Lead", value: 2},
-        {label: "Crunch", value: 3},
+        {label: "Clean", value: "1"},
+        {label: "Lead", value: "2"},
+        {label: "Crunch", value: "3"},
     ];
 
     beforeEach(() => {
@@ -45,7 +45,7 @@ describe("ChannelSelector", () => {
             render(
                 <ChannelSelector
                     channels={channels}
-                    currentChannelId={2}
+                    currentChannelId={"2"}
                     onChannelChange={onChannelChange}
                     onAdd={vi.fn()}
                 />
@@ -53,7 +53,7 @@ describe("ChannelSelector", () => {
 
             // Assert
             const props = dropdownMock.mock.calls[0][0];
-            expect(props.selectedValue).toBe(2);
+            expect(props.selectedValue).toBe("2");
             expect(props.hasBorder).toBe(false);
             expect(props.hasLabel).toBe(false);
             expect(props.options).toEqual(channels);
@@ -64,7 +64,7 @@ describe("ChannelSelector", () => {
             render(
                 <ChannelSelector
                     channels={channels}
-                    currentChannelId={999}
+                    currentChannelId={"999"}
                     onChannelChange={vi.fn()}
                     onAdd={vi.fn()}
                 />
@@ -75,7 +75,7 @@ describe("ChannelSelector", () => {
             expect(props.selectedValue).toBe("");
         });
 
-        it("fires onChannelChange with a parsed number when a string value is selected", async () => {
+        it("fires onChannelChange with the string ID when a value is selected", async () => {
             // Arrange
             const onChannelChange = vi.fn();
             const onAdd = vi.fn();
@@ -84,7 +84,7 @@ describe("ChannelSelector", () => {
             render(
                 <ChannelSelector
                     channels={channels}
-                    currentChannelId={1}
+                    currentChannelId={"1"}
                     onChannelChange={onChannelChange}
                     onAdd={onAdd}
                 />
@@ -94,8 +94,8 @@ describe("ChannelSelector", () => {
             await user.click(screen.getByRole("button", {name: "pick-string"}));
 
             // Assert
-            expect(onChannelChange).toHaveBeenCalledWith(2);
-            expect(typeof onChannelChange.mock.calls[0][0]).toBe("number");
+            expect(onChannelChange).toHaveBeenCalledWith("2");
+            expect(typeof onChannelChange.mock.calls[0][0]).toBe("string");
         });
 
         it("fires onChannelChange with numeric values unchanged", async () => {
@@ -107,7 +107,7 @@ describe("ChannelSelector", () => {
             render(
                 <ChannelSelector
                     channels={channels}
-                    currentChannelId={2}
+                    currentChannelId={"2"}
                     onChannelChange={onChannelChange}
                     onAdd={onAdd}
                 />
@@ -117,7 +117,7 @@ describe("ChannelSelector", () => {
             await user.click(screen.getByRole("button", {name: "pick-number"}));
 
             // Assert
-            expect(onChannelChange).toHaveBeenCalledWith(3);
+            expect(onChannelChange).toHaveBeenCalledWith("3");
         });
 
         it("fires onAdd when the add action is triggered", async () => {
@@ -129,7 +129,7 @@ describe("ChannelSelector", () => {
             render(
                 <ChannelSelector
                     channels={channels}
-                    currentChannelId={2}
+                    currentChannelId={"2"}
                     onChannelChange={onChannelChange}
                     onAdd={onAdd}
                 />
@@ -140,29 +140,6 @@ describe("ChannelSelector", () => {
 
             // Assert
             expect(onAdd).toHaveBeenCalledTimes(1);
-        });
-    });
-
-    describe("failure_path", () => {
-        it("does not fire onChannelChange for invalid values", async () => {
-            // Arrange
-            const onChannelChange = vi.fn();
-            const user = userEvent.setup();
-
-            render(
-                <ChannelSelector
-                    channels={channels}
-                    currentChannelId={1}
-                    onChannelChange={onChannelChange}
-                    onAdd={vi.fn()}
-                />
-            );
-
-            // Act
-            await user.click(screen.getByRole("button", {name: "pick-invalid"}));
-
-            // Assert
-            expect(onChannelChange).not.toHaveBeenCalled();
         });
     });
 });

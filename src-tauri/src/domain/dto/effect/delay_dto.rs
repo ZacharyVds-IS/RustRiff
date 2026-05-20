@@ -5,7 +5,7 @@ use ts_rs::TS;
 #[ts(export)]
 pub struct DelayDto {
     /// Unique identifier for this effect instance. Used for targeting commands.
-    pub id: u32,
+    pub id: String,
     /// Human-readable name displayed in the UI pedal. Example: `"Distortion"`.
     pub name: String,
     /// Whether the effect is currently active/processing audio (`true`) or bypassed (`false`).

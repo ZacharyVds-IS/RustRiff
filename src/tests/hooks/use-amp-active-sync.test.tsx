@@ -78,11 +78,11 @@ describe("useAmpActiveSync", () => {
         useAmpStore.setState({
             is_active: false,
             master_volume: 1,
-            current_channel: 0,
+            current_channel: "0",
             chain_snapshot: null,
             channels: [
                 {
-                    id: 0,
+                    id: "0",
                     name: "Clean",
                     gain: 1,
                     tone_stack: {bass: 0.5, middle: 0.5, treble: 0.5},

@@ -209,12 +209,17 @@ mod tests {
     #[test]
     fn load_amp_config_returns_repository_value() {
         let state = Arc::new(SpyRepositoryState::new());
+
+        // Generate a valid UUID string for the current channel
+        let expected_id = uuid::Uuid::new_v4().to_string();
+
         let expected = AmpConfigDto {
             master_volume: 0.72,
             is_active: false,
             channels: Vec::new(),
-            current_channel: 2,
+            current_channel: expected_id.clone(),
         };
+
         *state
             .load_result
             .lock()
@@ -223,12 +228,13 @@ mod tests {
         let service = AmpConfigPersistenceService::new(Box::new(SpyRepository {
             state: Arc::clone(&state),
         }));
+
         let loaded = service.load_amp_config().expect("load should succeed");
 
         assert!(loaded.is_some());
         assert_eq!(
             loaded.expect("value should be present").current_channel,
-            expected.current_channel
+            expected_id
         );
     }
 
@@ -264,7 +270,11 @@ mod tests {
 
         let saved = state.wait_for_saved_count(1, Duration::from_secs(1));
         assert_eq!(saved.len(), 1);
-        assert_eq!(saved[0].current_channel, 0);
+
+        assert_eq!(
+            saved[0].current_channel,
+            audio_service.current_channel_id().to_string()
+        );
         assert!(!saved[0].is_active);
     }
 
@@ -299,7 +309,12 @@ mod tests {
             state: Arc::clone(&state),
         }));
 
-        let snapshot = |current_channel: u32| AmpConfigDto {
+        // Create unique IDs for our test cases
+        let id_1 = uuid::Uuid::new_v4().to_string();
+        let id_2 = uuid::Uuid::new_v4().to_string();
+        let id_3 = uuid::Uuid::new_v4().to_string();
+
+        let snapshot = |current_channel: String| AmpConfigDto {
             master_volume: 0.5,
             is_active: false,
             channels: Vec::new(),
@@ -307,16 +322,16 @@ mod tests {
         };
 
         service
-            .persist_snapshot(snapshot(1))
+            .persist_snapshot(snapshot(id_1.clone()))
             .expect("first snapshot enqueue should succeed");
 
         state.wait_for_save_started_count(1, Duration::from_secs(1));
 
         service
-            .persist_snapshot(snapshot(2))
+            .persist_snapshot(snapshot(id_2.clone()))
             .expect("second snapshot enqueue should succeed");
         service
-            .persist_snapshot(snapshot(3))
+            .persist_snapshot(snapshot(id_3.clone()))
             .expect("third snapshot enqueue should succeed");
 
         state.set_block_saves(false);
@@ -329,16 +344,17 @@ mod tests {
                 .first()
                 .expect("first snapshot exists")
                 .current_channel,
-            1
+            id_1
         );
         assert_eq!(
             saved
                 .last()
                 .expect("at least one snapshot saved")
                 .current_channel,
-            3
+            id_3
         );
-        assert!(saved.iter().any(|cfg| cfg.current_channel == 3));
-        assert!(!saved.iter().any(|cfg| cfg.current_channel == 2));
+
+        assert!(saved.iter().any(|cfg| cfg.current_channel == id_3));
+        assert!(!saved.iter().any(|cfg| cfg.current_channel == id_2));
     }
 }

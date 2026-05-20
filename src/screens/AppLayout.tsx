@@ -13,13 +13,13 @@ export function AppLayout() {
     const ampStore = useAmpStore();
     const channels = ampStore.channels;
     const currentChannelId = ampStore.current_channel;
-    const currentChannel = ampStore.channels.find(c => c.id === currentChannelId) || {id: -1, name: "No Channel"};
+    const currentChannel = ampStore.channels.find(c => c.id === currentChannelId) || {id: "", name: "No Channel"};
 
     console.log("AppLayout - channels:", channels, "currentChannelName:", currentChannel.name);
 
     const channelOptions = channels.map((channel) => ({label: channel.name, value: channel.id}));
 
-    const handleChannelChange = async (id: number) => {
+    const handleChannelChange = async (id: string) => {
         console.log("Changing channel to id:", id);
         await ampStore.setChannelById(id);
     };
@@ -73,14 +73,14 @@ export function AppLayout() {
                                 <Box sx={{width: 200, minWidth: 200, flexShrink: 0}}>
                                     <ChannelSelector
                                         channels={channelOptions}
-                                        currentChannelId={currentChannelId >= 0 ? currentChannelId : 0}
+                                        currentChannelId={currentChannelId}
                                         onChannelChange={handleChannelChange}
                                         onAdd={() => setDialogOpen(true)}
                                     />
                                 </Box>
                                 <AddChannelDialog open={dialogOpen} onClose={() => setDialogOpen(false)}
                                                   onCreate={handleAddChannel}/>
-                                {currentChannelId != 0 &&
+                                {channels.length > 1 &&
                                     <IconButton onClick={() => setConfirmOpen(true)}><DeleteIcon/></IconButton>}
                                 <ConfirmationDialog
                                     open={confirmOpen}

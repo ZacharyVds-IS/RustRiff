@@ -16,7 +16,7 @@ pub struct AmpConfigDto {
     /// The list of all channels with their respective settings (gain, tone stack, volume).
     pub channels: Vec<ChannelDto>,
     /// The current channel id
-    pub current_channel: u32,
+    pub current_channel: String,
 }
 
 impl AmpConfigDto {
@@ -38,7 +38,7 @@ impl AmpConfigDto {
             master_volume: service.master_volume().load(Ordering::Relaxed),
             is_active: *service.is_active(),
             channels: service.channels().iter().map(ChannelDto::from).collect(),
-            current_channel: channel.id(),
+            current_channel: channel.id().to_string(),
         }
     }
 }

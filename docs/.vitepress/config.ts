@@ -9,7 +9,7 @@ export default defineConfig({
   themeConfig: {
     nav: [
       { text: 'Home', link: '/' },
-      { text: 'Guide', link: '/guide/overview' },
+      { text: 'Guide', link: '/project_docs/overview' },
       { text: 'Frontend Docs', link: '/frontend/index.html' },
       { text: 'Backend Docs', link: '/backend/doc/rustriff_lib/index.html' }
     ],
@@ -18,35 +18,35 @@ export default defineConfig({
       {
         text: 'Project Docs',
         items: [
-          { text: 'Overview', link: '/guide/overview' },
-          { text: 'Project Structure', link: '/guide/project-structure' },
+          { text: 'Overview', link: '/project_docs/overview' },
+          { text: 'Project Structure', link: '/project_docs/project-structure' },
         ]
       },
       {
         text:'Amp Design',
         items:[
-          {text:'Relation to real amp', link:'/guide/amp_design/structure'},
-          {text:'Resampling', link:'/guide/amp_design/resampling.md'},
-          {text:'Visual analysis', link:'/guide/amp_design/spectrum-analyzer.md'},
-          {text:'Latency', link:'/guide/amp_design/latency'},
-          {text:'Gain', link:'/guide/amp_design/gain'},
-          {text:'Master Volume', link:'/guide/amp_design/master-volume'},
-          {text:'Tone Stack',link:'/guide/amp_design/tone-stack'}
+          {text:'Relation to real amp', link:'/project_docs/amp_design/structure'},
+          {text:'Resampling', link:'/project_docs/amp_design/resampling.md'},
+          {text:'Visual analysis', link:'/project_docs/amp_design/spectrum-analyzer.md'},
+          {text:'Latency', link:'/project_docs/amp_design/latency'},
+          {text:'Gain', link:'/project_docs/amp_design/gain'},
+          {text:'Master Volume', link:'/project_docs/amp_design/master-volume'},
+          {text:'Tone Stack',link:'/project_docs/amp_design/tone-stack'}
         ]
       },
       {
         text:'Persistency',
         items:[
-          {text:'Storing data', link:'/guide/persistency/storing-data'}
+          {text:'Storing data', link:'/project_docs/persistency/storing-data'}
         ]
       },
       {
         text:'Effects',
         items:[
-          {text:'Effect chain', link:'/guide/effects/chain'},
+          {text:'Effect chain', link:'/project_docs/effects/chain'},
           {text:'Distortion', link:'/guide/effects/distortion'},
-          {text:'Cabinet Simulation (IR)', link:'/guide/effects/cabinet_simulation_ir'},
-          {text:'Recording an impulse response', link:'/guide/effects/custom_ir_recording'},
+          {text:'Cabinet Simulation (IR)', link:'/project_docs/effects/cabinet_simulation_ir'},
+          {text:'Recording an impulse response', link:'/project_docs/effects/custom_ir_recording'},
         ]
       },
       {
@@ -63,9 +63,9 @@ export default defineConfig({
         ]
       },
       {
-        text: 'Arc42 Descriptions',
+        text: 'Arc42 Description',
         items:[
-          {text: 'Why choose Rust?', link:'/arc42/programming-language-choice'}
+          {text: 'Architecture Description', link:'/arc42/arc42_project_descriptions.md'}
         ]
       }
     ],
