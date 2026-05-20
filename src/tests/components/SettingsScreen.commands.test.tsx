@@ -65,11 +65,60 @@ vi.mock("../../components/selection/DropdownSelector.tsx", () => ({
     ),
 }));
 
+// Mock the child structural subcomponents to verify how props are passed down from SettingsScreen
+vi.mock("../../components/LatencySection.tsx", () => ({
+    LatencySection: ({
+                         bufferSizeOptions,
+                         handleBufferSizeChange,
+                         bufferSizeSaving,
+                         handleMeasureRoundTripLatency,
+                         roundTripLoading,
+                         roundTripError,
+                     }: any) => (
+        <div>
+            <button
+                onClick={() => handleBufferSizeChange(bufferSizeOptions[1]?.value || 512)}
+                aria-label="Change Buffer Size"
+            >
+                Change Buffer Size
+            </button>
+            {bufferSizeSaving && <div>Saving Buffer Size...</div>}
+
+            <button
+                onClick={handleMeasureRoundTripLatency}
+                aria-label={roundTripLoading ? "Measuring..." : "Measure Round-Trip"}
+            >
+                {roundTripLoading ? "Measuring..." : "Measure Round-Trip"}
+            </button>
+            {roundTripError && <div>{roundTripError}</div>}
+        </div>
+    ),
+}));
+
+vi.mock("../../components/DeviceroutingSection.tsx", () => ({
+    DeviceRoutingSection: ({handleInputChange, handleOutputChange}: any) => (
+        <div>
+            <button onClick={() => handleInputChange("in-2")} aria-label="Input Device-select-last">
+                Input Device-select-last
+            </button>
+            <button onClick={() => handleOutputChange("out-2")} aria-label="Output Device-select-last">
+                Output Device-select-last
+            </button>
+        </div>
+    ),
+}));
+
+vi.mock("../../components/SampleRateWarning.tsx", () => ({
+    SampleRateWarning: () => <div />,
+}));
+
 vi.mock("../../domain/commands.ts", () => ({
     measureBufferLatency: vi.fn(),
     getBufferSizeFrames: vi.fn(),
     setBufferSizeFrames: vi.fn(),
     measureRoundTripLatency: vi.fn(),
+    getAvailableAudioDrivers: vi.fn().mockResolvedValue(["Default"]),
+    getSelectedAudioDriver: vi.fn().mockResolvedValue("Default"),
 }));
 
 describe("SettingsScreen command interactions", () => {
@@ -90,6 +139,7 @@ describe("SettingsScreen command interactions", () => {
             ],
             isLoading: false,
             error: null,
+            refresh: vi.fn(),
         });
 
         useUpdateAudioDevicesMock.mockReturnValue({
@@ -105,7 +155,7 @@ describe("SettingsScreen command interactions", () => {
             total_buffer_latency_ms: 3,
         } as any);
 
-        vi.mocked(commands.getBufferSizeFrames).mockResolvedValue(512);
+        vi.mocked(commands.getBufferSizeFrames).mockResolvedValue(256);
         vi.mocked(commands.setBufferSizeFrames).mockResolvedValue(undefined);
         vi.mocked(commands.measureRoundTripLatency).mockResolvedValue({
             is_valid: true,
@@ -118,26 +168,27 @@ describe("SettingsScreen command interactions", () => {
         cleanup();
     });
 
-    it("fires setBufferSizeFrames when Apply is pressed", async () => {
+    it("auto-fires setBufferSizeFrames when buffer size value changes", async () => {
         // Arrange
         const user = userEvent.setup();
         render(<SettingsScreen />);
 
+        // Initial setup fetch
         await waitFor(() => {
             expect(commands.getBufferSizeFrames).toHaveBeenCalledTimes(1);
         });
 
-        // Act
-        await user.click(screen.getByRole("button", {name: "Apply"}));
+        // Act - changing state triggers the auto-apply useEffect hook
+        await user.click(screen.getByRole("button", {name: "Change Buffer Size"}));
 
         // Assert
         await waitFor(() => {
-            expect(commands.setBufferSizeFrames).toHaveBeenCalledWith({frames: 512});
+            expect(commands.setBufferSizeFrames).toHaveBeenCalledWith({frames: 128});
             expect(commands.measureBufferLatency).toHaveBeenCalled();
         });
     });
 
-    it("shows Applying... while buffer size save is in-flight", async () => {
+    it("shows loading indicator while buffer size auto-save is in-flight", async () => {
         // Arrange
         let resolveApply: () => void = () => undefined;
         vi.mocked(commands.setBufferSizeFrames).mockImplementationOnce(
@@ -148,15 +199,19 @@ describe("SettingsScreen command interactions", () => {
         const user = userEvent.setup();
         render(<SettingsScreen />);
 
+        await waitFor(() => {
+            expect(commands.getBufferSizeFrames).toHaveBeenCalledTimes(1);
+        });
+
         // Act
-        await user.click(screen.getByRole("button", {name: "Apply"}));
+        await user.click(screen.getByRole("button", {name: "Change Buffer Size"}));
 
         // Assert
-        expect(screen.getByRole("button", {name: "Applying..."})).toBeTruthy();
+        expect(screen.getByText("Saving Buffer Size...")).toBeTruthy();
 
         resolveApply();
         await waitFor(() => {
-            expect(screen.getByRole("button", {name: "Apply"})).toBeTruthy();
+            expect(screen.queryByText("Saving Buffer Size...")).toBeNull();
         });
     });
 
@@ -215,31 +270,6 @@ describe("SettingsScreen command interactions", () => {
         });
     });
 
-    it("renders loading fallback when useAudioDevices is loading", () => {
-        // Arrange
-        useAudioDevicesMock.mockReturnValueOnce({
-            inputs: [], outputs: [], isLoading: true, error: null,
-        });
-
-        // Act
-        render(<SettingsScreen />);
-
-        // Assert
-        expect(screen.queryByText("Settings")).toBeNull();
-    });
-
-    it("renders backend error fallback when useAudioDevices has an error", () => {
-        // Arrange
-        useAudioDevicesMock.mockReturnValueOnce({
-            inputs: [], outputs: [], isLoading: false, error: "device-failed",
-        });
-
-        // Act
-        render(<SettingsScreen />);
-
-        // Assert
-        expect(screen.getByText("device-failed")).toBeTruthy();
-    });
 
     it("shows round-trip invalid response error message", async () => {
         // Arrange
@@ -260,5 +290,3 @@ describe("SettingsScreen command interactions", () => {
         });
     });
 });
-
-

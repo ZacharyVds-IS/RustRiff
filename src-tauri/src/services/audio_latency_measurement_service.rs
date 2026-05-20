@@ -276,7 +276,7 @@ impl AudioLatencyMeasurementService {
         match RoundTripLatencySession::run(
             handler,
             Duration::from_secs(10),
-            Duration::from_millis(1500),
+            Duration::from_millis(2500),
         ) {
             Ok(latency_ms) => RoundTripLatencyDto::success(latency_ms),
             Err(error) => RoundTripLatencyDto::failure(error),

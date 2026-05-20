@@ -34,8 +34,11 @@ use crate::commands::latency_testing::{
 };
 use crate::commands::loopback::start_loopback;
 use crate::commands::settings::{
-    get_buffer_size_frames, get_input_device_list, get_output_device_list, set_buffer_size_frames,
-    set_input_device, set_output_device,
+    get_available_audio_drivers, get_buffer_size_frames, get_input_channel_options,
+    get_input_device_list, get_output_channel_options, get_output_device_list,
+    get_selected_audio_driver, get_selected_input_channel_count, get_selected_output_channel_count,
+    set_asio_channel_config, set_audio_driver, set_buffer_size_frames, set_input_device,
+    set_output_device,
 };
 use crate::config::{get_default_ir_file, init_tracing};
 use crate::infrastructure::file_loader::FileLoader;
@@ -47,8 +50,8 @@ use crate::services::file_service::FileService;
 use commands::effect_commands::effects::{
     add_effect, apply_effect_order_change, remove_effect, toggle_effect,
 };
-use cpal::default_host;
 use cpal::traits::{DeviceTrait, HostTrait};
+use cpal::{available_hosts, default_host, host_from_id};
 use cpal::{BufferSize, StreamConfig};
 use std::sync::Mutex;
 use tauri::Manager;
@@ -60,7 +63,16 @@ const AMP_CONFIG_FILE_NAME: &str = "amp-config.json";
 pub fn run() {
     init_tracing();
 
-    let host = default_host();
+    let host = if cfg!(target_os = "windows") {
+        let wasapi_host = available_hosts()
+            .into_iter()
+            .find(|host_id| format!("{:?}", host_id).eq_ignore_ascii_case("Wasapi"))
+            .and_then(|host_id| host_from_id(host_id).ok());
+
+        wasapi_host.unwrap_or_else(default_host)
+    } else {
+        default_host()
+    };
     let input = host.default_input_device().unwrap();
     let output = host.default_output_device().unwrap();
 
@@ -143,7 +155,7 @@ pub fn run() {
     tauri::Builder::default()
         .manage(Mutex::new(audio_service))
         .manage(SpectrumStreamState::default())
-        .manage(DeviceService::new(host))
+        .manage(DeviceService::new())
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             let config_dir = app
@@ -204,6 +216,14 @@ pub fn run() {
             set_gain,
             get_input_device_list,
             get_output_device_list,
+            get_available_audio_drivers,
+            get_selected_audio_driver,
+            get_input_channel_options,
+            get_output_channel_options,
+            get_selected_input_channel_count,
+            get_selected_output_channel_count,
+            set_asio_channel_config,
+            set_audio_driver,
             set_input_device,
             set_output_device,
             set_master_volume,

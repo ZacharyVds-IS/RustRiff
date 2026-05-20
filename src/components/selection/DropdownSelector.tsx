@@ -17,12 +17,13 @@ interface DropdownProps {
     options: { label: string; value: string | number }[];
     selectedValue: string | number;
     onSelectionChange: (value: string | number) => void;
+    disabled?:boolean;
     onAdd?: () => void;
     hasBorder?: boolean;
     hasLabel?: boolean;
 }
 
-export function DropdownSelector({title, label, options, selectedValue, onSelectionChange, onAdd, hasBorder = true, hasLabel = true}: DropdownProps) {
+export function DropdownSelector({title, label, options, selectedValue, onSelectionChange, onAdd,disabled = false, hasBorder = true, hasLabel = true}: DropdownProps) {
     const handleChange = (event: SelectChangeEvent<string | number>) => {
         const selectedValue = event.target.value;
 
@@ -40,7 +41,7 @@ export function DropdownSelector({title, label, options, selectedValue, onSelect
                 </Typography>
             )}
 
-            <FormControl fullWidth>
+            <FormControl fullWidth disabled={disabled}>
                 {hasLabel && <InputLabel id="simple-select-label">{label}</InputLabel>}
                 <Select
                     labelId="simple-select-label"

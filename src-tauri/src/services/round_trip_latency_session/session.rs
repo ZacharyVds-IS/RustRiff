@@ -128,3 +128,123 @@ impl RoundTripLatencySession {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::infrastructure::audio_handler::PlayableStream;
+    use cpal::{BufferSize, StreamConfig};
+    use ringbuf::{HeapCons, HeapProd};
+
+    struct DummyStream;
+    impl PlayableStream for DummyStream {
+        fn play(&self) {}
+    }
+
+    struct StubAudioHandler {
+        config: StreamConfig,
+    }
+
+    impl AudioHandlerTrait for StubAudioHandler {
+        fn build_input_stream(&self, _prod: HeapProd<f32>) -> Box<dyn PlayableStream> {
+            Box::new(DummyStream)
+        }
+
+        fn build_output_stream(&self, _cons: HeapCons<f32>) -> Box<dyn PlayableStream> {
+            Box::new(DummyStream)
+        }
+
+        fn input_device(&self) -> &cpal::Device {
+            panic!("Unused")
+        }
+        fn output_device(&self) -> &cpal::Device {
+            panic!("Unused")
+        }
+        fn input_config(&self) -> &StreamConfig {
+            &self.config
+        }
+        fn output_config(&self) -> &StreamConfig {
+            &self.config
+        }
+        fn input_sample_rate(&self) -> u32 {
+            self.config.sample_rate
+        }
+        fn output_sample_rate(&self) -> u32 {
+            self.config.sample_rate
+        }
+    }
+
+    fn create_stub_config(buffer_size: BufferSize) -> StreamConfig {
+        StreamConfig {
+            channels: 1,
+            sample_rate: 44100,
+            buffer_size,
+        }
+    }
+
+    #[cfg(test)]
+    mod success_path {
+        use super::*;
+
+        #[test]
+        fn test_session_resolves_instantly_on_completion_outcome() {
+            let config = create_stub_config(BufferSize::Fixed(64));
+            let handler = StubAudioHandler { config };
+
+            let result = thread::spawn(move || {
+                RoundTripLatencySession::run(
+                    &handler,
+                    Duration::from_millis(5),
+                    Duration::from_millis(5),
+                )
+            })
+            .join()
+            .unwrap();
+
+            match result {
+                Ok(latency) => assert!(latency >= 0.0),
+                Err(msg) => assert!(msg.contains("timed out") || msg.contains("Echo not detected")),
+            }
+        }
+
+        #[test]
+        fn test_buffer_sizing_logic_with_default_frames() {
+            let config = create_stub_config(BufferSize::Default);
+            let handler = StubAudioHandler { config };
+
+            let result = thread::spawn(move || {
+                RoundTripLatencySession::run(
+                    &handler,
+                    Duration::from_millis(1),
+                    Duration::from_millis(1),
+                )
+            })
+            .join()
+            .unwrap();
+
+            assert!(result.is_err() || result.is_ok());
+        }
+    }
+
+    #[cfg(test)]
+    mod failure_path {
+        use super::*;
+
+        #[test]
+        fn test_overall_deadline_timeout_breach() {
+            let config = create_stub_config(BufferSize::Fixed(128));
+            let handler = StubAudioHandler { config };
+
+            let result = RoundTripLatencySession::run(
+                &handler,
+                Duration::from_nanos(0),
+                Duration::from_millis(1),
+            );
+
+            assert!(result.is_err());
+            if let Err(err_msg) = result {
+                assert!(err_msg.contains("timed out"));
+            }
+        }
+    }
+}

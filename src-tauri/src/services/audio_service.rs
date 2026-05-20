@@ -427,6 +427,22 @@ impl AudioService {
         self.set_audio_handler(Arc::new(new_handler));
     }
 
+    /// Switches both audio input and output devices in one operation.
+    ///
+    /// This is used by driver modes (for example ASIO) that require the
+    /// same hardware route to be reconfigured atomically.
+    pub fn set_io_devices(
+        &mut self,
+        input: Device,
+        output: Device,
+        input_config: StreamConfig,
+        output_config: StreamConfig,
+    ) {
+        info!("Switching input/output device route");
+        let new_handler = AudioHandler::new(input, output, input_config, output_config);
+        self.set_audio_handler(Arc::new(new_handler));
+    }
+
     /// Toggles the audio loopback on or off.
     ///
     /// - If `is_on` is `true` and the loopback is not active, [`start_loopback`] is called.

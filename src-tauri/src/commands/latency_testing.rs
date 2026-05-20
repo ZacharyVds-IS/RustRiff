@@ -26,6 +26,7 @@ use crate::domain::dto::execution_timing_dto::ExecutionTimingDto;
 use crate::domain::dto::round_trip_latency_dto::RoundTripLatencyDto;
 use crate::services::audio_latency_measurement_service::AudioLatencyMeasurementService;
 use crate::services::audio_service::AudioService;
+use crate::services::device_service::DeviceService;
 use std::sync::Mutex;
 use tracing::info;
 
@@ -228,20 +229,48 @@ pub fn measure_buffer_latency(
 /// [`RoundTripLatencyDto`]: crate::domain::dto::round_trip_latency_dto::RoundTripLatencyDto
 #[tauri::command]
 pub fn measure_round_trip_latency(
+    device_service: tauri::State<DeviceService>,
     audio_service: tauri::State<'_, Mutex<AudioService>>,
 ) -> Result<RoundTripLatencyDto, String> {
-    let handler = {
-        let service = audio_service
+    // ASIO is an exclusive driver — only one host can own the device at a time.
+    // If the main loopback is active we must stop it before the measurement opens its own
+    // streams, then restart it afterwards. On non-ASIO hosts both streams can co-exist so
+    // we follow the original lighter path (clone handler, release lock, measure).
+    let is_asio = device_service.is_asio_selected();
+
+    let (handler, was_active) = {
+        let mut service = audio_service
             .lock()
             .map_err(|_| "Failed to lock audio service".to_string())?;
-        service.audio_handler().clone()
+
+        let was_active = *service.is_active();
+
+        if is_asio && was_active {
+            info!("ASIO is exclusive: stopping loopback before round-trip measurement");
+            service.stop_loopback();
+        }
+
+        (service.audio_handler().clone(), was_active)
     };
+
+    if is_asio && was_active {
+        std::thread::sleep(std::time::Duration::from_millis(300));
+    }
 
     let latency = std::thread::spawn(move || {
         AudioLatencyMeasurementService::measure_round_trip_latency(handler.as_ref())
     })
     .join()
     .map_err(|_| "Round-trip measurement thread panicked".to_string())?;
+
+    // Restore the loopback for ASIO after measurement streams have been dropped.
+    if is_asio && was_active {
+        if let Ok(mut service) = audio_service.lock() {
+            info!("Restarting loopback after ASIO round-trip measurement");
+            std::thread::sleep(std::time::Duration::from_millis(150));
+            service.start_loopback();
+        }
+    }
 
     if latency.is_valid {
         info!(
