@@ -11,7 +11,7 @@ fn default_ir_file_path() -> String {
 #[ts(export)]
 pub struct CabinetDto {
     /// Unique identifier for this effect instance.
-    pub id: u32,
+    pub id: String,
     /// Human-readable name displayed in the UI.
     pub name: String,
     /// Whether the effect is currently active or bypassed.

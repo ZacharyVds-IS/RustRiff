@@ -210,6 +210,7 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            //TODO: Clean up using Macro's?
             get_default_ir_file,
             start_loopback,
             set_gain,

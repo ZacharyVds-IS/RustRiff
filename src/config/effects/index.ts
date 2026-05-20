@@ -47,7 +47,7 @@ export const CABINET_CUSTOM_IR_VALUE = "__CUSTOM_FILE__";
 
 export const EFFECT_FACTORIES: EffectFactoryMap = {
     HCDistortion: ({name, color}): HcDistortionDto => ({
-        id: 0,
+        id: "0",
         name,
         color,
         is_active: false,
@@ -55,7 +55,7 @@ export const EFFECT_FACTORIES: EffectFactoryMap = {
         level: 0,
     }),
     SCDistortion: ({name, color}): ScDistortionDto => ({
-        id: 0,
+        id: "0",
         name,
         color,
         is_active: false,
@@ -64,14 +64,14 @@ export const EFFECT_FACTORIES: EffectFactoryMap = {
         level: 0,
     }),
     Cabinet: ({name, color, cabinetIrFilePath}): CabinetDto => ({
-        id: 0,
+        id: "0",
         name,
         color,
         is_active: false,
         ir_file_path: cabinetIrFilePath ?? DEFAULT_CABINET_IR_FILE,
     }),
     Delay: ({name, color}): DelayDto => ({
-        id: 0, // Is set to the correct value in the backend
+        id: "0", // Is set to the correct value in the backend
         name,
         color,
         is_active: false,

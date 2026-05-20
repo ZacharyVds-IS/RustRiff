@@ -7,6 +7,7 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
 use tracing::{error, info};
+use uuid::Uuid;
 
 /// Atomic handles retained by `Channel` after the effect chain is moved to the
 /// audio worker thread.  Commands write through these Arcs; the audio thread
@@ -41,7 +42,7 @@ struct EffectHandles {
 ///
 /// Tone stack values are validated to be between 0.0 and 1.0; attempting to set a value outside this range will panic.
 pub struct Channel {
-    id: u32,
+    id: Uuid,
     name: String,
     gain: Arc<AtomicF32>,
     tone_stack: Arc<ToneStack>,
@@ -49,8 +50,7 @@ pub struct Channel {
     effect_chain: Arc<Mutex<Vec<Box<dyn Effect>>>>,
     /// Retained per-effect Arc handles indexed by effect id.
     /// Stays populated even after `take_effect_chain` moves the effects to the audio thread.
-    effect_handles: HashMap<u32, EffectHandles>,
-    next_effect_id: u32,
+    effect_handles: HashMap<Uuid, EffectHandles>,
 }
 
 impl Channel {
@@ -88,7 +88,7 @@ impl Channel {
     /// * `name` - A human-readable name for the channel (e.g., "Main", "Overdrive").
     /// * `gain` - Optional initial gain value. Defaults to `1.0` if `None`.
     /// * `master_volume` - Optional initial master volume value. Defaults to `1.0` if `None`.
-    pub fn new(id: u32, name: String, gain: Option<f32>, volume: Option<f32>) -> Self {
+    pub fn new(id: Uuid, name: String, gain: Option<f32>, volume: Option<f32>) -> Self {
         let gain = gain.unwrap_or(1.0);
         let volume = volume.unwrap_or(1.0);
 
@@ -100,7 +100,6 @@ impl Channel {
             volume: Arc::new(AtomicF32::new(volume)),
             effect_chain: Arc::new(Mutex::new(Vec::new())),
             effect_handles: HashMap::new(),
-            next_effect_id: 0,
         }
     }
 
@@ -250,7 +249,7 @@ impl Channel {
     }
 
     /// Returns the unique identifier of the channel.
-    pub fn id(&self) -> u32 {
+    pub fn id(&self) -> Uuid {
         self.id
     }
 
@@ -303,7 +302,6 @@ impl Channel {
 
         if let Ok(mut chain) = self.effect_chain.lock() {
             chain.push(effect);
-            self.next_effect_id += 1;
         }
     }
 
@@ -314,7 +312,7 @@ impl Channel {
     /// # Arguments
     ///
     /// * `effect_id` - The unique identifier of the effect to remove from the chain
-    pub fn remove_effect_from_chain(&mut self, effect_id: u32) {
+    pub fn remove_effect_from_chain(&mut self, effect_id: Uuid) {
         if let Ok(mut chain) = self.effect_chain.lock() {
             if let Some(pos) = chain.iter().position(|e| e.id() == effect_id) {
                 info!("Removed effect: {} from chain", chain[pos].name());
@@ -324,11 +322,6 @@ impl Channel {
                 error!("Effect with id {} not found in chain", effect_id);
             }
         }
-    }
-
-    /// Returns the next available unique identifier for an effect in this channel's effect chain.
-    pub fn next_effect_id(&self) -> u32 {
-        self.next_effect_id
     }
 
     /// Returns the set of cabinet IR file names referenced by this channel.
@@ -355,7 +348,7 @@ impl Channel {
     /// # Returns
     /// * `Ok(bool)` — The new active state (`true` = now active, `false` = now bypassed)
     /// * `Err(String)` — Error message if effect ID not found in this channel
-    pub fn toggle_effect(&self, effect_id: u32) -> Result<bool, String> {
+    pub fn toggle_effect(&self, effect_id: Uuid) -> Result<bool, String> {
         let h = self
             .effect_handles
             .get(&effect_id)
@@ -396,7 +389,7 @@ impl Channel {
     ///   - Parameter name not recognised by the effect
     pub fn set_effect_param(
         &self,
-        effect_id: u32,
+        effect_id: Uuid,
         param: &str,
         value: impl Into<ParamInput>,
     ) -> Result<(), String> {
@@ -456,22 +449,22 @@ mod tests {
 
         #[test]
         fn gain_set_to_positive_value_should_succeed() {
-            let channel = Channel::new(1, "Test".to_string(), None, None);
+            let channel = Channel::new(Uuid::new_v4(), "Test".to_string(), None, None);
             channel.set_gain(0.5);
             assert_eq!(channel.gain().load(Ordering::Relaxed), 0.5);
         }
 
         #[test]
         fn volume_set_to_positive_value_should_succeed() {
-            let channel = Channel::new(1, "Test".to_string(), None, None);
+            let channel = Channel::new(Uuid::new_v4(), "Test".to_string(), None, None);
             channel.set_volume(0.5);
             assert_eq!(channel.volume().load(Ordering::Relaxed), 0.5);
         }
 
         #[test]
         fn toggle_effect_flips_active_state() {
-            let mut channel = Channel::new(0, "Test".to_string(), None, None);
-            let effect_id = channel.next_effect_id();
+            let mut channel = Channel::new(Uuid::new_v4(), "Test".to_string(), None, None);
+            let effect_id = Uuid::new_v4();
             channel.add_effect_to_chain(Box::new(HCDistortion::new(
                 effect_id,
                 "Test Effect".to_string(),
@@ -490,8 +483,8 @@ mod tests {
 
         #[test]
         fn set_effect_param_updates_threshold() {
-            let mut channel = Channel::new(0, "Test".to_string(), None, None);
-            let effect_id = channel.next_effect_id();
+            let mut channel = Channel::new(Uuid::new_v4(), "Test".to_string(), None, None);
+            let effect_id = Uuid::new_v4();
             channel.add_effect_to_chain(Box::new(HCDistortion::new(
                 effect_id,
                 "Test Effect".to_string(),
@@ -521,8 +514,8 @@ mod tests {
 
         #[test]
         fn adding_effect_to_effect_chain_should_add_an_effect_to_effect_chain() {
-            let mut channel = Channel::new(1, "Test".to_string(), None, None);
-            let effect_id = channel.next_effect_id();
+            let mut channel = Channel::new(Uuid::new_v4(), "Test".to_string(), None, None);
+            let effect_id = Uuid::new_v4();
 
             channel.add_effect_to_chain(Box::new(HCDistortion::new(
                 effect_id,
@@ -539,8 +532,8 @@ mod tests {
 
         #[test]
         fn removing_effect_from_effect_chain_should_remove_an_effect_from_effect_chain() {
-            let mut channel = Channel::new(1, "Test".to_string(), None, None);
-            let effect_id = channel.next_effect_id();
+            let mut channel = Channel::new(Uuid::new_v4(), "Test".to_string(), None, None);
+            let effect_id = Uuid::new_v4();
             let effect = Box::new(HCDistortion::new(
                 effect_id,
                 "Test Effect".to_string(),
@@ -566,9 +559,9 @@ mod tests {
 
         #[test]
         fn restore_effect_chain_replaces_and_reorders_existing_chain() {
-            let mut channel = Channel::new(1, "Test".to_string(), None, None);
+            let mut channel = Channel::new(Uuid::new_v4(), "Test".to_string(), None, None);
 
-            let id_1 = channel.next_effect_id();
+            let id_1 = Uuid::new_v4();
             let effect_1 = Box::new(HCDistortion::new(
                 id_1,
                 "Effect 1".to_string(),
@@ -578,7 +571,7 @@ mod tests {
                 "#color1".to_string(),
             ));
 
-            let id_2 = channel.next_effect_id();
+            let id_2 = Uuid::new_v4();
             let effect_2 = Box::new(HCDistortion::new(
                 id_2,
                 "Effect 2".to_string(),
@@ -621,8 +614,8 @@ mod tests {
         #[test]
         fn used_cabinet_ir_profiles_tracks_added_and_removed_cabinet_effects_without_locking_chain()
         {
-            let mut channel = Channel::new(1, "Test".to_string(), None, None);
-            let cabinet_id = channel.next_effect_id();
+            let mut channel = Channel::new(Uuid::new_v4(), "Test".to_string(), None, None);
+            let cabinet_id = Uuid::new_v4();
             channel.add_effect_to_chain(Box::new(Cabinet::new(
                 cabinet_id,
                 "Cab A".to_string(),
@@ -644,10 +637,10 @@ mod tests {
 
         #[test]
         fn restore_effect_chain_refreshes_cabinet_ir_metadata_snapshot() {
-            let mut channel = Channel::new(1, "Test".to_string(), None, None);
+            let mut channel = Channel::new(Uuid::new_v4(), "Test".to_string(), None, None);
 
             channel.add_effect_to_chain(Box::new(Cabinet::new(
-                0,
+                Uuid::new_v4(),
                 "Old Cab".to_string(),
                 true,
                 "#111111".to_string(),
@@ -656,7 +649,7 @@ mod tests {
             )));
 
             channel.restore_effect_chain(vec![Box::new(Cabinet::new(
-                7,
+                Uuid::new_v4(),
                 "New Cab".to_string(),
                 true,
                 "#222222".to_string(),
@@ -678,27 +671,27 @@ mod tests {
         #[test]
         #[should_panic(expected = "Gain must be positive")]
         fn gain_set_to_negative_value_should_panic() {
-            let channel = Channel::new(1, "Test".to_string(), None, None);
+            let channel = Channel::new(Uuid::new_v4(), "Test".to_string(), None, None);
             channel.set_gain(-0.5);
         }
 
         #[test]
         #[should_panic(expected = "Volume must be positive")]
         fn volume_set_to_negative_value_should_panic() {
-            let channel = Channel::new(1, "Test".to_string(), None, None);
+            let channel = Channel::new(Uuid::new_v4(), "Test".to_string(), None, None);
             channel.set_volume(-0.5);
         }
 
         #[test]
         fn toggle_unknown_effect_returns_err() {
-            let channel = Channel::new(1, "Test".to_string(), None, None);
-            assert!(channel.toggle_effect(999).is_err());
+            let channel = Channel::new(Uuid::new_v4(), "Test".to_string(), None, None);
+            assert!(channel.toggle_effect(Uuid::new_v4()).is_err());
         }
 
         #[test]
         fn removing_invalid_effect_id_should_not_remove_any_effect() {
-            let mut channel = Channel::new(1, "Test".to_string(), None, None);
-            let effect_id = channel.next_effect_id();
+            let mut channel = Channel::new(Uuid::new_v4(), "Test".to_string(), None, None);
+            let effect_id = Uuid::new_v4();
             let effect = Box::new(HCDistortion::new(
                 effect_id,
                 "Test Effect".to_string(),
@@ -711,7 +704,7 @@ mod tests {
             channel.add_effect_to_chain(effect);
 
             let len_before = channel.effect_chain.lock().unwrap().len();
-            channel.remove_effect_from_chain(effect_id + 1);
+            channel.remove_effect_from_chain(Uuid::new_v4());
 
             let len_after = channel.effect_chain.lock().unwrap().len();
             assert_eq!(len_before, len_after);

@@ -2,7 +2,7 @@ use crate::commands::helpers::persist_amp_config;
 use crate::services::amp_config_service::AmpConfigPersistenceService;
 use crate::services::audio_service::AudioService;
 use std::sync::Mutex;
-use tracing::info;
+use uuid::Uuid;
 
 /// # Sets the Clipping Threshold on an SC Distortion Effect
 ///
@@ -31,7 +31,7 @@ use tracing::info;
 pub fn set_sc_distortion_threshold(
     audio_service: tauri::State<Mutex<AudioService>>,
     persistence_service: tauri::State<Mutex<AmpConfigPersistenceService>>,
-    effect_id: u32,
+    effect_id: String,
     threshold: f32,
 ) -> Result<(), String> {
     if !threshold.is_finite() {
@@ -51,13 +51,11 @@ pub fn set_sc_distortion_threshold(
         .iter()
         .find(|c| c.id() == *service.current_channel_id())
         .ok_or("No active channel")?;
-    channel.set_effect_param(effect_id, "threshold", safe_threshold)?;
-    info!(
-        channel_id = *service.current_channel_id(),
-        effect_id,
-        threshold = safe_threshold,
-        "SCDistortion threshold updated"
-    );
+    channel.set_effect_param(
+        Uuid::parse_str(&effect_id).expect("failed to parse id"),
+        "threshold",
+        safe_threshold,
+    )?;
     persist_amp_config(&service, &persistence_service);
     Ok(())
 }
@@ -91,7 +89,7 @@ pub fn set_sc_distortion_threshold(
 pub fn set_sc_distortion_level(
     audio_service: tauri::State<Mutex<AudioService>>,
     persistence_service: tauri::State<Mutex<AmpConfigPersistenceService>>,
-    effect_id: u32,
+    effect_id: String,
     level: f32,
 ) -> Result<(), String> {
     // Validate level before forwarding to audio thread
@@ -114,14 +112,12 @@ pub fn set_sc_distortion_level(
         .iter()
         .find(|c| c.id() == *service.current_channel_id())
         .ok_or("No active channel")?;
-    channel.set_effect_param(effect_id, "level", gain)?;
-    info!(
-        channel_id = *service.current_channel_id(),
-        effect_id,
-        level = safe_level,
+    channel.set_effect_param(
+        Uuid::parse_str(&effect_id).expect("failed to parse id"),
+        "level",
         gain,
-        "SCDistortion level updated"
-    );
+    )?;
+
     persist_amp_config(&service, &persistence_service);
     Ok(())
 }
@@ -153,7 +149,7 @@ pub fn set_sc_distortion_level(
 pub fn set_sc_distortion_smoothing(
     audio_service: tauri::State<Mutex<AudioService>>,
     persistence_service: tauri::State<Mutex<AmpConfigPersistenceService>>,
-    effect_id: u32,
+    effect_id: String,
     smoothing: f32,
 ) -> Result<(), String> {
     if !smoothing.is_finite() {
@@ -173,13 +169,11 @@ pub fn set_sc_distortion_smoothing(
         .iter()
         .find(|c| c.id() == *service.current_channel_id())
         .ok_or("No active channel")?;
-    channel.set_effect_param(effect_id, "smoothing", safe_smoothing)?;
-    info!(
-        channel_id = *service.current_channel_id(),
-        effect_id,
-        smoothing = safe_smoothing,
-        "SCDistortion smoothing updated"
-    );
+    channel.set_effect_param(
+        Uuid::parse_str(&effect_id).expect("failed to parse id"),
+        "smoothing",
+        safe_smoothing,
+    )?;
     persist_amp_config(&service, &persistence_service);
     Ok(())
 }

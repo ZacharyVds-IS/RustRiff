@@ -179,13 +179,14 @@ mod tests {
     #[cfg(test)]
     mod success_path {
         use super::*;
+        use uuid::Uuid;
 
         #[test]
         fn collect_used_ir_profiles_deduplicates_cabinet_profiles_across_channels() {
             let mut service = AudioService::new_with_handler(Arc::new(make_mock_handler()));
 
             service.channels_mut()[0].add_effect_to_chain(Box::new(Cabinet::new(
-                0,
+                Uuid::new_v4(),
                 "Cab A".to_string(),
                 true,
                 "#111111".to_string(),
@@ -200,7 +201,7 @@ mod tests {
                 .find(|channel| channel.id() == second_channel_id)
                 .expect("second channel should exist");
             second_channel.add_effect_to_chain(Box::new(Cabinet::new(
-                0,
+                Uuid::new_v4(),
                 "Cab B".to_string(),
                 true,
                 "#222222".to_string(),
@@ -208,7 +209,7 @@ mod tests {
                 48_000,
             )));
             second_channel.add_effect_to_chain(Box::new(Cabinet::new(
-                1,
+                Uuid::new_v4(),
                 "Cab C".to_string(),
                 true,
                 "#333333".to_string(),
@@ -251,7 +252,7 @@ mod tests {
             let mut service = AudioService::new_with_handler(Arc::new(make_mock_handler()));
 
             service.channels_mut()[0].add_effect_to_chain(Box::new(Cabinet::new(
-                0,
+                Uuid::new_v4(),
                 "Cab A".to_string(),
                 true,
                 "#111111".to_string(),
@@ -260,7 +261,7 @@ mod tests {
             )));
 
             service.channels_mut()[0].restore_effect_chain(vec![Box::new(Cabinet::new(
-                7,
+                Uuid::new_v4(),
                 "Cab B".to_string(),
                 true,
                 "#222222".to_string(),

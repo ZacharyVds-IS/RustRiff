@@ -5,6 +5,7 @@ use crate::services::audio_service::AudioService;
 use std::sync::Mutex;
 use tauri::{AppHandle, Emitter};
 use tracing::info;
+use uuid::Uuid;
 
 /// Sets the active channel ID in the audio service.
 ///
@@ -22,10 +23,10 @@ use tracing::info;
 pub(crate) fn set_channel_id(
     audio_service: tauri::State<Mutex<AudioService>>,
     persistence_service: tauri::State<Mutex<AmpConfigPersistenceService>>,
-    channel_id: u32,
+    channel_id: String,
 ) {
     let mut service = audio_service.inner().lock().unwrap();
-    service.set_current_channel_id(channel_id);
+    service.set_current_channel_id(Uuid::parse_str(&channel_id).expect("failed to parse id"));
     persist_amp_config(&service, &persistence_service);
 }
 
@@ -45,9 +46,9 @@ pub(crate) fn set_channel_id(
 /// [`Channel`]: crate::domain::channel::Channel
 /// [`AudioService`]: crate::services::audio_service::AudioService
 #[tauri::command]
-pub(crate) fn get_channel_id(audio_service: tauri::State<Mutex<AudioService>>) -> u32 {
+pub(crate) fn get_channel_id(audio_service: tauri::State<Mutex<AudioService>>) -> String {
     let service = audio_service.inner().lock().unwrap();
-    *service.current_channel_id()
+    service.current_channel_id().to_string()
 }
 
 /// Adds a new channel to the audio service.
@@ -147,10 +148,10 @@ pub(crate) fn get_all_channels(
 pub(crate) fn remove_channel(
     audio_service: tauri::State<Mutex<AudioService>>,
     persistence_service: tauri::State<Mutex<AmpConfigPersistenceService>>,
-    channel_id: u32,
+    channel_id: String,
 ) -> Result<(), String> {
     let mut service = audio_service.inner().lock().unwrap();
-    service.remove_channel(channel_id);
+    service.remove_channel(Uuid::parse_str(&channel_id).expect("failed to parse id"));
     persist_amp_config(&service, &persistence_service);
     info!("remove channel {channel_id}");
     Ok(())

@@ -3,6 +3,7 @@ use crate::services::amp_config_service::AmpConfigPersistenceService;
 use crate::services::audio_service::AudioService;
 use std::sync::Mutex;
 use tracing::info;
+use uuid::Uuid;
 
 /// # Sets the Clipping Threshold on an HC Distortion Effect
 ///
@@ -31,7 +32,7 @@ use tracing::info;
 pub fn set_hc_distortion_threshold(
     audio_service: tauri::State<Mutex<AudioService>>,
     persistence_service: tauri::State<Mutex<AmpConfigPersistenceService>>,
-    effect_id: u32,
+    effect_id: String,
     threshold: f32,
 ) -> Result<(), String> {
     if !threshold.is_finite() {
@@ -51,9 +52,13 @@ pub fn set_hc_distortion_threshold(
         .iter()
         .find(|c| c.id() == *service.current_channel_id())
         .ok_or("No active channel")?;
-    channel.set_effect_param(effect_id, "threshold", safe_threshold)?;
+    channel.set_effect_param(
+        Uuid::parse_str(&effect_id).expect("failed to parse id"),
+        "threshold",
+        safe_threshold,
+    )?;
     info!(
-        channel_id = *service.current_channel_id(),
+        channel_id = service.current_channel_id().to_string(),
         effect_id,
         threshold = safe_threshold,
         "HCDistortion threshold updated"
@@ -91,7 +96,7 @@ pub fn set_hc_distortion_threshold(
 pub fn set_hc_distortion_level(
     audio_service: tauri::State<Mutex<AudioService>>,
     persistence_service: tauri::State<Mutex<AmpConfigPersistenceService>>,
-    effect_id: u32,
+    effect_id: String,
     level: f32,
 ) -> Result<(), String> {
     // Validate level before forwarding to audio thread
@@ -114,9 +119,13 @@ pub fn set_hc_distortion_level(
         .iter()
         .find(|c| c.id() == *service.current_channel_id())
         .ok_or("No active channel")?;
-    channel.set_effect_param(effect_id, "level", gain)?;
+    channel.set_effect_param(
+        Uuid::parse_str(&effect_id).expect("failed to parse id"),
+        "level",
+        gain,
+    )?;
     info!(
-        channel_id = *service.current_channel_id(),
+        channel_id = service.current_channel_id().to_string(),
         effect_id,
         level = safe_level,
         gain,

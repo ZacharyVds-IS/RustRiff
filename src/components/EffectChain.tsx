@@ -33,7 +33,6 @@ export function EffectChain({effects, selected, onSelectionChange, onReorderOpen
         useAmpStore.getState().addEffect(newEffect);
 
         setAddDialogOpen(false);
-        console.log("You tried to add an effect it isn't wired yet")
     }
 
     const handleEffectRemove = () => {

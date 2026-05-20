@@ -9,7 +9,7 @@ use tracing::error;
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ChannelDto {
     /// Unique identifier for the Channel.
-    pub id: u32,
+    pub id: String,
     /// Name of the Channel
     pub name: String,
     /// The input gain level of the Channel.
@@ -37,7 +37,7 @@ impl From<&Channel> for ChannelDto {
         };
 
         Self {
-            id: channel.id(),
+            id: channel.id().to_string(),
             name: channel.name().to_string(),
             gain: channel.gain().load(Ordering::Relaxed),
             tone_stack: ToneStackDto::from(channel.tone_stack().as_ref()),

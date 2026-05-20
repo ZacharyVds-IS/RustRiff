@@ -14,7 +14,7 @@ export type HcDistortionDto = {
 /**
  * Unique identifier for this effect instance. Used for targeting commands.
  */
-id: number, 
+id: string, 
 /**
  * Human-readable name displayed in the UI pedal. Example: `"Distortion"`.
  */
