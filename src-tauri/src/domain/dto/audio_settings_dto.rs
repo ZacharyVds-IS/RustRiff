@@ -8,4 +8,5 @@ pub struct AudioSettingsDto {
     pub output_sample_rate: u32,
     pub input_channels: u16,
     pub output_channels: u16,
+    pub audio_drivers: String,
 }

@@ -1,6 +1,7 @@
 use crate::domain::dto::amp_config_dto::AmpConfigDto;
 use crate::infrastructure::persistence::amp_config_persistence_trait::AmpConfigPersistence;
 use crate::services::audio_service::AudioService;
+use crate::services::device_service::DeviceService;
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
 use tracing::error;
@@ -62,8 +63,8 @@ impl AmpConfigPersistenceService {
     /// This is the primary method used by mutating Tauri commands after they
     /// successfully update amplifier state. Disk I/O is executed by a background
     /// worker thread so command handlers return quickly.
-    pub fn persist_from_audio_service(&self, audio_service: &AudioService) -> Result<(), String> {
-        let snapshot = AmpConfigDto::from_service(audio_service);
+    pub fn persist_from_audio_service(&self, audio_service: &AudioService, device_service: &DeviceService) -> Result<(), String> {
+        let snapshot = AmpConfigDto::from_service(audio_service, device_service);
         self.persist_snapshot(snapshot)
     }
 
@@ -225,6 +226,7 @@ impl AmpConfigPersistenceService {
                 output_sample_rate: 44100,
                 input_channels: 2,
                 output_channels: 2,
+                audio_drivers: "".to_string(),
             }
         };
 
@@ -271,9 +273,10 @@ impl AmpConfigPersistenceService {
 
          let mock = crate::tests::mock::make_mock_handler();
          let audio_service = AudioService::new_with_handler(Arc::new(mock));
+         let device_service = DeviceService::new();
 
         service
-            .persist_from_audio_service(&audio_service)
+            .persist_from_audio_service(&audio_service, &device_service)
             .expect("persist should succeed");
 
         let saved = state.wait_for_saved_count(1, Duration::from_secs(1));
@@ -299,9 +302,10 @@ impl AmpConfigPersistenceService {
          }));
          let mock = crate::tests::mock::make_mock_handler();
          let audio_service = AudioService::new_with_handler(Arc::new(mock));
+         let device_service = DeviceService::new();
 
-        service
-            .persist_from_audio_service(&audio_service)
+         service
+            .persist_from_audio_service(&audio_service, &device_service)
             .expect("enqueue should succeed");
 
         let saved = state.wait_for_saved_count(1, Duration::from_secs(1));
@@ -334,6 +338,7 @@ impl AmpConfigPersistenceService {
                  output_sample_rate: 44100,
                  input_channels: 2,
                  output_channels: 2,
+                 audio_drivers: "".to_string(),
              }
          };
 

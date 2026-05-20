@@ -175,6 +175,7 @@ mod tests {
             output_sample_rate: 44100,
             input_channels: 2,
             output_channels: 2,
+            audio_drivers: "".to_string(),
         }
     }
 

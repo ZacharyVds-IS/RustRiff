@@ -3,6 +3,7 @@ use crate::domain::dto::amp_config_dto::AmpConfigDto;
 use crate::domain::dto::tone_stack_dto::ToneStackDto;
 use crate::services::amp_config_service::AmpConfigPersistenceService;
 use crate::services::audio_service::AudioService;
+use crate::services::device_service::DeviceService;
 use std::sync::Mutex;
 
 /// Retrieves the current amplifier configuration as an [`AmpConfigDto`].
@@ -20,12 +21,16 @@ use std::sync::Mutex;
 #[tauri::command]
 pub fn get_amp_config(
     audio_service: tauri::State<'_, Mutex<AudioService>>,
+    device_service: tauri::State<'_, Mutex<DeviceService>>,
 ) -> Result<AmpConfigDto, String> {
-    let service = audio_service
+    let audio_service = audio_service
         .lock()
         .map_err(|_| "Failed to lock audio service".to_string())?;
+    let device_service = device_service
+        .lock()
+        .map_err(|_| "Failed to lock device service".to_string())?;
 
-    Ok(AmpConfigDto::from_service(&service))
+    Ok(AmpConfigDto::from_service(&audio_service, &device_service))
 }
 
 /// Toggles the audio loopback on or off.
