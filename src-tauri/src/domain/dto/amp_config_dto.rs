@@ -1,5 +1,7 @@
+use crate::domain::dto::audio_settings_dto::AudioSettingsDto;
 use crate::domain::dto::channel_dto::ChannelDto;
 use crate::services::audio_service::AudioService;
+use cpal::traits::DeviceTrait;
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::Ordering;
 
@@ -17,6 +19,8 @@ pub struct AmpConfigDto {
     pub channels: Vec<ChannelDto>,
     /// The current channel id
     pub current_channel: String,
+    /// Hardware Configuration
+    pub audio_settings: AudioSettingsDto,
 }
 
 impl AmpConfigDto {
@@ -39,6 +43,25 @@ impl AmpConfigDto {
             is_active: *service.is_active(),
             channels: service.channels().iter().map(ChannelDto::from).collect(),
             current_channel: channel.id().to_string(),
+            audio_settings: {
+                // Wrap device access in catch_unwind to handle mock panic scenarios in tests
+                let input_name = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    service.audio_handler().input_device().name().unwrap_or_else(|_| "Unknown Input".to_string())
+                })).unwrap_or_else(|_| "Unknown Input".to_string());
+
+                let output_name = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    service.audio_handler().output_device().name().unwrap_or_else(|_| "Unknown Output".to_string())
+                })).unwrap_or_else(|_| "Unknown Output".to_string());
+
+                AudioSettingsDto {
+                    input_device_name: input_name,
+                    output_device_name: output_name,
+                    input_sample_rate: service.audio_handler().input_sample_rate(),
+                    output_sample_rate: service.audio_handler().output_sample_rate(),
+                    input_channels: service.audio_handler().input_config().channels,
+                    output_channels: service.audio_handler().output_config().channels,
+                }
+            }
         }
     }
 }

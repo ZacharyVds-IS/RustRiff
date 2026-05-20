@@ -79,14 +79,14 @@ impl AmpConfigPersistenceService {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::infrastructure::audio_handler::MockAudioHandlerTrait;
-    use std::sync::{Arc, Condvar, Mutex};
-    use std::time::Duration;
+ #[cfg(test)]
+ mod tests {
+     use super::*;
+     use crate::domain::dto::audio_settings_dto::AudioSettingsDto;
+     use std::sync::{Arc, Condvar, Mutex};
+     use std::time::Duration;
 
-    struct SpyRepositoryState {
+     struct SpyRepositoryState {
         saved_configs: Mutex<Vec<AmpConfigDto>>,
         saved_configs_cv: Condvar,
         load_result: Mutex<Result<Option<AmpConfigDto>, String>>,
@@ -218,6 +218,14 @@ mod tests {
             is_active: false,
             channels: Vec::new(),
             current_channel: expected_id.clone(),
+            audio_settings: AudioSettingsDto {
+                input_device_name: "Test Input".to_string(),
+                output_device_name: "Test Output".to_string(),
+                input_sample_rate: 44100,
+                output_sample_rate: 44100,
+                input_channels: 2,
+                output_channels: 2,
+            }
         };
 
         *state
@@ -254,15 +262,15 @@ mod tests {
         assert_eq!(err, "load failed");
     }
 
-    #[test]
-    fn persist_from_audio_service_saves_snapshot() {
-        let state = Arc::new(SpyRepositoryState::new());
-        let service = AmpConfigPersistenceService::new(Box::new(SpyRepository {
-            state: Arc::clone(&state),
-        }));
+     #[test]
+     fn persist_from_audio_service_saves_snapshot() {
+         let state = Arc::new(SpyRepositoryState::new());
+         let service = AmpConfigPersistenceService::new(Box::new(SpyRepository {
+             state: Arc::clone(&state),
+         }));
 
-        let mock = MockAudioHandlerTrait::new();
-        let audio_service = AudioService::new_with_handler(Arc::new(mock));
+         let mock = crate::tests::mock::make_mock_handler();
+         let audio_service = AudioService::new_with_handler(Arc::new(mock));
 
         service
             .persist_from_audio_service(&audio_service)
@@ -278,19 +286,19 @@ mod tests {
         assert!(!saved[0].is_active);
     }
 
-    #[test]
-    fn persist_from_audio_service_enqueues_even_when_background_save_fails() {
-        let state = Arc::new(SpyRepositoryState::new());
-        *state
-            .save_result
-            .lock()
-            .expect("save_result should be lockable") = Err("save failed".to_string());
+     #[test]
+     fn persist_from_audio_service_enqueues_even_when_background_save_fails() {
+         let state = Arc::new(SpyRepositoryState::new());
+         *state
+             .save_result
+             .lock()
+             .expect("save_result should be lockable") = Err("save failed".to_string());
 
-        let service = AmpConfigPersistenceService::new(Box::new(SpyRepository {
-            state: Arc::clone(&state),
-        }));
-        let mock = MockAudioHandlerTrait::new();
-        let audio_service = AudioService::new_with_handler(Arc::new(mock));
+         let service = AmpConfigPersistenceService::new(Box::new(SpyRepository {
+             state: Arc::clone(&state),
+         }));
+         let mock = crate::tests::mock::make_mock_handler();
+         let audio_service = AudioService::new_with_handler(Arc::new(mock));
 
         service
             .persist_from_audio_service(&audio_service)
@@ -314,12 +322,20 @@ mod tests {
         let id_2 = uuid::Uuid::new_v4().to_string();
         let id_3 = uuid::Uuid::new_v4().to_string();
 
-        let snapshot = |current_channel: String| AmpConfigDto {
-            master_volume: 0.5,
-            is_active: false,
-            channels: Vec::new(),
-            current_channel,
-        };
+         let snapshot = |current_channel: String| AmpConfigDto {
+             master_volume: 0.5,
+             is_active: false,
+             channels: Vec::new(),
+             current_channel,
+             audio_settings: AudioSettingsDto {
+                 input_device_name: "Test Input".to_string(),
+                 output_device_name: "Test Output".to_string(),
+                 input_sample_rate: 44100,
+                 output_sample_rate: 44100,
+                 input_channels: 2,
+                 output_channels: 2,
+             }
+         };
 
         service
             .persist_snapshot(snapshot(id_1.clone()))
