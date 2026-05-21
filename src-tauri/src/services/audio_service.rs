@@ -1055,6 +1055,88 @@ mod tests {
 
             assert!(!*service.is_active());
         }
+
+        #[test]
+        fn apply_amp_config_restores_audio_driver_and_falls_back_to_old_handler_devices() {
+            let mut old_handler = make_mock_handler();
+
+            let dummy_host = cpal::default_host();
+            let dummy_input = dummy_host
+                .default_input_device()
+                .expect("No input device available");
+            let dummy_output = dummy_host
+                .default_output_device()
+                .expect("No output device available");
+
+            let expected_input_id = dummy_input.id().unwrap().to_string();
+            let expected_output_id = dummy_output.id().unwrap().to_string();
+
+            let dummy_input_config = cpal::StreamConfig {
+                channels: 1,
+                sample_rate: 44100,
+                buffer_size: cpal::BufferSize::Default,
+            };
+            let dummy_output_config = cpal::StreamConfig {
+                channels: 2,
+                sample_rate: 44100,
+                buffer_size: cpal::BufferSize::Default,
+            };
+
+            old_handler
+                .expect_input_device()
+                .return_const(dummy_input.clone());
+
+            old_handler
+                .expect_output_device()
+                .return_const(dummy_output.clone());
+
+            old_handler
+                .expect_input_config()
+                .return_const(dummy_input_config);
+
+            old_handler
+                .expect_output_config()
+                .return_const(dummy_output_config);
+
+            let mut service = build_service(old_handler);
+            let device_service = DeviceService::new();
+
+            let target_driver = "ASIO";
+            let mut audio_settings = basic_audio_settings();
+            audio_settings.audio_driver = target_driver.to_string();
+            audio_settings.input_device_name = "NonExistentInputDeviceName123".to_string();
+            audio_settings.output_device_name = "NonExistentOutputDeviceName123".to_string();
+            audio_settings.input_sample_rate = 48000;
+            audio_settings.input_channels = 2;
+            audio_settings.output_sample_rate = 48000;
+            audio_settings.output_channels = 2;
+
+            let config = AmpConfigDto {
+                master_volume: 0.5,
+                is_active: false,
+                channels: vec![],
+                current_channel: "".to_string(),
+                audio_settings,
+            };
+
+            service.apply_amp_config(config, &device_service);
+
+            let new_handler = service.audio_handler.clone();
+
+            assert_eq!(new_handler.input_config().sample_rate, 48000);
+            assert_eq!(new_handler.input_config().channels, 2);
+            assert_eq!(new_handler.output_config().sample_rate, 48000);
+            assert_eq!(new_handler.output_config().channels, 2);
+
+            assert_eq!(
+                new_handler.input_device().id().unwrap().to_string(),
+                expected_input_id
+            );
+            assert_eq!(
+                new_handler.output_device().id().unwrap().to_string(),
+                expected_output_id
+            );
+        }
     }
 
     #[cfg(test)]
