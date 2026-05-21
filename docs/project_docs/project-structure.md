@@ -22,3 +22,6 @@ This repository is split into frontend, backend, and docs concerns:
 - `hooks/`: Integration hooks for Tauri/device interactions.
 - `state/`: Shared application state.
 
+## Diagram
+This diagram covers the structure of the backend.
+![GuitarAmpDomain.jpg](images/GuitarAmpDomain.jpg)
