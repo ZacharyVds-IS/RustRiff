@@ -1,6 +1,7 @@
 use crate::commands::helpers::persist_amp_config;
 use crate::services::amp_config_service::AmpConfigPersistenceService;
 use crate::services::audio_service::AudioService;
+use crate::services::device_service::DeviceService;
 use std::sync::Mutex;
 
 /// Starts the audio loopback on a dedicated background thread.
@@ -14,9 +15,11 @@ use std::sync::Mutex;
 #[tauri::command]
 pub(crate) fn start_loopback(
     audio_service: tauri::State<'_, Mutex<AudioService>>,
+    device_service: tauri::State<'_, Mutex<DeviceService>>,
     persistence_service: tauri::State<'_, Mutex<AmpConfigPersistenceService>>,
 ) {
-    let mut service = audio_service.lock().unwrap();
-    service.start_loopback();
-    persist_amp_config(&service, &persistence_service);
+    let mut audio_service = audio_service.lock().unwrap();
+    let device_service = device_service.lock().unwrap();
+    audio_service.start_loopback();
+    persist_amp_config(&audio_service, &device_service, &persistence_service);
 }

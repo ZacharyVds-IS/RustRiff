@@ -151,9 +151,11 @@ pub fn run() {
     );
 
     let audio_service = AudioService::new(input, output, input_config, output_config);
+    let device_service = DeviceService::new();
 
     tauri::Builder::default()
         .manage(Mutex::new(audio_service))
+        .manage(Mutex::new(device_service))
         .manage(SpectrumStreamState::default())
         .manage(DeviceService::new())
         .plugin(tauri_plugin_opener::init())

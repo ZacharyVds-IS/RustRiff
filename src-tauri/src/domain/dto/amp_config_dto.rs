@@ -46,17 +46,17 @@ impl AmpConfigDto {
             current_channel: channel.id().to_string(),
             audio_settings: {
                 // Wrap device access in catch_unwind to handle mock panic scenarios in tests
-                let input_name = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                    audio_service.audio_handler().input_device().name().unwrap_or_else(|_| "Unknown Input".to_string())
+                let input_id = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    audio_service.audio_handler().input_device().id().unwrap().to_string()
                 })).unwrap_or_else(|_| "Unknown Input".to_string());
 
-                let output_name = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                    audio_service.audio_handler().output_device().name().unwrap_or_else(|_| "Unknown Output".to_string())
+                let output_id = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    audio_service.audio_handler().output_device().id().unwrap().to_string()
                 })).unwrap_or_else(|_| "Unknown Output".to_string());
 
                 AudioSettingsDto {
-                    input_device_name: input_name,
-                    output_device_name: output_name,
+                    input_device_name: input_id,
+                    output_device_name: output_id,
                     input_sample_rate: audio_service.audio_handler().input_sample_rate(),
                     output_sample_rate: audio_service.audio_handler().output_sample_rate(),
                     input_channels: audio_service.audio_handler().input_config().channels,

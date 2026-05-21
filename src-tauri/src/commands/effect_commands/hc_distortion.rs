@@ -1,6 +1,7 @@
 use crate::commands::helpers::persist_amp_config;
 use crate::services::amp_config_service::AmpConfigPersistenceService;
 use crate::services::audio_service::AudioService;
+use crate::services::device_service::DeviceService;
 use std::sync::Mutex;
 use tracing::info;
 use uuid::Uuid;
@@ -31,6 +32,7 @@ use uuid::Uuid;
 #[tauri::command]
 pub fn set_hc_distortion_threshold(
     audio_service: tauri::State<Mutex<AudioService>>,
+    device_service: tauri::State<Mutex<DeviceService>>,
     persistence_service: tauri::State<Mutex<AmpConfigPersistenceService>>,
     effect_id: String,
     threshold: f32,
@@ -63,7 +65,10 @@ pub fn set_hc_distortion_threshold(
         threshold = safe_threshold,
         "HCDistortion threshold updated"
     );
-    persist_amp_config(&service, &persistence_service);
+    let device_service = device_service
+        .lock()
+        .map_err(|_| "Failed to lock device service".to_string())?;
+    persist_amp_config(&service, &device_service, &persistence_service);
     Ok(())
 }
 
@@ -95,6 +100,7 @@ pub fn set_hc_distortion_threshold(
 #[tauri::command]
 pub fn set_hc_distortion_level(
     audio_service: tauri::State<Mutex<AudioService>>,
+    device_service: tauri::State<Mutex<DeviceService>>,
     persistence_service: tauri::State<Mutex<AmpConfigPersistenceService>>,
     effect_id: String,
     level: f32,
@@ -131,6 +137,9 @@ pub fn set_hc_distortion_level(
         gain,
         "HCDistortion level updated"
     );
-    persist_amp_config(&service, &persistence_service);
+    let device_service = device_service
+        .lock()
+        .map_err(|_| "Failed to lock device service".to_string())?;
+    persist_amp_config(&service, &device_service, &persistence_service);
     Ok(())
 }

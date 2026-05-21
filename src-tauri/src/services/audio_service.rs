@@ -654,8 +654,8 @@ impl AudioService {
                 .ok()
                 .and_then(|mut devices| {
                     devices
-                        .find_map(|d| match d.name() {
-                            Ok(n) if n == audio_settings.input_device_name => Some(d),
+                        .find_map(|d| match d.id() {
+                            Ok(n) if n.to_string() == audio_settings.input_device_name => Some(d),
                             _ => None,
                         })
                 })
@@ -672,8 +672,8 @@ impl AudioService {
                 .ok()
                 .and_then(|mut devices| {
                     devices
-                        .find_map(|d| match d.name() {
-                            Ok(n) if n == audio_settings.output_device_name => Some(d),
+                        .find_map(|d| match d.id() {
+                            Ok(n) if n.to_string() == audio_settings.output_device_name => Some(d),
                             _ => None,
                         })
                 })
