@@ -570,6 +570,8 @@ impl AudioService {
     ///   channel becomes the active channel,
     /// - `next_channel_id` is recalculated from the restored set,
     /// - loopback is toggled according to `config.is_active`.
+    /// - selected Audio drivers are restored
+    /// - I/O devices are restored if they can be found, otherwise the existing devices are kept and an error is logged.
     ///
     /// Note that the current JSON persistence implementation always loads with
     /// `is_active = false`, so persisted sessions restart with loopback turned
