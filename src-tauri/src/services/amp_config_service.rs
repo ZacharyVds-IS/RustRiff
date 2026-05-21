@@ -226,7 +226,7 @@ impl AmpConfigPersistenceService {
                 output_sample_rate: 44100,
                 input_channels: 2,
                 output_channels: 2,
-                audio_drivers: "".to_string(),
+                audio_driver: "".to_string(),
             }
         };
 
@@ -338,7 +338,7 @@ impl AmpConfigPersistenceService {
                  output_sample_rate: 44100,
                  input_channels: 2,
                  output_channels: 2,
-                 audio_drivers: "".to_string(),
+                 audio_driver: "".to_string(),
              }
          };
 

@@ -5,6 +5,7 @@ use crate::domain::dto::effect::effect_dto::EffectDto;
 use crate::domain::effect::Effect;
 use crate::infrastructure::audio_handler::{AudioHandler, AudioHandlerTrait};
 use crate::services::analyzers::spectrum_tap::SpectrumTap;
+use crate::services::device_service::DeviceService;
 use crate::services::processors::gain::gain_processor::GainProcessor;
 use crate::services::processors::resampler::resampler::ResamplePolicy;
 use crate::services::processors::tone_stack::tone_stack_processor::ToneStackProcessor;
@@ -573,7 +574,7 @@ impl AudioService {
     /// Note that the current JSON persistence implementation always loads with
     /// `is_active = false`, so persisted sessions restart with loopback turned
     /// off even though this method is capable of applying either state.
-    pub fn apply_amp_config(&mut self, config: AmpConfigDto) {
+    pub fn apply_amp_config(&mut self, config: AmpConfigDto, device_service: &DeviceService) {
         let mut restored_channels = Vec::new();
 
         // Backward compatibility: older snapshots stored tone values as 0..100.
@@ -648,6 +649,8 @@ impl AudioService {
             new_output_config.channels = audio_settings.output_channels;
 
             let host = cpal::default_host();
+
+            let _ = device_service.set_selected_audio_driver(audio_settings.audio_driver.as_str());
 
             let selected_input = host
                 .input_devices()
@@ -797,7 +800,7 @@ mod tests {
                 output_sample_rate: 44100,
                 input_channels: 2,
                 output_channels: 2,
-                audio_drivers: "".to_string(),
+                audio_driver: "".to_string(),
             }
         }
 
@@ -894,7 +897,7 @@ mod tests {
                 audio_settings: basic_audio_settings(),
             };
 
-            service.apply_amp_config(config);
+            service.apply_amp_config(config, &DeviceService::new());
 
             let channels = service.channels();
             let clean = channels
@@ -956,7 +959,7 @@ mod tests {
                 audio_settings: basic_audio_settings(),
             };
 
-            service.apply_amp_config(config);
+            service.apply_amp_config(config, &DeviceService::new());
 
             let channels = service.channels();
             assert_eq!(channels.len(), 1);
@@ -986,7 +989,7 @@ mod tests {
                 audio_settings: basic_audio_settings(),
             };
 
-            service.apply_amp_config(config);
+            service.apply_amp_config(config, &DeviceService::new());
 
             let channel = service
                 .channels
@@ -1005,13 +1008,16 @@ mod tests {
         fn apply_amp_config_with_no_channels_creates_default_channel() {
             let mut service = build_service(make_mock_handler());
 
-            service.apply_amp_config(AmpConfigDto {
-                master_volume: 0.75,
-                is_active: false,
-                channels: vec![],
-                current_channel: Uuid::new_v4().to_string(),
-                audio_settings: basic_audio_settings(),
-            });
+            service.apply_amp_config(
+                AmpConfigDto {
+                    master_volume: 0.75,
+                    is_active: false,
+                    channels: vec![],
+                    current_channel: Uuid::new_v4().to_string(),
+                    audio_settings: basic_audio_settings(),
+                },
+                &DeviceService::new(),
+            );
 
             assert_eq!(service.channels.len(), 1);
             assert_eq!(service.channels[0].name(), "Default");
@@ -1023,20 +1029,23 @@ mod tests {
         fn apply_amp_config_with_active_flag_starts_loopback() {
             let mut service = build_service(make_mock_handler());
             let channel_id_1 = Uuid::new_v4();
-            service.apply_amp_config(AmpConfigDto {
-                master_volume: 0.9,
-                is_active: true,
-                channels: vec![channel_dto(
-                    channel_id_1.to_string(),
-                    "Loopback",
-                    1.0,
-                    1.0,
-                    tone_stack(0.5, 0.5, 0.5),
-                    vec![],
-                )],
-                current_channel: channel_id_1.to_string(),
-                audio_settings: basic_audio_settings(),
-            });
+            service.apply_amp_config(
+                AmpConfigDto {
+                    master_volume: 0.9,
+                    is_active: true,
+                    channels: vec![channel_dto(
+                        channel_id_1.to_string(),
+                        "Loopback",
+                        1.0,
+                        1.0,
+                        tone_stack(0.5, 0.5, 0.5),
+                        vec![],
+                    )],
+                    current_channel: channel_id_1.to_string(),
+                    audio_settings: basic_audio_settings(),
+                },
+                &DeviceService::new(),
+            );
 
             assert!(*service.is_active());
 

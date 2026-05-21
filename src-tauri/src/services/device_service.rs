@@ -3,7 +3,7 @@ use cpal::traits::DeviceTrait;
 use cpal::traits::HostTrait;
 use cpal::{available_hosts, default_host, host_from_id, Device, Host};
 use std::sync::Mutex;
-use tracing::error;
+use tracing::{error, info};
 
 const AUDIO_DRIVER_DEFAULT: &str = "Default";
 const AUDIO_DRIVER_ASIO: &str = "ASIO";
@@ -58,6 +58,8 @@ impl DeviceService {
     ///
     /// A [`String`] representing the active audio driver.
     pub fn selected_audio_driver(&self) -> String {
+        //todo: remove after debugging
+        info!("Selected audio driver: {}", self.selected_audio_driver.lock().unwrap().clone());
         self.selected_audio_driver
             .lock()
             .map(|driver| driver.clone())
@@ -84,6 +86,8 @@ impl DeviceService {
             .lock()
             .map_err(|_| "Failed to lock selected audio driver".to_string())?;
         *selected = normalized.to_string();
+        //todo: remove after debugging
+        info!("set Selected audio driver: {}", selected);
         Ok(())
     }
 

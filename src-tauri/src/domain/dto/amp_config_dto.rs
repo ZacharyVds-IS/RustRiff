@@ -10,7 +10,7 @@ use std::sync::atomic::Ordering;
 ///
 /// This DTO is serialized to JSON and sent to the frontend to display the current
 /// settings of the amplifier, including gain, master volume, and active/inactive status.
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct AmpConfigDto {
     /// The current master volume level.
     pub master_volume: f32,
@@ -38,21 +38,35 @@ impl AmpConfigDto {
             .iter()
             .find(|c| c.id() == *audio_service.current_channel_id())
             .unwrap();
-
         Self {
             master_volume: audio_service.master_volume().load(Ordering::Relaxed),
             is_active: *audio_service.is_active(),
-            channels: audio_service.channels().iter().map(ChannelDto::from).collect(),
+            channels: audio_service
+                .channels()
+                .iter()
+                .map(ChannelDto::from)
+                .collect(),
             current_channel: channel.id().to_string(),
             audio_settings: {
-                // Wrap device access in catch_unwind to handle mock panic scenarios in tests
                 let input_id = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                    audio_service.audio_handler().input_device().id().unwrap().to_string()
-                })).unwrap_or_else(|_| "Unknown Input".to_string());
+                    audio_service
+                        .audio_handler()
+                        .input_device()
+                        .id()
+                        .unwrap()
+                        .to_string()
+                }))
+                .unwrap_or_else(|_| "Unknown Input".to_string());
 
                 let output_id = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                    audio_service.audio_handler().output_device().id().unwrap().to_string()
-                })).unwrap_or_else(|_| "Unknown Output".to_string());
+                    audio_service
+                        .audio_handler()
+                        .output_device()
+                        .id()
+                        .unwrap()
+                        .to_string()
+                }))
+                .unwrap_or_else(|_| "Unknown Output".to_string());
 
                 AudioSettingsDto {
                     input_device_name: input_id,
@@ -61,9 +75,9 @@ impl AmpConfigDto {
                     output_sample_rate: audio_service.audio_handler().output_sample_rate(),
                     input_channels: audio_service.audio_handler().input_config().channels,
                     output_channels: audio_service.audio_handler().output_config().channels,
-                    audio_drivers: device_service.selected_audio_driver().to_string(),
+                    audio_driver: device_service.selected_audio_driver().to_string(),
                 }
-            }
+            },
         }
     }
 }

@@ -53,6 +53,7 @@ use commands::effect_commands::effects::{
 use cpal::traits::{DeviceTrait, HostTrait};
 use cpal::{available_hosts, default_host, host_from_id};
 use cpal::{BufferSize, StreamConfig};
+use std::path::PathBuf;
 use std::sync::Mutex;
 use tauri::Manager;
 use tracing::{error, info};
@@ -155,9 +156,8 @@ pub fn run() {
 
     tauri::Builder::default()
         .manage(Mutex::new(audio_service))
-        .manage(Mutex::new(device_service))
         .manage(SpectrumStreamState::default())
-        .manage(DeviceService::new())
+        .manage(Mutex::new(device_service))
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             let config_dir = app
@@ -179,10 +179,15 @@ pub fn run() {
                     .lock()
                     .map_err(|_| "Failed to lock audio service during startup")?;
 
+                let device_service_state = app.state::<Mutex<DeviceService>>();
+                let mut device_service = device_service_state
+                .lock()
+                .map_err(|_| "Failed to lock device service during startup")?;
+
                 match amp_config_persistence_service.load_amp_config() {
                     Ok(Some(config)) => {
                         info!("Loaded persisted amplifier configuration");
-                        audio_service.apply_amp_config(config);
+                        audio_service.apply_amp_config(config, &device_service);
                     }
                     Ok(None) => info!("No persisted amplifier configuration found"),
                     Err(err) => error!("Failed to load persisted amplifier configuration: {err}"),
