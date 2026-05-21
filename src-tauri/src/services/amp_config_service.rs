@@ -63,7 +63,11 @@ impl AmpConfigPersistenceService {
     /// This is the primary method used by mutating Tauri commands after they
     /// successfully update amplifier state. Disk I/O is executed by a background
     /// worker thread so command handlers return quickly.
-    pub fn persist_from_audio_service(&self, audio_service: &AudioService, device_service: &DeviceService) -> Result<(), String> {
+    pub fn persist_from_audio_service(
+        &self,
+        audio_service: &AudioService,
+        device_service: &DeviceService,
+    ) -> Result<(), String> {
         let snapshot = AmpConfigDto::from_service(audio_service, device_service);
         self.persist_snapshot(snapshot)
     }
@@ -80,14 +84,14 @@ impl AmpConfigPersistenceService {
     }
 }
 
- #[cfg(test)]
- mod tests {
-     use super::*;
-     use crate::domain::dto::audio_settings_dto::AudioSettingsDto;
-     use std::sync::{Arc, Condvar, Mutex};
-     use std::time::Duration;
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::domain::dto::audio_settings_dto::AudioSettingsDto;
+    use std::sync::{Arc, Condvar, Mutex};
+    use std::time::Duration;
 
-     struct SpyRepositoryState {
+    struct SpyRepositoryState {
         saved_configs: Mutex<Vec<AmpConfigDto>>,
         saved_configs_cv: Condvar,
         load_result: Mutex<Result<Option<AmpConfigDto>, String>>,
@@ -227,7 +231,7 @@ impl AmpConfigPersistenceService {
                 input_channels: 2,
                 output_channels: 2,
                 audio_driver: "".to_string(),
-            }
+            },
         };
 
         *state
@@ -264,16 +268,16 @@ impl AmpConfigPersistenceService {
         assert_eq!(err, "load failed");
     }
 
-     #[test]
-     fn persist_from_audio_service_saves_snapshot() {
-         let state = Arc::new(SpyRepositoryState::new());
-         let service = AmpConfigPersistenceService::new(Box::new(SpyRepository {
-             state: Arc::clone(&state),
-         }));
+    #[test]
+    fn persist_from_audio_service_saves_snapshot() {
+        let state = Arc::new(SpyRepositoryState::new());
+        let service = AmpConfigPersistenceService::new(Box::new(SpyRepository {
+            state: Arc::clone(&state),
+        }));
 
-         let mock = crate::tests::mock::make_mock_handler();
-         let audio_service = AudioService::new_with_handler(Arc::new(mock));
-         let device_service = DeviceService::new();
+        let mock = crate::tests::mock::make_mock_handler();
+        let audio_service = AudioService::new_with_handler(Arc::new(mock));
+        let device_service = DeviceService::new();
 
         service
             .persist_from_audio_service(&audio_service, &device_service)
@@ -289,22 +293,22 @@ impl AmpConfigPersistenceService {
         assert!(!saved[0].is_active);
     }
 
-     #[test]
-     fn persist_from_audio_service_enqueues_even_when_background_save_fails() {
-         let state = Arc::new(SpyRepositoryState::new());
-         *state
-             .save_result
-             .lock()
-             .expect("save_result should be lockable") = Err("save failed".to_string());
+    #[test]
+    fn persist_from_audio_service_enqueues_even_when_background_save_fails() {
+        let state = Arc::new(SpyRepositoryState::new());
+        *state
+            .save_result
+            .lock()
+            .expect("save_result should be lockable") = Err("save failed".to_string());
 
-         let service = AmpConfigPersistenceService::new(Box::new(SpyRepository {
-             state: Arc::clone(&state),
-         }));
-         let mock = crate::tests::mock::make_mock_handler();
-         let audio_service = AudioService::new_with_handler(Arc::new(mock));
-         let device_service = DeviceService::new();
+        let service = AmpConfigPersistenceService::new(Box::new(SpyRepository {
+            state: Arc::clone(&state),
+        }));
+        let mock = crate::tests::mock::make_mock_handler();
+        let audio_service = AudioService::new_with_handler(Arc::new(mock));
+        let device_service = DeviceService::new();
 
-         service
+        service
             .persist_from_audio_service(&audio_service, &device_service)
             .expect("enqueue should succeed");
 
@@ -326,21 +330,21 @@ impl AmpConfigPersistenceService {
         let id_2 = uuid::Uuid::new_v4().to_string();
         let id_3 = uuid::Uuid::new_v4().to_string();
 
-         let snapshot = |current_channel: String| AmpConfigDto {
-             master_volume: 0.5,
-             is_active: false,
-             channels: Vec::new(),
-             current_channel,
-             audio_settings: AudioSettingsDto {
-                 input_device_name: "Test Input".to_string(),
-                 output_device_name: "Test Output".to_string(),
-                 input_sample_rate: 44100,
-                 output_sample_rate: 44100,
-                 input_channels: 2,
-                 output_channels: 2,
-                 audio_driver: "".to_string(),
-             }
-         };
+        let snapshot = |current_channel: String| AmpConfigDto {
+            master_volume: 0.5,
+            is_active: false,
+            channels: Vec::new(),
+            current_channel,
+            audio_settings: AudioSettingsDto {
+                input_device_name: "Test Input".to_string(),
+                output_device_name: "Test Output".to_string(),
+                input_sample_rate: 44100,
+                output_sample_rate: 44100,
+                input_channels: 2,
+                output_channels: 2,
+                audio_driver: "".to_string(),
+            },
+        };
 
         service
             .persist_snapshot(snapshot(id_1.clone()))

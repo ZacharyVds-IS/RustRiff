@@ -3,7 +3,7 @@ use cpal::traits::DeviceTrait;
 use cpal::traits::HostTrait;
 use cpal::{available_hosts, default_host, host_from_id, Device, Host};
 use std::sync::Mutex;
-use tracing::{error, info};
+use tracing::error;
 
 const AUDIO_DRIVER_DEFAULT: &str = "Default";
 const AUDIO_DRIVER_ASIO: &str = "ASIO";

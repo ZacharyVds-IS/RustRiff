@@ -213,7 +213,7 @@ mod tests {
             is_active: true,
             channels: Vec::new(),
             current_channel: "0".to_string(),
-            audio_settings: basic_audio_settings()
+            audio_settings: basic_audio_settings(),
         };
 
         repo.save(&config).expect("save should succeed");

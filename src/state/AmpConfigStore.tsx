@@ -71,7 +71,7 @@ export const useAmpStore = create<AmpState>((set, get) => ({
             output_sample_rate: 0,
             input_channels: 0,
             output_channels: 0,
-            audio_drivers: "",
+            audio_driver: "",
         },
         channels: [{
             id: "0",

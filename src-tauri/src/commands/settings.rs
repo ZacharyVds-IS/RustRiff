@@ -363,7 +363,9 @@ fn apply_asio_device_route(
 }
 
 #[tauri::command]
-pub fn get_available_audio_drivers(device_service: tauri::State<'_, Mutex<DeviceService>>) -> Vec<String> {
+pub fn get_available_audio_drivers(
+    device_service: tauri::State<'_, Mutex<DeviceService>>,
+) -> Vec<String> {
     let device_service = device_service.lock().unwrap();
     device_service.available_audio_drivers()
 }

@@ -53,7 +53,6 @@ use commands::effect_commands::effects::{
 use cpal::traits::{DeviceTrait, HostTrait};
 use cpal::{available_hosts, default_host, host_from_id};
 use cpal::{BufferSize, StreamConfig};
-use std::path::PathBuf;
 use std::sync::Mutex;
 use tauri::Manager;
 use tracing::{error, info};
@@ -180,9 +179,9 @@ pub fn run() {
                     .map_err(|_| "Failed to lock audio service during startup")?;
 
                 let device_service_state = app.state::<Mutex<DeviceService>>();
-                let mut device_service = device_service_state
-                .lock()
-                .map_err(|_| "Failed to lock device service during startup")?;
+                let device_service = device_service_state
+                    .lock()
+                    .map_err(|_| "Failed to lock device service during startup")?;
 
                 match amp_config_persistence_service.load_amp_config() {
                     Ok(Some(config)) => {
