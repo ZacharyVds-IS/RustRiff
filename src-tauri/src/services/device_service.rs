@@ -58,8 +58,6 @@ impl DeviceService {
     ///
     /// A [`String`] representing the active audio driver.
     pub fn selected_audio_driver(&self) -> String {
-        //todo: remove after debugging
-        info!("Selected audio driver: {}", self.selected_audio_driver.lock().unwrap().clone());
         self.selected_audio_driver
             .lock()
             .map(|driver| driver.clone())
@@ -86,8 +84,6 @@ impl DeviceService {
             .lock()
             .map_err(|_| "Failed to lock selected audio driver".to_string())?;
         *selected = normalized.to_string();
-        //todo: remove after debugging
-        info!("set Selected audio driver: {}", selected);
         Ok(())
     }
 
