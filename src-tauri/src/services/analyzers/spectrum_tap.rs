@@ -4,7 +4,7 @@ use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
 /// Number of most-recent samples retained for analyzer FFT snapshots.
 ///
 /// Smaller values lower latency and CPU cost, but reduce low-frequency detail.
-pub const SPECTRUM_WINDOW_SIZE: usize = 512;
+pub const SPECTRUM_WINDOW_SIZE: usize = 2048;
 
 /// Lock-free sample tap used by the analyzer view.
 ///
