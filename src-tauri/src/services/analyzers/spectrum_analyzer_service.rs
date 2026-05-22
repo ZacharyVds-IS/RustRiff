@@ -157,7 +157,6 @@ fn magnitude_db_at_frequency(
 
     let exact_bin = (frequency_hz / sample_rate) * n as f32;
 
-
     let max_bound = (half - 1) as f32;
     let exact_bin = exact_bin.clamp(0.0, max_bound);
 
