@@ -297,8 +297,10 @@ export function SettingsScreen() {
             p: 4,
             display: "flex",
             justifyContent: "center",
+            alignItems: "center",
             flexDirection: "row",
             width: "100%",
+            minHeight: "100vh",
             gap: 2,
         }}>
             <CircularProgress/>
