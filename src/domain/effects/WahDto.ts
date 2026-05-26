@@ -25,7 +25,7 @@ name: string,
  */
 is_active: boolean, 
 /**
- * UI colour for the pedal chassis. Hex string format: `"#rrggbb"`.
+ * UI color for the pedal chassis. Hex string format: `"#rrggbb"`.
  */
 color: string, 
 /**

@@ -7,5 +7,6 @@ pub mod audio_service;
 pub mod device_service;
 pub mod effects;
 pub mod file_service;
+pub mod midi_service;
 pub mod processors;
 pub mod round_trip_latency_session;

@@ -34,6 +34,9 @@ use crate::commands::latency_testing::{
     measure_round_trip_latency, test_gain_latency,
 };
 use crate::commands::loopback::start_loopback;
+use crate::commands::midi::{
+    connect_midi_device, disconnect_midi_device, get_midi_inputs, register_midi_binding,
+};
 use crate::commands::settings::{
     get_available_audio_drivers, get_buffer_size_frames, get_input_channel_options,
     get_input_device_list, get_output_channel_options, get_output_device_list,
@@ -48,6 +51,7 @@ use crate::services::amp_config_service::AmpConfigPersistenceService;
 use crate::services::audio_service::AudioService;
 use crate::services::device_service::DeviceService;
 use crate::services::file_service::FileService;
+use crate::services::midi_service::MidiService;
 use commands::effect_commands::effects::{
     add_effect, apply_effect_order_change, remove_effect, toggle_effect,
 };
@@ -157,6 +161,7 @@ pub fn run() {
         .manage(Mutex::new(audio_service))
         .manage(SpectrumStreamState::default())
         .manage(DeviceService::new())
+        .manage(MidiService::new())
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             let config_dir = app
@@ -211,7 +216,6 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            //TODO: Clean up using Macro's?
             get_default_ir_file,
             start_loopback,
             set_gain,
@@ -265,7 +269,11 @@ pub fn run() {
             set_sc_distortion_threshold,
             set_sc_distortion_level,
             set_sc_distortion_smoothing,
-            set_wah_pedal_position
+            set_wah_pedal_position,
+            get_midi_inputs,
+            connect_midi_device,
+            disconnect_midi_device,
+            register_midi_binding
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

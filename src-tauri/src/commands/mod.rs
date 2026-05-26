@@ -14,4 +14,5 @@ pub mod effect_commands;
 pub mod helpers;
 pub mod latency_testing;
 pub mod loopback;
+pub mod midi;
 pub mod settings;

@@ -1,3 +1,4 @@
+pub mod MidiDeviceDto;
 pub mod algorithmic_latency_dto;
 pub mod amp_config_dto;
 pub mod audio_device_dto;
@@ -5,6 +6,7 @@ pub mod buffer_latency_dto;
 pub mod channel_dto;
 pub mod effect;
 pub mod execution_timing_dto;
+pub mod midi_mapping_dto;
 pub mod round_trip_latency_dto;
 pub mod spectrum_contract_dto;
 pub mod spectrum_snapshot_dto;

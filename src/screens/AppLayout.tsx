@@ -97,6 +97,7 @@ export function AppLayout() {
                             </Typography>
                         )}
                         <Button color="inherit" onClick={() => navigate("/")}>Home</Button>
+                        <Button color="inherit" onClick={() => navigate("/midi-test")}>MIDI-TEST</Button>
                         <Button
                             color="inherit"
                             onClick={async () => {
