@@ -1,5 +1,8 @@
+use crate::domain::dto::audio_settings_dto::AudioSettingsDto;
 use crate::domain::dto::channel_dto::ChannelDto;
 use crate::services::audio_service::AudioService;
+use crate::services::device_service::DeviceService;
+use cpal::traits::DeviceTrait;
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::Ordering;
 
@@ -7,7 +10,7 @@ use std::sync::atomic::Ordering;
 ///
 /// This DTO is serialized to JSON and sent to the frontend to display the current
 /// settings of the amplifier, including gain, master volume, and active/inactive status.
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct AmpConfigDto {
     /// The current master volume level.
     pub master_volume: f32,
@@ -17,6 +20,8 @@ pub struct AmpConfigDto {
     pub channels: Vec<ChannelDto>,
     /// The current channel id
     pub current_channel: String,
+    /// Hardware Configuration
+    pub audio_settings: AudioSettingsDto,
 }
 
 impl AmpConfigDto {
@@ -27,18 +32,52 @@ impl AmpConfigDto {
     /// # Arguments
     ///
     /// * `service` - The [`AudioService`] to snapshot.
-    pub fn from_service(service: &AudioService) -> Self {
-        let channel = service
+    pub fn from_service(audio_service: &AudioService, device_service: &DeviceService) -> Self {
+        let channel = audio_service
             .channels()
             .iter()
-            .find(|c| c.id() == *service.current_channel_id())
+            .find(|c| c.id() == *audio_service.current_channel_id())
             .unwrap();
-
         Self {
-            master_volume: service.master_volume().load(Ordering::Relaxed),
-            is_active: *service.is_active(),
-            channels: service.channels().iter().map(ChannelDto::from).collect(),
+            master_volume: audio_service.master_volume().load(Ordering::Relaxed),
+            is_active: *audio_service.is_active(),
+            channels: audio_service
+                .channels()
+                .iter()
+                .map(ChannelDto::from)
+                .collect(),
             current_channel: channel.id().to_string(),
+            audio_settings: {
+                let input_id = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    audio_service
+                        .audio_handler()
+                        .input_device()
+                        .id()
+                        .unwrap()
+                        .to_string()
+                }))
+                .unwrap_or_else(|_| "Unknown Input".to_string());
+
+                let output_id = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    audio_service
+                        .audio_handler()
+                        .output_device()
+                        .id()
+                        .unwrap()
+                        .to_string()
+                }))
+                .unwrap_or_else(|_| "Unknown Output".to_string());
+
+                AudioSettingsDto {
+                    input_device_name: input_id,
+                    output_device_name: output_id,
+                    input_sample_rate: audio_service.audio_handler().input_sample_rate(),
+                    output_sample_rate: audio_service.audio_handler().output_sample_rate(),
+                    input_channels: audio_service.audio_handler().input_config().channels,
+                    output_channels: audio_service.audio_handler().output_config().channels,
+                    audio_driver: device_service.selected_audio_driver().to_string(),
+                }
+            },
         }
     }
 }

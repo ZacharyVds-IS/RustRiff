@@ -11,8 +11,8 @@ import {SampleRateWarning} from "../components/SampleRateWarning.tsx";
 
 export function SettingsScreen() {
     const theme = useTheme();
-    const { inputs, outputs, isLoading, error, refresh: refreshDevices } = useAudioDevices();
-    const { updateInputDevice, updateOutputDevice, error: routingError } = useUpdateAudioDevices();
+    const {inputs, outputs, isLoading, error, refresh: refreshDevices} = useAudioDevices();
+    const {updateInputDevice, updateOutputDevice, error: routingError} = useUpdateAudioDevices();
 
     const selectedInput = useUIStore((state) => state.selectedInputId);
     const setSelectedInput = useUIStore((state) => state.setSelectedInputId);
@@ -44,9 +44,9 @@ export function SettingsScreen() {
 
     const BUFFER_SIZE_OPTIONS = [64, 128, 256, 512, 1024, 2048, 4096];
 
-    const inputOptions = inputs.map(d => ({ label: `${d.name} (${d.sample_rate} Hz)`, value: d.id }));
-    const outputOptions = outputs.map(d => ({ label: `${d.name} (${d.sample_rate} Hz)`, value: d.id }));
-    const driverOptions = availableDrivers.map((driver) => ({ label: driver, value: driver }));
+    const inputOptions = inputs.map(d => ({label: `${d.name} (${d.sample_rate} Hz)`, value: d.id}));
+    const outputOptions = outputs.map(d => ({label: `${d.name} (${d.sample_rate} Hz)`, value: d.id}));
+    const driverOptions = availableDrivers.map((driver) => ({label: driver, value: driver}));
 
     const asioInputChannelDropdownOptions = asioInputChannelOptions.map((channels) => ({
         label: `channel ${channels}`,
@@ -104,8 +104,8 @@ export function SettingsScreen() {
 
         try {
             const [inputOptions, outputOptions, selectedInputChannels, selectedOutputChannels] = await Promise.all([
-                commands.getInputChannelOptions({ deviceId }),
-                commands.getOutputChannelOptions({ deviceId }),
+                commands.getInputChannelOptions({deviceId}),
+                commands.getOutputChannelOptions({deviceId}),
                 commands.getSelectedInputChannelCount(),
                 commands.getSelectedOutputChannelCount(),
             ]);
@@ -173,7 +173,7 @@ export function SettingsScreen() {
         setDriverError(null);
         setAsioChannelsError(null);
         try {
-            await commands.setAudioDriver({ driver });
+            await commands.setAudioDriver({driver});
             setSelectedDriver(driver);
             await refreshDevices();
             await loadBufferLatency();
@@ -216,7 +216,7 @@ export function SettingsScreen() {
             setBufferSizeSaving(true);
             setBufferSizeError(null);
             try {
-                await commands.setBufferSizeFrames({ frames: bufferSizeFrames });
+                await commands.setBufferSizeFrames({frames: bufferSizeFrames});
                 await loadBufferLatency();
             } catch (err) {
                 setBufferSizeError(err instanceof Error ? err.message : "Failed to auto-apply buffer size");
@@ -292,11 +292,23 @@ export function SettingsScreen() {
         }
     }, [isAsioMode, inputs, outputs, selectedInput, selectedOutput, setSelectedInput, setSelectedOutput]);
 
-    if (isLoading) return <CircularProgress />;
+    if (isLoading) return (
+        <Box sx={{
+            p: 4,
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            flexDirection: "row",
+            width: "100%",
+            minHeight: "100vh",
+            gap: 2,
+        }}>
+            <CircularProgress/>
+        </Box>);
     if (error) return <Alert severity="error">{error}</Alert>;
 
     return (
-        <Box sx={{ p: 4, display: "flex", flexDirection: "column", height: "100%", gap: 2 }}>
+        <Box sx={{p: 4, display: "flex", flexDirection: "column", height: "100%", gap: 2}}>
             <Typography variant="h6">Settings</Typography>
             {routingError && <Alert severity="error">{routingError}</Alert>}
             {driverError && <Alert severity="error">{driverError}</Alert>}
@@ -314,7 +326,7 @@ export function SettingsScreen() {
                     p: 3,
                 }}
             >
-                <Box sx={{ display: "flex", gap: 3, flex: 1, minHeight: 0, minWidth: 0, overflow: "hidden" }}>
+                <Box sx={{display: "flex", gap: 3, flex: 1, minHeight: 0, minWidth: 0, overflow: "hidden"}}>
                     <Box
                         sx={{
                             flex: 1,
@@ -325,8 +337,8 @@ export function SettingsScreen() {
                             overflowY: "auto",
                             overflowX: "hidden",
                             pr: 2,
-                            "&::-webkit-scrollbar": { width: "8px" },
-                            "&::-webkit-scrollbar-track": { background: "transparent" },
+                            "&::-webkit-scrollbar": {width: "8px"},
+                            "&::-webkit-scrollbar-track": {background: "transparent"},
                             "&::-webkit-scrollbar-thumb": {
                                 background: theme.palette.action.disabled,
                                 borderRadius: "4px"
@@ -335,7 +347,7 @@ export function SettingsScreen() {
                     >
                         <FormControlLabel
                             control={<Switch checked={developerMode}
-                                             onChange={(e) => setDeveloperMode(e.target.checked)} />}
+                                             onChange={(e) => setDeveloperMode(e.target.checked)}/>}
                             label="Developer Mode"
                         />
                         <SampleRateWarning
@@ -355,7 +367,7 @@ export function SettingsScreen() {
                             roundTripLatency={roundTripLatency}
                         />
                     </Box>
-                    <Divider orientation="vertical" flexItem />
+                    <Divider orientation="vertical" flexItem/>
                     <DeviceRoutingSection
                         driverOptions={driverOptions}
                         selectedDriver={selectedDriver}
