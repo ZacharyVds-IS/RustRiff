@@ -148,13 +148,33 @@ impl AudioHandler {
     ///
     /// Returns `None` if the device does not report supported formats.
     ///
+    /// # Preference Behavior
+    ///
+    /// This function explicitly prefers [`SampleFormat::F32`] when available for the target
+    /// configuration. This avoids hardware format conversion issues that are known to cause
+    /// audio crackling on certain hosts (such as WASAPI) when relying on CPAL's internal
+    /// fallback conversion.
+    ///
     /// # Arguments
     ///
     /// * `device` - The CPAL input device to check.
     /// * `config` - The target stream configuration.
     fn detect_input_sample_format(device: &Device, config: &StreamConfig) -> Option<SampleFormat> {
-        let mut ranges = device.supported_input_configs().ok()?;
+        let ranges: Vec<_> = device.supported_input_configs().ok()?.collect();
+        // Prefer F32 when available at the target config to avoid format conversion issues
+        // that can cause crackling on WASAPI. The old code always used hardcoded f32 callbacks
+        // and relied on CPAL's internal format conversion.
+        for range in &ranges {
+            if range.sample_format() == SampleFormat::F32
+                && range.channels() == config.channels
+                && range.min_sample_rate() <= config.sample_rate
+                && range.max_sample_rate() >= config.sample_rate
+            {
+                return Some(SampleFormat::F32);
+            }
+        }
         ranges
+            .into_iter()
             .find(|range| {
                 range.channels() == config.channels
                     && range.min_sample_rate() <= config.sample_rate
@@ -168,13 +188,32 @@ impl AudioHandler {
     ///
     /// Returns `None` if the device does not report supported formats.
     ///
+    /// # Preference Behavior
+    ///
+    /// This function explicitly prefers [`SampleFormat::F32`] when available for the target
+    /// configuration. This avoids hardware format conversion issues that are known to cause
+    /// audio crackling on certain hosts (such as WASAPI) when relying on CPAL's internal
+    /// fallback conversion.
+    ///
+    ///
     /// # Arguments
     ///
     /// * `device` - The CPAL output device to check.
     /// * `config` - The target stream configuration.
     fn detect_output_sample_format(device: &Device, config: &StreamConfig) -> Option<SampleFormat> {
-        let mut ranges = device.supported_output_configs().ok()?;
+        let ranges: Vec<_> = device.supported_output_configs().ok()?.collect();
+        // and relied on CPAL's internal format conversion.
+        for range in &ranges {
+            if range.sample_format() == SampleFormat::F32
+                && range.channels() == config.channels
+                && range.min_sample_rate() <= config.sample_rate
+                && range.max_sample_rate() >= config.sample_rate
+            {
+                return Some(SampleFormat::F32);
+            }
+        }
         ranges
+            .into_iter()
             .find(|range| {
                 range.channels() == config.channels
                     && range.min_sample_rate() <= config.sample_rate
