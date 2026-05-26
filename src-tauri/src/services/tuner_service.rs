@@ -1,6 +1,6 @@
 use crate::services::analyzers::spectrum_tap::{SpectrumTap, SPECTRUM_WINDOW_SIZE};
 use log::info;
-use pitch_detection::detector::mcleod::McLeodDetector;
+use pitch_detection::detector::yin::YINDetector;
 use pitch_detection::detector::PitchDetector;
 use std::cell::RefCell;
 
@@ -18,8 +18,9 @@ pub struct PitchSnapshot {
 pub struct TunerService;
 
 thread_local! {
-    static MCLEOD_DETECTOR: RefCell<McLeodDetector<f64>> =
-        RefCell::new(McLeodDetector::new(SPECTRUM_WINDOW_SIZE, SPECTRUM_WINDOW_SIZE/2));
+    //todo: test
+    static YIN_DETECTOR: RefCell<YINDetector<f64>> =
+        RefCell::new(YINDetector::new(SPECTRUM_WINDOW_SIZE/2, SPECTRUM_WINDOW_SIZE/2));
 }
 
 impl TunerService {
@@ -32,27 +33,41 @@ impl TunerService {
             return None;
         }
 
-        let signal: Vec<f64> = samples.iter().map(|&s| s as f64).collect();
+        let mut max_peak: f64 = 0.0;
+        for &sample in samples.iter() {
+            let abs_sample = (sample as f64).abs();
+            if abs_sample > max_peak {
+                max_peak = abs_sample;
+            }
+        }
 
+        if max_peak < 0.0001 {
+            return None;
+        }
 
-        let power_threshold = 5.0;
-        let clarity_threshold = 0.62;
+        let signal: Vec<f64> = samples.iter()
+            .map(|&s| (s as f64 / max_peak))
+            .collect();
 
-        MCLEOD_DETECTOR.with(|cell| {
+        let power_threshold = 0.1;
+        let clarity_threshold = 0.25;
+
+        YIN_DETECTOR.with(|cell| {
             let mut detector = cell.borrow_mut();
 
-            let pitch = detector.get_pitch(
-                &signal,
-                sample_rate,
-                power_threshold,
-                clarity_threshold
-            )?;
+            let pitch =
+                detector.get_pitch(&signal, sample_rate, power_threshold, clarity_threshold)?;
 
             if pitch.frequency > 4000.0 {
                 return None;
             }
 
-            Some(Self::hz_to_pitch_snapshot(pitch.frequency as f32, pitch.clarity as f32))
+            info!("Raw YIN Frequency Found: {:.2} Hz", pitch.frequency);
+
+            Some(Self::hz_to_pitch_snapshot(
+                pitch.frequency as f32,
+                pitch.clarity as f32,
+            ))
         })
     }
 
@@ -68,18 +83,22 @@ impl TunerService {
         }
 
         let n = 12.0 * (frequency / 440.0).log2();
-        let midi_note = (n.round() + 69.0) as i32;
+        let midi_note = n.round() + 69.0;
+        let note_names = [
+            "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B",
+        ];
 
-        let note_names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
-
-        let note_index = ((midi_note % 12 + 12) % 12) as usize;
-        let octave = (midi_note / 12) - 1;
+        let midi_int = midi_note as i32;
+        let note_index = ((midi_int % 12 + 12) % 12) as usize;
+        let octave = ((midi_note / 12.0).floor() - 1.0) as i32;
         let note_name = format!("{}{}", note_names[note_index], octave);
 
         let cents_deviation = (n - n.round()) * 100.0;
 
-        info!("Detected pitch: {:.2} Hz, note: {}, cents deviation: {:.2}, clarity: {:.2}",
-            frequency, note_name, cents_deviation, clarity);
+        info!(
+            "Detected pitch: {:.2} Hz, note: {}, cents deviation: {:.2}, clarity: {:.2}",
+            frequency, note_name, cents_deviation, clarity
+        );
         PitchSnapshot {
             frequency_hz: frequency,
             note_name,
@@ -88,7 +107,6 @@ impl TunerService {
         }
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -114,13 +132,22 @@ mod tests {
 
             let result = TunerService::detect_pitch(&tap);
 
-            assert!(result.is_some(), "Should cleanly detect a pitch for a clear 440Hz tone");
+            assert!(
+                result.is_some(),
+                "Should cleanly detect a pitch for a clear 440Hz tone"
+            );
             let snapshot = result.unwrap();
 
             assert_eq!(snapshot.note_name, "A4");
             assert!(snapshot.frequency_hz > 439.0 && snapshot.frequency_hz < 441.0);
-            assert!(snapshot.cents_deviation.abs() < 1.0, "Cents deviation should be near zero");
-            assert!(snapshot.clarity > 0.9, "Clarity score should be extremely high for a pure tone");
+            assert!(
+                snapshot.cents_deviation.abs() < 1.0,
+                "Cents deviation should be near zero"
+            );
+            assert!(
+                snapshot.clarity > 0.9,
+                "Clarity score should be extremely high for a pure tone"
+            );
         }
 
         #[test]
@@ -141,8 +168,14 @@ mod tests {
             let snapshot = result.unwrap();
 
             assert_eq!(snapshot.note_name, "E4");
-            assert!(snapshot.cents_deviation > 0.0, "Cents deviation must register as sharp (positive value)");
-            assert!(snapshot.cents_deviation < 50.0, "Should not spill into the next semitone index");
+            assert!(
+                snapshot.cents_deviation > 0.0,
+                "Cents deviation must register as sharp (positive value)"
+            );
+            assert!(
+                snapshot.cents_deviation < 50.0,
+                "Should not spill into the next semitone index"
+            );
         }
     }
 
@@ -157,7 +190,10 @@ mod tests {
 
             let result = TunerService::detect_pitch(&tap);
 
-            assert!(result.is_none(), "Silence should gracefully fail the power threshold check");
+            assert!(
+                result.is_none(),
+                "Silence should gracefully fail the power threshold check"
+            );
         }
 
         #[test]
@@ -174,9 +210,10 @@ mod tests {
 
             let result = TunerService::detect_pitch(&tap);
 
-            assert!(result.is_none(), "Pure white noise must be rejected by the clarity/periodicity threshold");
+            assert!(
+                result.is_none(),
+                "Pure white noise must be rejected by the clarity/periodicity threshold"
+            );
         }
     }
 }
-
-
