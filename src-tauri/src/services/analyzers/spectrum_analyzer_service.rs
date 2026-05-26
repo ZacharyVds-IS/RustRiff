@@ -155,11 +155,21 @@ fn magnitude_db_at_frequency(
         return MIN_DB;
     }
 
-    let bin_index = ((frequency_hz / sample_rate) * n as f32)
-        .round()
-        .clamp(1.0, (half - 1) as f32) as usize;
+    let exact_bin = (frequency_hz / sample_rate) * n as f32;
 
-    let normalized = (2.0 * spectrum[bin_index].norm()) / n as f32;
+    let max_bound = (half - 1) as f32;
+    let exact_bin = exact_bin.clamp(0.0, max_bound);
+
+    let bin_low = exact_bin.floor() as usize;
+    let bin_high = exact_bin.ceil().min((half - 1) as f32) as usize;
+    let t = exact_bin - bin_low as f32;
+
+    let norm_low = spectrum[bin_low].norm();
+    let norm_high = spectrum[bin_high].norm();
+
+    let interpolated_norm = (1.0 - t) * norm_low + t * norm_high;
+
+    let normalized = (2.0 * interpolated_norm) / n as f32;
     (20.0 * normalized.max(1e-7).log10()).clamp(MIN_DB, MAX_DB)
 }
 
