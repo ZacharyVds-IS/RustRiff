@@ -292,7 +292,7 @@ export function SettingsScreen() {
         }
     }, [isAsioMode, inputs, outputs, selectedInput, selectedOutput, setSelectedInput, setSelectedOutput]);
 
-    if (isLoading) return (<Box sx={{p: 4, display: "flex", justifyContent: "center", flexDirection: "column", height: "100%", gap: 2}}>
+    if (isLoading) return (<Box sx={{p: 4, display: "flex", justifyContent: "center", flexDirection: "column", width:"100%", height: "100%", gap: 2}}>
         <CircularProgress/>
     </Box>);
     if (error) return <Alert severity="error">{error}</Alert>;
