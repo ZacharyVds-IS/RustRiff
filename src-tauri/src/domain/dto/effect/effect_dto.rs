@@ -2,11 +2,13 @@ use crate::domain::dto::effect::cabinet_dto::CabinetDto;
 use crate::domain::dto::effect::delay_dto::DelayDto;
 use crate::domain::dto::effect::hcdistortion_dto::HcDistortionDto;
 use crate::domain::dto::effect::scdistortion_dto::ScDistortionDto;
+use crate::domain::dto::effect::wah_dto::WahDto;
 use crate::domain::effect::Effect;
 use crate::services::effects::cabinet::cabinet::Cabinet;
 use crate::services::effects::delay::delay::Delay;
 use crate::services::effects::distortion::hc_distortion::HCDistortion;
 use crate::services::effects::distortion::sc_distortion::SCDistortion;
+use crate::services::effects::wah::wah::Wah;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -25,6 +27,8 @@ pub enum EffectDto {
     Delay(DelayDto),
     /// Placeholder impulse-response cabinet effect.
     Cabinet(CabinetDto),
+    /// Resonant bandpass filter wah-wah effect.
+    Wah(WahDto),
 }
 
 impl EffectDto {
@@ -64,6 +68,14 @@ impl EffectDto {
                 dto.delay_time,
                 dto.level,
             )),
+            EffectDto::Wah(dto) => Box::new(Wah::new(
+                Uuid::new_v4(),
+                dto.name,
+                dto.color,
+                dto.is_active,
+                dto.pedal_position,
+                dsp_sample_rate as f32,
+            )),
         }
     }
 
@@ -102,6 +114,14 @@ impl EffectDto {
                 dsp_sample_rate,
                 dto.delay_time,
                 dto.level,
+            )),
+            EffectDto::Wah(dto) => Box::new(Wah::new(
+                Uuid::parse_str(dto.id.as_str()).expect("invalid uuid"),
+                dto.name,
+                dto.color,
+                dto.is_active,
+                dto.pedal_position,
+                dsp_sample_rate as f32,
             )),
         }
     }

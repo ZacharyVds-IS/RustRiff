@@ -18,7 +18,8 @@ import {
     setMiddle,
     setTreble,
     setVolume,
-    toggleOnOff
+    toggleOnOff,
+    WahDto
 } from "../domain";
 import {create} from "zustand/react";
 import {emit} from "@tauri-apps/api/event";
@@ -59,6 +60,7 @@ interface AmpState extends AmpConfigDto {
     startEditingChainOrder: () => void;
     cancelEditingChainOrder: () => void;
     applyChangesToChainOrder: () => Promise<void>;
+    updateWahParams: (effectId: string, patch: Partial<Pick<WahDto, "pedal_position">>) => void;
 }
 
 export const useAmpStore = create<AmpState>((set, get) => ({
@@ -436,6 +438,29 @@ export const useAmpStore = create<AmpState>((set, get) => ({
             }
 
         },
+        updateWahParams: (effectId, patch) => {
+            set((state) => ({
+                channels: state.channels.map((c) =>
+                    c.id === state.current_channel
+                        ? {
+                            ...c,
+                            effect_chain: c.effect_chain.map((effect) =>
+                                effect.kind === "Wah" && effect.data.id === effectId
+                                    ? {
+                                        ...effect,
+                                        data: {
+                                            ...effect.data,
+                                            ...patch,
+                                        },
+                                    }
+                                    : effect
+                            ),
+                        }
+                        : c
+                ),
+            }));
+        },
+
     }))
 ;
 

@@ -28,6 +28,7 @@ use crate::commands::effect_commands::hc_distortion::{
 use crate::commands::effect_commands::sc_distortion::{
     set_sc_distortion_level, set_sc_distortion_smoothing, set_sc_distortion_threshold,
 };
+use crate::commands::effect_commands::wah::set_wah_pedal_position;
 use crate::commands::latency_testing::{
     measure_all_dsp_algorithmic_latency, measure_all_dsp_cpu_timings, measure_buffer_latency,
     measure_round_trip_latency, test_gain_latency,
@@ -264,6 +265,7 @@ pub fn run() {
             set_sc_distortion_threshold,
             set_sc_distortion_level,
             set_sc_distortion_smoothing,
+            set_wah_pedal_position
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
