@@ -1,4 +1,4 @@
-use crate::services::analyzers::spectrum_tap::SpectrumTap;
+use crate::services::analyzers::spectrum_tap::{SpectrumTap, SPECTRUM_WINDOW_SIZE};
 use log::info;
 use pitch_detection::detector::mcleod::McLeodDetector;
 use pitch_detection::detector::PitchDetector;
@@ -19,7 +19,7 @@ pub struct TunerService;
 
 thread_local! {
     static MCLEOD_DETECTOR: RefCell<McLeodDetector<f64>> =
-        RefCell::new(McLeodDetector::new(2048, 1024));
+        RefCell::new(McLeodDetector::new(SPECTRUM_WINDOW_SIZE, SPECTRUM_WINDOW_SIZE/2));
 }
 
 impl TunerService {
@@ -35,8 +35,8 @@ impl TunerService {
         let signal: Vec<f64> = samples.iter().map(|&s| s as f64).collect();
 
 
-        let power_threshold = 0.005;
-        let clarity_threshold = 0.80;
+        let power_threshold = 5.0;
+        let clarity_threshold = 0.62;
 
         MCLEOD_DETECTOR.with(|cell| {
             let mut detector = cell.borrow_mut();
@@ -47,6 +47,10 @@ impl TunerService {
                 power_threshold,
                 clarity_threshold
             )?;
+
+            if pitch.frequency > 4000.0 {
+                return None;
+            }
 
             Some(Self::hz_to_pitch_snapshot(pitch.frequency as f32, pitch.clarity as f32))
         })
