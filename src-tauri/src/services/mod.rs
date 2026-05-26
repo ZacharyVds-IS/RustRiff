@@ -9,3 +9,4 @@ pub mod effects;
 pub mod file_service;
 pub mod processors;
 pub mod round_trip_latency_session;
+pub mod tuner_service;
