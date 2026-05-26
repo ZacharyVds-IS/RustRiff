@@ -48,6 +48,7 @@ export default defineConfig({
           {text:'Distortion', link:'/project_docs/effects/distortion'},
           {text:'Cabinet Simulation (IR)', link:'/project_docs/effects/cabinet_simulation_ir'},
           {text:'Recording an impulse response', link:'/project_docs/effects/custom_ir_recording'},
+          {text:'Wah', link:'/project_docs/effects/wah'},
         ]
       },
       {
