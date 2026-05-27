@@ -47,16 +47,6 @@ pub(crate) fn toggle_on_off(
     persist_amp_config(&service, &persistence_service);
 }
 
-/// Sets the input gain level for the amplifier.
-///
-/// Applies the gain value to the [`Channel`] within the [`AudioService`].
-///
-/// # Arguments
-///
-/// * `audio_service` - The shared [`AudioService`] state.
-/// * `gain` - The gain value (must be a positive value).
-///
-/// [`Channel`]: crate::domain::channel::Channel
 #[tauri::command]
 pub(crate) fn set_gain(
     audio_service: tauri::State<Mutex<AudioService>>,
@@ -64,12 +54,11 @@ pub(crate) fn set_gain(
     gain: f32,
 ) {
     let service = audio_service.inner().lock().unwrap();
-    service
-        .channels()
-        .iter()
-        .find(|c| c.id() == *service.current_channel_id())
-        .unwrap()
+    let cm = service.channel_manager().lock().unwrap();
+    cm.current_channel()
+        .expect("current channel must exist")
         .set_gain(gain);
+    drop(cm);
     persist_amp_config(&service, &persistence_service);
 }
 
@@ -94,18 +83,6 @@ pub(crate) fn set_master_volume(
     persist_amp_config(&service, &persistence_service);
 }
 
-/// Sets the tone stack configuration for the current channel.
-///
-/// Applies the provided [`ToneStackDto`] to the active [`Channel`] within the
-/// [`AudioService`].
-///
-/// # Arguments
-///
-/// * `audio_service` - The shared [`AudioService`] state.
-/// * `tone_stack` - The tone stack configuration to apply.
-///
-/// [`Channel`]: crate::domain::channel::Channel
-/// [`AudioService`]: crate::services::audio_service::AudioService
 #[tauri::command]
 pub(crate) fn set_tone_stack(
     audio_service: tauri::State<Mutex<AudioService>>,
@@ -113,27 +90,14 @@ pub(crate) fn set_tone_stack(
     tone_stack: ToneStackDto,
 ) {
     let service = audio_service.inner().lock().unwrap();
-    service
-        .channels()
-        .iter()
-        .find(|c| c.id() == *service.current_channel_id())
-        .unwrap()
+    let cm = service.channel_manager().lock().unwrap();
+    cm.current_channel()
+        .expect("current channel must exist")
         .set_tone_stack(tone_stack);
+    drop(cm);
     persist_amp_config(&service, &persistence_service);
 }
 
-/// Sets the bass level for the current channel.
-///
-/// Updates the bass parameter of the active [`Channel`] within the
-/// [`AudioService`].
-///
-/// # Arguments
-///
-/// * `audio_service` - The shared [`AudioService`] state.
-/// * `bass` - The bass level value.
-///
-/// [`Channel`]: crate::domain::channel::Channel
-/// [`AudioService`]: crate::services::audio_service::AudioService
 #[tauri::command]
 pub(crate) fn set_bass(
     audio_service: tauri::State<Mutex<AudioService>>,
@@ -141,27 +105,14 @@ pub(crate) fn set_bass(
     bass: f32,
 ) {
     let service = audio_service.inner().lock().unwrap();
-    service
-        .channels()
-        .iter()
-        .find(|c| c.id() == *service.current_channel_id())
-        .unwrap()
+    let cm = service.channel_manager().lock().unwrap();
+    cm.current_channel()
+        .expect("current channel must exist")
         .set_bass(bass);
+    drop(cm);
     persist_amp_config(&service, &persistence_service);
 }
 
-/// Sets the middle frequency level for the current channel.
-///
-/// Updates the mid-range parameter of the active [`Channel`] within the
-/// [`AudioService`].
-///
-/// # Arguments
-///
-/// * `audio_service` - The shared [`AudioService`] state.
-/// * `middle` - The middle frequency level value.
-///
-/// [`Channel`]: crate::domain::channel::Channel
-/// [`AudioService`]: crate::services::audio_service::AudioService
 #[tauri::command]
 pub(crate) fn set_middle(
     audio_service: tauri::State<Mutex<AudioService>>,
@@ -169,27 +120,14 @@ pub(crate) fn set_middle(
     middle: f32,
 ) {
     let service = audio_service.inner().lock().unwrap();
-    service
-        .channels()
-        .iter()
-        .find(|c| c.id() == *service.current_channel_id())
-        .unwrap()
+    let cm = service.channel_manager().lock().unwrap();
+    cm.current_channel()
+        .expect("current channel must exist")
         .set_middle(middle);
+    drop(cm);
     persist_amp_config(&service, &persistence_service);
 }
 
-/// Sets the treble level for the current channel.
-///
-/// Updates the high-frequency parameter of the active [`Channel`] within the
-/// [`AudioService`].
-///
-/// # Arguments
-///
-/// * `audio_service` - The shared [`AudioService`] state.
-/// * `treble` - The treble level value.
-///
-/// [`Channel`]: crate::domain::channel::Channel
-/// [`AudioService`]: crate::services::audio_service::AudioService
 #[tauri::command]
 pub(crate) fn set_treble(
     audio_service: tauri::State<Mutex<AudioService>>,
@@ -197,27 +135,14 @@ pub(crate) fn set_treble(
     treble: f32,
 ) {
     let service = audio_service.inner().lock().unwrap();
-    service
-        .channels()
-        .iter()
-        .find(|c| c.id() == *service.current_channel_id())
-        .unwrap()
+    let cm = service.channel_manager().lock().unwrap();
+    cm.current_channel()
+        .expect("current channel must exist")
         .set_treble(treble);
+    drop(cm);
     persist_amp_config(&service, &persistence_service);
 }
 
-/// Sets the output volume for the current channel.
-///
-/// Applies the volume level to the active [`Channel`] within the
-/// [`AudioService`].
-///
-/// # Arguments
-///
-/// * `audio_service` - The shared [`AudioService`] state.
-/// * `volume` - The volume level value.
-///
-/// [`Channel`]: crate::domain::channel::Channel
-/// [`AudioService`]: crate::services::audio_service::AudioService
 #[tauri::command]
 pub(crate) fn set_volume(
     audio_service: tauri::State<Mutex<AudioService>>,
@@ -225,11 +150,10 @@ pub(crate) fn set_volume(
     volume: f32,
 ) {
     let service = audio_service.inner().lock().unwrap();
-    service
-        .channels()
-        .iter()
-        .find(|c| c.id() == *service.current_channel_id())
-        .unwrap()
+    let cm = service.channel_manager().lock().unwrap();
+    cm.current_channel()
+        .expect("current channel must exist")
         .set_volume(volume);
+    drop(cm);
     persist_amp_config(&service, &persistence_service);
 }

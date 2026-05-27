@@ -24,10 +24,11 @@ use crate::domain::dto::algorithmic_latency_dto::AlgorithmicLatencyDto;
 use crate::domain::dto::buffer_latency_dto::BufferLatencyDto;
 use crate::domain::dto::execution_timing_dto::ExecutionTimingDto;
 use crate::domain::dto::round_trip_latency_dto::RoundTripLatencyDto;
+use crate::infrastructure::audio_handler::AudioHandlerTrait;
 use crate::services::audio_latency_measurement_service::AudioLatencyMeasurementService;
 use crate::services::audio_service::AudioService;
 use crate::services::device_service::DeviceService;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use tracing::info;
 
 /// Measures the CPU execution impact of the [`GainProcessor`] and logs the result.
@@ -250,7 +251,8 @@ pub fn measure_round_trip_latency(
             service.stop_loopback();
         }
 
-        (service.audio_handler().clone(), was_active)
+        let handler: Arc<dyn AudioHandlerTrait> = service.audio_handler().clone();
+        (handler, was_active)
     };
 
     if is_asio && was_active {

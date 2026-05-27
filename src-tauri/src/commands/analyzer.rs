@@ -1,6 +1,7 @@
 use crate::domain::dto::spectrum_contract_dto::SpectrumContractDto;
 use crate::domain::dto::spectrum_snapshot_dto::SpectrumSnapshotDto;
 use crate::services::analyzers::spectrum_analyzer_service::SpectrumAnalyzerService;
+use crate::services::analyzers::spectrum_tap::SpectrumTap;
 use crate::services::audio_service::AudioService;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -118,7 +119,7 @@ pub fn start_live_spectrum_stream(
                     break;
                 }
 
-                let tap_ref = Arc::clone(&tap);
+                let tap_ref = Arc::clone(&tap) as Arc<SpectrumTap>;
                 let snapshot = tauri::async_runtime::spawn_blocking(move || {
                     SpectrumAnalyzerService::analyze_tap(tap_ref.as_ref())
                 })

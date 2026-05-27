@@ -1,8 +1,6 @@
 use crate::domain::audio_processor::AudioProcessor;
-use crate::domain::channel::Channel;
+use crate::domain::channel_manager::{ChannelArcs, ChannelManager};
 use crate::domain::dto::amp_config_dto::AmpConfigDto;
-use crate::domain::dto::effect::effect_dto::EffectDto;
-use crate::domain::effect::Effect;
 use crate::infrastructure::audio_handler::{AudioHandler, AudioHandlerTrait};
 use crate::services::analyzers::spectrum_tap::SpectrumTap;
 use crate::services::processors::gain::gain_processor::GainProcessor;
@@ -10,7 +8,6 @@ use crate::services::processors::resampler::resampler::ResamplePolicy;
 use crate::services::processors::tone_stack::tone_stack_processor::ToneStackProcessor;
 use atomic_float::AtomicF32;
 use cpal::{BufferSize, Device, StreamConfig};
-use derive_getters::Getters;
 use ringbuf::consumer::Consumer;
 use ringbuf::producer::Producer;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -22,14 +19,6 @@ use tracing::{error, info};
 use uuid::Uuid;
 
 const DEFAULT_ANALYZER_SAMPLE_RATE_HZ: u32 = 48_000;
-
-/// Processor `Arc`s cloned from a channel and passed into the loopback threads.
-struct ChannelArcs {
-    gain: Arc<AtomicF32>,
-    volume: Arc<AtomicF32>,
-    tone_stack: Arc<crate::domain::tone_stack::ToneStack>,
-    effect_chain: Arc<Mutex<Vec<Box<dyn Effect>>>>,
-}
 
 /// The main service that orchestrates real-time audio loopback between an input and output device.
 ///
@@ -53,13 +42,11 @@ struct ChannelArcs {
 /// [`AudioHandlerTrait`]: AudioHandlerTrait
 /// [`ResamplePolicy`]: ResamplePolicy
 /// [`stop_loopback`]: AudioService::stop_loopback
-#[derive(Getters)]
 pub struct AudioService {
     audio_handler: Arc<dyn AudioHandlerTrait>,
     loopback_thread: Option<JoinHandle<()>>,
     is_active: bool,
-    channels: Vec<Channel>,
-    current_channel_id: Uuid,
+    channel_manager: Arc<Mutex<ChannelManager>>,
     master_volume: Arc<AtomicF32>,
     spectrum_tap: Arc<SpectrumTap>,
 }
@@ -89,9 +76,10 @@ impl AudioService {
         output_device: Device,
         input_config: StreamConfig,
         output_config: StreamConfig,
+        channel_manager: Arc<Mutex<ChannelManager>>,
     ) -> Self {
         let handler = AudioHandler::new(input_device, output_device, input_config, output_config);
-        Self::new_with_handler(Arc::new(handler))
+        Self::new_with_handler(Arc::new(handler), channel_manager)
     }
 
     /// Creates an `AudioService` with a custom handler.
@@ -103,24 +91,42 @@ impl AudioService {
     /// # Arguments
     ///
     /// * `handler` - An [`Arc`]-wrapped implementation of [`AudioHandlerTrait`].
-    pub fn new_with_handler(handler: Arc<dyn AudioHandlerTrait>) -> Self {
-        let default_channel_id = Uuid::new_v4();
+    pub fn new_with_handler(
+        handler: Arc<dyn AudioHandlerTrait>,
+        channel_manager: Arc<Mutex<ChannelManager>>,
+    ) -> Self {
         Self {
             audio_handler: handler,
             loopback_thread: None,
             is_active: false,
-            channels: vec![Channel::new(
-                default_channel_id,
-                "Default".to_string(),
-                None,
-                None,
-            )],
+            channel_manager,
             master_volume: Arc::new(AtomicF32::new(1.0)),
-            current_channel_id: default_channel_id,
             // Keep constructor side-effect free for tests using minimal mocks.
             // Real sample-rate metadata is applied when loopback starts.
             spectrum_tap: Arc::new(SpectrumTap::new(DEFAULT_ANALYZER_SAMPLE_RATE_HZ)),
         }
+    }
+
+    // ── Public accessors ────────────────────────────────────────────────────
+
+    pub fn is_active(&self) -> &bool {
+        &self.is_active
+    }
+
+    pub fn master_volume(&self) -> &Arc<AtomicF32> {
+        &self.master_volume
+    }
+
+    pub fn channel_manager(&self) -> &Arc<Mutex<ChannelManager>> {
+        &self.channel_manager
+    }
+
+    pub fn audio_handler(&self) -> &Arc<dyn AudioHandlerTrait> {
+        &self.audio_handler
+    }
+
+    pub fn spectrum_tap(&self) -> &Arc<SpectrumTap> {
+        &self.spectrum_tap
     }
 
     // ── Private helpers ──────────────────────────────────────────────────────
@@ -129,19 +135,11 @@ impl AudioService {
     ///
     /// Panics if `current_channel_id` does not match any channel (which would be a
     /// programming error, not a user error).
-    fn resolve_channel_arcs(&mut self) -> ChannelArcs {
-        let channel = self
-            .channels
-            .iter_mut()
-            .find(|c| c.id() == self.current_channel_id)
-            .expect("current_channel_id must reference an existing channel");
-
-        ChannelArcs {
-            gain: channel.gain(),
-            volume: channel.volume(),
-            tone_stack: channel.tone_stack(),
-            effect_chain: channel.effect_chain(),
-        }
+    fn resolve_channel_arcs(&self) -> ChannelArcs {
+        self.channel_manager
+            .lock()
+            .expect("channel_manager lock")
+            .resolve_channel_arcs()
     }
 
     /// Spawns the inner DSP worker thread.
@@ -462,62 +460,42 @@ impl AudioService {
         }
     }
 
-    /// Adds a new channel to the channel list and return the new channel.
-    ///
-    /// New channels are initialized with default values and the `current_channel_id` is updated to the new channel's id.
-    ///
-    /// # Arguments
-    ///
-    /// * `channel_name` - The name of the new channel (30 characters max).
-    ///
-    /// [`set_current_channel_id`]: AudioService::set_current_channel_id
+    /// Adds a new channel and restarts loopback if active.
     pub fn add_channel(&mut self, channel_name: String) -> Uuid {
-        if channel_name.len() <= 30 {
-            let id = Uuid::new_v4();
-            self.channels
-                .push(Channel::new(id, channel_name, None, None));
-            self.set_current_channel_id(id);
-            id
-        } else {
-            error!("Channel name must be 30 characters or less");
-            panic!("Channel name must be 30 characters or less");
+        let id = self
+            .channel_manager
+            .lock()
+            .expect("channel_manager lock")
+            .add_channel(channel_name);
+        let was_on = self.is_active;
+        self.stop_loopback();
+        if was_on {
+            self.start_loopback();
         }
+        id
     }
 
-    /// Returns a mutable reference to the channel list, allowing channels to be modified or reordered.
-    pub fn channels_mut(&mut self) -> &mut Vec<Channel> {
-        &mut self.channels
-    }
-
-    /// Removes the channel with the given id from the channel list and sets `current_channel_id` to 0 (default channel).
-    ///
-    /// # Arguments
-    ///
-    /// * `channel_id` - The id of the channel to remove. Cannot be 0 (default channel).
-    ///
-    /// [`set_current_channel_id`]: AudioService::set_current_channel_id
+    /// Removes a channel and restarts loopback if active.
     pub fn remove_channel(&mut self, channel_id: Uuid) {
-        let default_channel_id = self.channels.first().unwrap().id();
-        if channel_id != default_channel_id {
-            self.channels.retain(|c| c.id() != channel_id);
-            self.set_current_channel_id(default_channel_id);
-        } else {
-            error!("Cannot remove default channel");
+        let was_on = self.is_active;
+        self.stop_loopback();
+        self.channel_manager
+            .lock()
+            .expect("channel_manager lock")
+            .remove_channel(channel_id);
+        if was_on {
+            self.start_loopback();
         }
     }
 
-    /// Sets the current channel id, restarting the loopback if it was active to ensure the new channel's parameters are applied.
-    ///
-    /// # Arguments
-    ///
-    /// * `new_current_channel_id` - The id of the channel to set as current. Must exist in the channel list.
-    ///
-    /// [`start_loopback`]: AudioService::start_loopback
-    /// [`stop_loopback`]: AudioService::stop_loopback
+    /// Sets the current channel id, restarting the loopback if it was active.
     pub fn set_current_channel_id(&mut self, new_current_channel_id: Uuid) {
         let was_on = self.is_active;
         self.stop_loopback();
-        self.current_channel_id = new_current_channel_id;
+        self.channel_manager
+            .lock()
+            .expect("channel_manager lock")
+            .set_current_channel_id(new_current_channel_id);
         if was_on {
             self.start_loopback();
         }
@@ -557,78 +535,16 @@ impl AudioService {
         Ok(())
     }
 
-    /// Applies a persisted amp configuration snapshot to the live service.
-    ///
-    /// Restore behavior summary:
-    /// - channels are recreated from the persisted DTOs,
-    /// - gain, volume, tone stack, and effect-chain state are restored,
-    /// - if the snapshot contains no channels, a default channel is created,
-    /// - if the stored current channel no longer exists, the first restored
-    ///   channel becomes the active channel,
-    /// - `next_channel_id` is recalculated from the restored set,
-    /// - loopback is toggled according to `config.is_active`.
-    ///
-    /// Note that the current JSON persistence implementation always loads with
-    /// `is_active = false`, so persisted sessions restart with loopback turned
-    /// off even though this method is capable of applying either state.
+    /// Applies a persisted amplifier configuration snapshot to the live service.
     pub fn apply_amp_config(&mut self, config: AmpConfigDto) {
-        let mut restored_channels = Vec::new();
-
-        // Backward compatibility: older snapshots stored tone values as 0..100.
-        // New normalized format is 0.0..1.0 end-to-end.
-        let normalize_tone_value = |value: f32| -> f32 {
-            if value > 1.0 {
-                (value / 100.0).clamp(0.0, 1.0)
-            } else {
-                value.clamp(0.0, 1.0)
-            }
-        };
-
-        for channel_dto in config.channels {
-            let mut channel = Channel::new(
-                Uuid::parse_str(channel_dto.id.as_str()).expect("Could not parse UUID"),
-                channel_dto.name,
-                Some(channel_dto.gain.max(0.0001)),
-                Some(channel_dto.volume.max(0.0001)),
-            );
-
-            channel.set_bass(normalize_tone_value(channel_dto.tone_stack.bass));
-            channel.set_middle(normalize_tone_value(channel_dto.tone_stack.middle));
-            channel.set_treble(normalize_tone_value(channel_dto.tone_stack.treble));
-
-            let restored_effects = channel_dto
-                .effect_chain
-                .into_iter()
-                .map(|effect_dto: EffectDto| effect_dto.to_domain(self.dsp_chain_sample_rate()))
-                .collect::<Vec<_>>();
-
-            if !restored_effects.is_empty() {
-                channel.restore_effect_chain(restored_effects);
-            }
-            restored_channels.push(channel);
-        }
-
-        if restored_channels.is_empty() {
-            restored_channels.push(Channel::new(
-                Uuid::new_v4(),
-                "Default".to_string(),
-                None,
-                None,
-            ));
-        }
-
-        let current_channel = if restored_channels
-            .iter()
-            .any(|c| c.id().to_string() == config.current_channel)
         {
-            config.current_channel
-        } else {
-            restored_channels[0].id().to_string()
-        };
-
-        self.channels = restored_channels;
-        self.current_channel_id =
-            Uuid::parse_str(current_channel.as_str()).expect("Could not parse UUID");
+            let mut cm = self.channel_manager.lock().expect("channel_manager lock");
+            cm.restore_from_dtos(
+                config.channels,
+                &config.current_channel,
+                self.dsp_chain_sample_rate(),
+            );
+        }
         self.master_volume
             .store(config.master_volume.max(0.0001), Ordering::Relaxed);
 
@@ -643,6 +559,7 @@ impl AudioService {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::domain::channel_manager::ChannelManager;
     use crate::domain::dto::amp_config_dto::AmpConfigDto;
     use crate::domain::dto::channel_dto::ChannelDto;
     use crate::domain::dto::effect::cabinet_dto::CabinetDto;
@@ -652,10 +569,14 @@ mod tests {
     use crate::infrastructure::audio_handler::MockAudioHandlerTrait;
     use crate::tests::mock::make_mock_handler;
     use std::sync::atomic::Ordering;
-    use std::sync::Arc;
+    use std::sync::{Arc, Mutex};
+
+    fn new_cm() -> Arc<Mutex<ChannelManager>> {
+        Arc::new(Mutex::new(ChannelManager::new()))
+    }
 
     fn build_service(handler: MockAudioHandlerTrait) -> AudioService {
-        AudioService::new_with_handler(Arc::new(handler))
+        AudioService::new_with_handler(Arc::new(handler), new_cm())
     }
 
     fn tone_stack(bass: f32, middle: f32, treble: f32) -> ToneStackDto {
@@ -718,6 +639,10 @@ mod tests {
         }
     }
 
+    fn channels(service: &AudioService) -> std::sync::MutexGuard<'_, ChannelManager> {
+        service.channel_manager().lock().unwrap()
+    }
+
     #[cfg(test)]
     mod success_path {
         use super::*;
@@ -725,7 +650,7 @@ mod tests {
         #[test]
         fn master_volume_set_to_positive_value_should_succeed() {
             let mock = MockAudioHandlerTrait::new();
-            let service = AudioService::new_with_handler(Arc::new(mock));
+            let service = AudioService::new_with_handler(Arc::new(mock), new_cm());
             service.set_master_volume(0.5);
             assert_eq!(service.master_volume().load(Ordering::Relaxed), 0.5);
         }
@@ -734,15 +659,16 @@ mod tests {
         fn add_channel_should_add_a_channel_with_correct_values_and_sets_current_channel_id_to_new_id(
         ) {
             let mock = MockAudioHandlerTrait::new();
-            let mut service = AudioService::new_with_handler(Arc::new(mock));
+            let mut service = AudioService::new_with_handler(Arc::new(mock), new_cm());
             let test_channel_id = service.add_channel("TestChannel".to_string());
-            let test_channel = service
-                .channels
+            let cm = channels(&service);
+            let test_channel = cm
+                .channels()
                 .iter()
                 .find(|c| c.id() == test_channel_id)
                 .unwrap();
 
-            assert_eq!(service.channels.len(), 2);
+            assert_eq!(cm.channels().len(), 2);
             assert_eq!(test_channel.name(), "TestChannel");
             assert_eq!(test_channel.gain().load(Ordering::Relaxed), 1.0);
             assert_eq!(test_channel.volume().load(Ordering::Relaxed), 1.0);
@@ -758,19 +684,23 @@ mod tests {
                 test_channel.tone_stack().treble().load(Ordering::Relaxed),
                 1.0
             );
-            assert_eq!(*service.current_channel_id(), test_channel.id());
+            assert_eq!(*cm.current_channel_id(), test_channel.id());
         }
 
         #[test]
         fn remove_channel_removes_channel_and_sets_current_channel_id_to_default() {
             let mock = MockAudioHandlerTrait::new();
-            let mut service = AudioService::new_with_handler(Arc::new(mock));
-            let default_channel_id = service.channels[0].id();
+            let mut service = AudioService::new_with_handler(Arc::new(mock), new_cm());
+            let default_channel_id = {
+                let cm = channels(&service);
+                cm.channels()[0].id()
+            };
             let test_channel_id = service.add_channel("TestChannel".to_string());
             service.remove_channel(test_channel_id);
 
-            assert_eq!(service.channels.len(), 1);
-            assert_eq!(*service.current_channel_id(), default_channel_id);
+            let cm = channels(&service);
+            assert_eq!(cm.channels().len(), 1);
+            assert_eq!(*cm.current_channel_id(), default_channel_id);
         }
 
         #[test]
@@ -919,14 +849,15 @@ mod tests {
 
             service.apply_amp_config(config);
 
-            let channel = service
-                .channels
+            let cm = channels(&service);
+            let channel = cm
+                .channels()
                 .iter()
                 .find(|channel| channel.id() == channel_id_1)
                 .unwrap();
 
-            assert_eq!(service.channels.len(), 1);
-            assert_eq!(*service.current_channel_id(), channel.id());
+            assert_eq!(cm.channels().len(), 1);
+            assert_eq!(*cm.current_channel_id(), channel.id());
             assert!((channel.gain().load(Ordering::Relaxed) - 0.0001).abs() < 1e-6);
             assert!((channel.volume().load(Ordering::Relaxed) - 0.0001).abs() < 1e-6);
             assert!((service.master_volume().load(Ordering::Relaxed) - 0.0001).abs() < 1e-6);
@@ -943,9 +874,10 @@ mod tests {
                 current_channel: Uuid::new_v4().to_string(),
             });
 
-            assert_eq!(service.channels.len(), 1);
-            assert_eq!(service.channels[0].name(), "Default");
-            assert_eq!(*service.current_channel_id(), service.channels[0].id());
+            let cm = channels(&service);
+            assert_eq!(cm.channels().len(), 1);
+            assert_eq!(cm.channels()[0].name(), "Default");
+            assert_eq!(*cm.current_channel_id(), cm.channels()[0].id());
             assert!((service.master_volume().load(Ordering::Relaxed) - 0.75).abs() < f32::EPSILON);
         }
 
@@ -983,25 +915,29 @@ mod tests {
         #[should_panic(expected = "Master volume must be positive")]
         fn master_volume_set_to_negative_value_should_panic() {
             let mock = MockAudioHandlerTrait::new();
-            let service = AudioService::new_with_handler(Arc::new(mock));
+            let service = AudioService::new_with_handler(Arc::new(mock), new_cm());
             service.set_master_volume(-0.5);
         }
 
         #[test]
         fn removing_default_channel_should_do_nothing() {
             let mock = MockAudioHandlerTrait::new();
-            let mut service = AudioService::new_with_handler(Arc::new(mock));
-            let default_channel_id = service.channels[0].id();
+            let mut service = AudioService::new_with_handler(Arc::new(mock), new_cm());
+            let default_channel_id = {
+                let cm = channels(&service);
+                cm.channels()[0].id()
+            };
             service.remove_channel(default_channel_id);
 
-            assert_eq!(service.channels.len(), 1);
+            let cm = channels(&service);
+            assert_eq!(cm.channels().len(), 1);
         }
 
         #[test]
         #[should_panic(expected = "Channel name must be 30 characters or less")]
         fn add_channel_should_panic_with_to_long_name() {
             let mock = MockAudioHandlerTrait::new();
-            let mut service = AudioService::new_with_handler(Arc::new(mock));
+            let mut service = AudioService::new_with_handler(Arc::new(mock), new_cm());
             let _test_channel =
                 service.add_channel("Hippopotomonstrosesquippedaliophobia".to_string());
         }

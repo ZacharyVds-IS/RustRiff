@@ -47,22 +47,19 @@ pub fn set_hc_distortion_threshold(
     let service = audio_service
         .lock()
         .map_err(|_| "Failed to lock audio service".to_string())?;
-    let channel = service
-        .channels()
-        .iter()
-        .find(|c| c.id() == *service.current_channel_id())
-        .ok_or("No active channel")?;
-    channel.set_effect_param(
+    let cm = service.channel_manager().lock().unwrap();
+    cm.set_effect_parameter(
         Uuid::parse_str(&effect_id).expect("failed to parse id"),
         "threshold",
         safe_threshold,
     )?;
     info!(
-        channel_id = service.current_channel_id().to_string(),
+        channel_id = cm.current_channel_id().to_string(),
         effect_id,
         threshold = safe_threshold,
         "HCDistortion threshold updated"
     );
+    drop(cm);
     persist_amp_config(&service, &persistence_service);
     Ok(())
 }
@@ -114,23 +111,20 @@ pub fn set_hc_distortion_level(
     let service = audio_service
         .lock()
         .map_err(|_| "Failed to lock audio service".to_string())?;
-    let channel = service
-        .channels()
-        .iter()
-        .find(|c| c.id() == *service.current_channel_id())
-        .ok_or("No active channel")?;
-    channel.set_effect_param(
+    let cm = service.channel_manager().lock().unwrap();
+    cm.set_effect_parameter(
         Uuid::parse_str(&effect_id).expect("failed to parse id"),
         "level",
         gain,
     )?;
     info!(
-        channel_id = service.current_channel_id().to_string(),
+        channel_id = cm.current_channel_id().to_string(),
         effect_id,
         level = safe_level,
         gain,
         "HCDistortion level updated"
     );
+    drop(cm);
     persist_amp_config(&service, &persistence_service);
     Ok(())
 }

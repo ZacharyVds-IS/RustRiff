@@ -8,11 +8,12 @@
 
 #[cfg(test)]
 mod suite {
+    use crate::domain::channel_manager::ChannelManager;
     use crate::infrastructure::audio_handler::MockAudioHandlerTrait;
     use crate::services::audio_latency_measurement_service::AudioLatencyMeasurementService;
     use crate::services::audio_service::AudioService;
     use cpal::{BufferSize, StreamConfig};
-    use std::sync::Arc;
+    use std::sync::{Arc, Mutex};
 
     // -------------------------------------------------------------------------
     // Test helpers
@@ -42,7 +43,7 @@ mod suite {
         mock.expect_input_config().return_const(input_config);
         mock.expect_output_config().return_const(output_config);
 
-        AudioService::new_with_handler(Arc::new(mock))
+        AudioService::new_with_handler(Arc::new(mock), Arc::new(Mutex::new(ChannelManager::new())))
     }
 
     fn default_service() -> AudioService {

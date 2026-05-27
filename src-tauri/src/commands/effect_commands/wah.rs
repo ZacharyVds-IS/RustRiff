@@ -44,31 +44,22 @@ pub fn set_wah_pedal_position(
     // Clamp to safe range
     let safe_position = pedal_position.clamp(0.0, 1.0);
 
-    // Lock audio service
     let service = audio_service
         .lock()
         .map_err(|_| "Failed to lock audio service".to_string())?;
-
-    // Find active channel
-    let channel = service
-        .channels()
-        .iter()
-        .find(|c| c.id() == *service.current_channel_id())
-        .ok_or("No active channel")?;
-
-    // Apply parameter to effect
-    channel.set_effect_param(
+    let cm = service.channel_manager().lock().unwrap();
+    cm.set_effect_parameter(
         Uuid::parse_str(&effect_id).expect("failed to parse id"),
         "pedal_position",
         safe_position,
     )?;
-
     info!(
-        channel_id = service.current_channel_id().to_string(),
+        channel_id = cm.current_channel_id().to_string(),
         effect_id,
         pedal_position = safe_position,
         "Wah pedal position updated"
     );
+    drop(cm);
 
     // Persist config
     persist_amp_config(&service, &persistence_service);

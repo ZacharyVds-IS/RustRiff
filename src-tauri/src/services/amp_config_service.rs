@@ -82,6 +82,7 @@ impl AmpConfigPersistenceService {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::domain::channel_manager::ChannelManager;
     use crate::infrastructure::audio_handler::MockAudioHandlerTrait;
     use std::sync::{Arc, Condvar, Mutex};
     use std::time::Duration;
@@ -262,7 +263,10 @@ mod tests {
         }));
 
         let mock = MockAudioHandlerTrait::new();
-        let audio_service = AudioService::new_with_handler(Arc::new(mock));
+        let audio_service = AudioService::new_with_handler(
+            Arc::new(mock),
+            Arc::new(Mutex::new(ChannelManager::new())),
+        );
 
         service
             .persist_from_audio_service(&audio_service)
@@ -271,10 +275,12 @@ mod tests {
         let saved = state.wait_for_saved_count(1, Duration::from_secs(1));
         assert_eq!(saved.len(), 1);
 
+        let cm = audio_service.channel_manager().lock().unwrap();
         assert_eq!(
             saved[0].current_channel,
-            audio_service.current_channel_id().to_string()
+            cm.current_channel_id().to_string()
         );
+        drop(cm);
         assert!(!saved[0].is_active);
     }
 
@@ -290,7 +296,10 @@ mod tests {
             state: Arc::clone(&state),
         }));
         let mock = MockAudioHandlerTrait::new();
-        let audio_service = AudioService::new_with_handler(Arc::new(mock));
+        let audio_service = AudioService::new_with_handler(
+            Arc::new(mock),
+            Arc::new(Mutex::new(ChannelManager::new())),
+        );
 
         service
             .persist_from_audio_service(&audio_service)

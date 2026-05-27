@@ -1,13 +1,17 @@
 #[cfg(test)]
 mod suite {
-    use std::sync::Arc;
+    use std::sync::{Arc, Mutex};
 
+    use crate::domain::channel_manager::ChannelManager;
     use crate::infrastructure::audio_handler::MockAudioHandlerTrait;
     use crate::services::audio_service::AudioService;
     use crate::tests::mock::{make_mock_handler, FakeStream};
 
     fn build_service(handler: MockAudioHandlerTrait) -> AudioService {
-        AudioService::new_with_handler(Arc::new(handler))
+        AudioService::new_with_handler(
+            Arc::new(handler),
+            Arc::new(Mutex::new(ChannelManager::new())),
+        )
     }
 
     fn is_active(service: &AudioService) -> bool {

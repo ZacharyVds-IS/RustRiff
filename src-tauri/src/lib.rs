@@ -45,6 +45,7 @@ use crate::commands::settings::{
     set_output_device,
 };
 use crate::config::{get_default_ir_file, init_tracing};
+use crate::domain::channel_manager::ChannelManager;
 use crate::infrastructure::file_loader::FileLoader;
 use crate::infrastructure::persistence::json_amp_config_repository::JsonFileAmpConfigRepository;
 use crate::services::amp_config_service::AmpConfigPersistenceService;
@@ -58,7 +59,7 @@ use commands::effect_commands::effects::{
 use cpal::traits::{DeviceTrait, HostTrait};
 use cpal::{available_hosts, default_host, host_from_id};
 use cpal::{BufferSize, StreamConfig};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use tauri::Manager;
 use tracing::{error, info};
 
@@ -155,15 +156,24 @@ pub fn run() {
         output_config.sample_rate
     );
 
-    let audio_service = AudioService::new(input, output, input_config, output_config);
+    let channel_manager = Arc::new(Mutex::new(ChannelManager::new()));
+    let audio_service = AudioService::new(
+        input,
+        output,
+        input_config,
+        output_config,
+        channel_manager.clone(),
+    );
 
     tauri::Builder::default()
         .manage(Mutex::new(audio_service))
         .manage(SpectrumStreamState::default())
         .manage(DeviceService::new())
-        .manage(MidiService::new())
+        .manage(MidiService::new(channel_manager))
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
+            let midi = app.state::<MidiService>();
+            midi.set_app_handle(app.handle().clone());
             let config_dir = app
                 .path()
                 .app_config_dir()

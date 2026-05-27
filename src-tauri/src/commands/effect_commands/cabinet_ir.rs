@@ -1,4 +1,4 @@
-use crate::domain::channel::Channel;
+use crate::domain::channel_manager::ChannelManager;
 use crate::domain::dto::effect::ir_profile_dto::IrProfileDto;
 use crate::services::audio_service::AudioService;
 use crate::services::file_service::FileService;
@@ -6,19 +6,6 @@ use std::collections::HashSet;
 use std::sync::Mutex;
 use tracing::{info, warn};
 
-/// Returns the full list of available IR profiles annotated with usage state.
-///
-/// This command merges:
-/// - **default** profiles from the bundled `resources/default_ir` directory,
-/// - **custom** profiles from the user's writable custom IR directory.
-///
-/// Each [`IrProfileDto::is_in_use`] flag reflects whether any Cabinet effect
-/// in any active channel currently references that profile.  The frontend uses
-/// this to disable the remove-button for profiles that are in active use.
-///
-/// ## Errors
-/// Propagates errors from [`FileService::get_all_ir_profiles`] or locking the
-/// audio service.
 #[tauri::command]
 pub fn get_all_ir_profiles(
     file_service: tauri::State<FileService>,
@@ -38,20 +25,6 @@ pub fn get_all_ir_profiles(
     Ok(profiles)
 }
 
-/// Uploads a custom IR WAV file to the user's custom IR directory.
-///
-/// The upload pipeline:
-/// 1. The frontend reads the user-selected file into a `Uint8Array` and sends
-///    the raw bytes together with the original filename.
-/// 2. This command delegates to [`FileService::save_custom_ir_profile`], which
-///    sanitizes the name, validates the WAV data, and writes the file to disk.
-/// 3. On success, the sanitized filename is returned so the frontend can
-///    immediately add the new entry to the IR list without re-fetching.
-///
-/// ## Errors
-///
-/// Returns `Err` when the file fails validation (wrong extension, no impulse,
-/// duplicate of a default profile) or cannot be written to disk.
 #[tauri::command]
 pub fn upload_ir_profile(
     file_service: tauri::State<FileService>,
@@ -71,16 +44,6 @@ pub fn upload_ir_profile(
         })
 }
 
-/// Removes a custom IR profile from the user's custom IR directory.
-/// The following safety guards are enforced before deletion:
-/// 1. **Must exist** – the profile must appear in the profile inventory.
-/// 2. **Must be custom** – default (bundled) profiles cannot be removed.
-/// 3. **Must not be in use** – if any Cabinet effect in any active channel
-///    currently references this profile, deletion is rejected to avoid
-///    corrupting the live signal chain.
-///
-/// ## Errors
-/// Returns `Err` with a user-facing message when any guard fails.
 #[tauri::command]
 pub fn remove_ir_profile(
     file_service: tauri::State<FileService>,
@@ -136,36 +99,42 @@ fn ensure_profile_can_be_removed(
     Ok(())
 }
 
-/// Collects the `ir_file_path` values of every Cabinet effect across all
-/// active channels into a deduplicated `HashSet`.
-///
-/// Used by [`get_all_ir_profiles`] and [`remove_ir_profile`] to determine
-/// which IR profiles are currently referenced by the live effect chains.
 fn used_ir_profiles(
     audio_service: &tauri::State<Mutex<AudioService>>,
 ) -> Result<HashSet<String>, String> {
     let service = audio_service
         .lock()
         .map_err(|_| "Failed to lock audio service".to_string())?;
-    collect_used_ir_profiles(service.channels())
+    let cm = service
+        .channel_manager()
+        .lock()
+        .map_err(|_| "Failed to lock channel manager".to_string())?;
+    collect_used_ir_profiles(&cm)
 }
 
-fn collect_used_ir_profiles(channels: &[Channel]) -> Result<HashSet<String>, String> {
+fn collect_used_ir_profiles(channel_manager: &ChannelManager) -> Result<HashSet<String>, String> {
     let mut used = HashSet::new();
-    for channel in channels.iter() {
+    for channel in channel_manager.channels().iter() {
         used.extend(channel.used_cabinet_ir_profiles());
     }
-
     Ok(used)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::domain::channel_manager::ChannelManager;
     use crate::services::audio_service::AudioService;
     use crate::services::effects::cabinet::cabinet::Cabinet;
     use crate::tests::mock::make_mock_handler;
-    use std::sync::Arc;
+    use std::sync::{Arc, Mutex};
+
+    fn make_service() -> AudioService {
+        AudioService::new_with_handler(
+            Arc::new(make_mock_handler()),
+            Arc::new(Mutex::new(ChannelManager::new())),
+        )
+    }
 
     fn profile(file_name: &str, is_custom: bool) -> IrProfileDto {
         IrProfileDto {
@@ -183,42 +152,46 @@ mod tests {
 
         #[test]
         fn collect_used_ir_profiles_deduplicates_cabinet_profiles_across_channels() {
-            let mut service = AudioService::new_with_handler(Arc::new(make_mock_handler()));
+            let service = make_service();
 
-            service.channels_mut()[0].add_effect_to_chain(Box::new(Cabinet::new(
-                Uuid::new_v4(),
-                "Cab A".to_string(),
-                true,
-                "#111111".to_string(),
-                "Reverb-oxford-lean.wav".to_string(),
-                48_000,
-            )));
+            {
+                let mut cm = service.channel_manager().lock().unwrap();
+                cm.channels_mut()[0].add_effect_to_chain(Box::new(Cabinet::new(
+                    Uuid::new_v4(),
+                    "Cab A".to_string(),
+                    true,
+                    "#111111".to_string(),
+                    "Reverb-oxford-lean.wav".to_string(),
+                    48_000,
+                )));
 
-            let second_channel_id = service.add_channel("Lead".to_string());
-            let second_channel = service
-                .channels_mut()
-                .iter_mut()
-                .find(|channel| channel.id() == second_channel_id)
-                .expect("second channel should exist");
-            second_channel.add_effect_to_chain(Box::new(Cabinet::new(
-                Uuid::new_v4(),
-                "Cab B".to_string(),
-                true,
-                "#222222".to_string(),
-                "Reverb-oxford-lean.wav".to_string(),
-                48_000,
-            )));
-            second_channel.add_effect_to_chain(Box::new(Cabinet::new(
-                Uuid::new_v4(),
-                "Cab C".to_string(),
-                true,
-                "#333333".to_string(),
-                "Vox-ac30.wav".to_string(),
-                48_000,
-            )));
+                let second_channel_id = cm.add_channel("Lead".to_string());
+                let second_channel = cm
+                    .channels_mut()
+                    .iter_mut()
+                    .find(|channel| channel.id() == second_channel_id)
+                    .expect("second channel should exist");
+                second_channel.add_effect_to_chain(Box::new(Cabinet::new(
+                    Uuid::new_v4(),
+                    "Cab B".to_string(),
+                    true,
+                    "#222222".to_string(),
+                    "Reverb-oxford-lean.wav".to_string(),
+                    48_000,
+                )));
+                second_channel.add_effect_to_chain(Box::new(Cabinet::new(
+                    Uuid::new_v4(),
+                    "Cab C".to_string(),
+                    true,
+                    "#333333".to_string(),
+                    "Vox-ac30.wav".to_string(),
+                    48_000,
+                )));
+            }
 
-            let used = collect_used_ir_profiles(service.channels())
-                .expect("used IR profile discovery should succeed");
+            let cm = service.channel_manager().lock().unwrap();
+            let used =
+                collect_used_ir_profiles(&cm).expect("used IR profile discovery should succeed");
 
             assert_eq!(used.len(), 2);
             assert!(used.contains("Reverb-oxford-lean.wav"));
@@ -249,27 +222,31 @@ mod tests {
 
         #[test]
         fn collect_used_ir_profiles_reflects_restored_chain_metadata() {
-            let mut service = AudioService::new_with_handler(Arc::new(make_mock_handler()));
+            let service = make_service();
 
-            service.channels_mut()[0].add_effect_to_chain(Box::new(Cabinet::new(
-                Uuid::new_v4(),
-                "Cab A".to_string(),
-                true,
-                "#111111".to_string(),
-                "Vox-ac30.wav".to_string(),
-                48_000,
-            )));
+            {
+                let mut cm = service.channel_manager().lock().unwrap();
+                cm.channels_mut()[0].add_effect_to_chain(Box::new(Cabinet::new(
+                    Uuid::new_v4(),
+                    "Cab A".to_string(),
+                    true,
+                    "#111111".to_string(),
+                    "Vox-ac30.wav".to_string(),
+                    48_000,
+                )));
 
-            service.channels_mut()[0].restore_effect_chain(vec![Box::new(Cabinet::new(
-                Uuid::new_v4(),
-                "Cab B".to_string(),
-                true,
-                "#222222".to_string(),
-                "Reverb-oxford-lean.wav".to_string(),
-                48_000,
-            ))]);
+                cm.channels_mut()[0].restore_effect_chain(vec![Box::new(Cabinet::new(
+                    Uuid::new_v4(),
+                    "Cab B".to_string(),
+                    true,
+                    "#222222".to_string(),
+                    "Reverb-oxford-lean.wav".to_string(),
+                    48_000,
+                ))]);
+            }
 
-            let used = collect_used_ir_profiles(service.channels())
+            let cm = service.channel_manager().lock().unwrap();
+            let used = collect_used_ir_profiles(&cm)
                 .expect("restored chain usage discovery should succeed");
 
             assert_eq!(used.len(), 1);
