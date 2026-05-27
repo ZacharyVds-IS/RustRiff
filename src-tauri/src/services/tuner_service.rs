@@ -1,9 +1,9 @@
+use crate::domain::dto::pitch_snapshot_dto::PitchSnapshotDto;
 use crate::services::analyzers::spectrum_tap::{SpectrumTap, SPECTRUM_WINDOW_SIZE};
 use log::info;
 use pitch_detection::detector::mcleod::McLeodDetector;
 use pitch_detection::detector::PitchDetector;
 use std::cell::RefCell;
-
 
 /// A point-in-time state resolution of a pitch detection calculation.
 ///
@@ -61,7 +61,7 @@ impl TunerService {
     /// Returns `Some(PitchSnapshot)` if a periodic wave clears both the minimum physical energy
     /// floor and the structural clarity limits. Returns `None` during silence, uncorrelated room noise,
     /// or high-frequency line artifacts.
-    pub fn detect_pitch(tap: &SpectrumTap) -> Option<PitchSnapshot> {
+    pub fn detect_pitch(tap: &SpectrumTap) -> Option<PitchSnapshotDto> {
         let sample_rate = tap.sample_rate_hz() as usize;
         let samples = tap.snapshot_window();
 
@@ -109,9 +109,9 @@ impl TunerService {
     ///
     /// * `frequency` - The raw fundamental frequency in Hertz parsed from the time-domain signal.
     /// * `clarity` - The periodicity confidence index calculated by the pitch detector.
-    fn hz_to_pitch_snapshot(mut frequency: f32, clarity: f32) -> PitchSnapshot {
+    fn hz_to_pitch_snapshot(mut frequency: f32, clarity: f32) -> PitchSnapshotDto {
         if frequency <= 20.0 {
-            return PitchSnapshot {
+            return PitchSnapshotDto {
                 frequency_hz: frequency,
                 note_name: "---".to_string(),
                 cents_deviation: 0.0,
@@ -141,7 +141,7 @@ impl TunerService {
             frequency, note_name, cents_deviation, clarity
         );
 
-        PitchSnapshot {
+        PitchSnapshotDto {
             frequency_hz: frequency,
             note_name,
             cents_deviation,

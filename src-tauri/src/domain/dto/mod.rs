@@ -10,3 +10,5 @@ pub mod round_trip_latency_dto;
 pub mod spectrum_contract_dto;
 pub mod spectrum_snapshot_dto;
 pub mod tone_stack_dto;
+pub mod pitch_snapshot_dto;
+pub mod tuner_contract_dto;
