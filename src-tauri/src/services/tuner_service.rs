@@ -174,13 +174,22 @@ mod tests {
 
             let result = TunerService::detect_pitch(&tap);
 
-            assert!(result.is_some(), "Should cleanly detect a pitch for a clear 440Hz tone");
+            assert!(
+                result.is_some(),
+                "Should cleanly detect a pitch for a clear 440Hz tone"
+            );
             let snapshot = result.unwrap();
 
             assert_eq!(snapshot.note_name, "A4");
             assert!(snapshot.frequency_hz > 439.0 && snapshot.frequency_hz < 441.0);
-            assert!(snapshot.cents_deviation.abs() < 1.0, "Cents deviation should be near zero");
-            assert!(snapshot.clarity > 0.9, "Clarity score should be extremely high for a pure tone");
+            assert!(
+                snapshot.cents_deviation.abs() < 1.0,
+                "Cents deviation should be near zero"
+            );
+            assert!(
+                snapshot.clarity > 0.9,
+                "Clarity score should be extremely high for a pure tone"
+            );
         }
 
         #[test]
@@ -201,8 +210,14 @@ mod tests {
             let snapshot = result.unwrap();
 
             assert_eq!(snapshot.note_name, "E4");
-            assert!(snapshot.cents_deviation > 0.0, "Cents deviation must register as sharp (positive value)");
-            assert!(snapshot.cents_deviation < 50.0, "Should not spill into the next semitone index");
+            assert!(
+                snapshot.cents_deviation > 0.0,
+                "Cents deviation must register as sharp (positive value)"
+            );
+            assert!(
+                snapshot.cents_deviation < 50.0,
+                "Should not spill into the next semitone index"
+            );
         }
     }
 
@@ -217,7 +232,10 @@ mod tests {
 
             let result = TunerService::detect_pitch(&tap);
 
-            assert!(result.is_none(), "Silence should gracefully fail the power threshold check");
+            assert!(
+                result.is_none(),
+                "Silence should gracefully fail the power threshold check"
+            );
         }
 
         #[test]
@@ -234,7 +252,10 @@ mod tests {
 
             let result = TunerService::detect_pitch(&tap);
 
-            assert!(result.is_none(), "Pure white noise must be rejected by the clarity/periodicity threshold");
+            assert!(
+                result.is_none(),
+                "Pure white noise must be rejected by the clarity/periodicity threshold"
+            );
         }
     }
 }

@@ -75,7 +75,7 @@ pub fn start_live_tuner_stream(
                 let snapshot = tauri::async_runtime::spawn_blocking(move || {
                     TunerService::detect_pitch(tap_ref.as_ref())
                 })
-                    .await;
+                .await;
 
                 match snapshot {
                     Ok(data) => {

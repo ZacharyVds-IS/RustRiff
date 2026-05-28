@@ -119,11 +119,10 @@ pub fn start_live_spectrum_stream(
                 }
 
                 let tap_ref = Arc::clone(&tap);
-                let snapshot =
-                    tauri::async_runtime::spawn_blocking(move || {
-                        SpectrumAnalyzerService::analyze_tap(tap_ref.as_ref())
-                    })
-                    .await;
+                let snapshot = tauri::async_runtime::spawn_blocking(move || {
+                    SpectrumAnalyzerService::analyze_tap(tap_ref.as_ref())
+                })
+                .await;
 
                 match snapshot {
                     Ok(data) => {
