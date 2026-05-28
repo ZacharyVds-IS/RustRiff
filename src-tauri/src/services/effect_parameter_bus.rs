@@ -108,3 +108,147 @@ impl EffectParameterBus {
         Err(format!("Effect {} not found in any channel", effect_id))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::domain::channel::Channel;
+
+    fn make_channel() -> (Uuid, Arc<Mutex<Channel>>) {
+        let id = Uuid::new_v4();
+        let channel = Arc::new(Mutex::new(Channel::new(id, "Test".to_string(), None, None)));
+        (id, channel)
+    }
+
+    fn make_channel_with_effect(effect_id: Uuid) -> (Uuid, Arc<Mutex<Channel>>) {
+        use crate::services::effects::distortion::hc_distortion::HCDistortion;
+        let (channel_id, channel) = make_channel();
+        {
+            let mut ch = channel.lock().unwrap();
+            ch.add_effect_to_chain(Box::new(HCDistortion::new(
+                effect_id,
+                "Test Effect".to_string(),
+                false,
+                0.5,
+                0.0,
+                "#e67e22".to_string(),
+            )));
+        }
+        (channel_id, channel)
+    }
+
+    mod register_channel {
+        use super::*;
+
+        #[test]
+        fn channel_can_be_registered() {
+            let bus = EffectParameterBus::new();
+            let (cid, ch) = make_channel();
+            bus.register_channel(cid, ch);
+            // No panic = success
+        }
+
+        #[test]
+        fn duplicate_registration_overwrites() {
+            let bus = EffectParameterBus::new();
+            let (cid, ch1) = make_channel();
+            let (_, ch2) = make_channel();
+            bus.register_channel(cid, ch1);
+            bus.register_channel(cid, ch2);
+            // No panic = success
+        }
+    }
+
+    mod unregister_channel {
+        use super::*;
+
+        #[test]
+        fn registered_channel_can_be_unregistered() {
+            let bus = EffectParameterBus::new();
+            let (cid, ch) = make_channel();
+            bus.register_channel(cid, ch);
+            bus.unregister_channel(cid);
+            // No panic = success
+        }
+
+        #[test]
+        fn unregistering_unknown_channel_does_not_panic() {
+            let bus = EffectParameterBus::new();
+            bus.unregister_channel(Uuid::new_v4());
+        }
+    }
+
+    mod set_param {
+        use super::*;
+
+        #[test]
+        fn sets_parameter_on_matching_channel() {
+            let bus = EffectParameterBus::new();
+            let effect_id = Uuid::new_v4();
+            let (cid, ch) = make_channel_with_effect(effect_id);
+            bus.register_channel(cid, ch);
+
+            let result = bus.set_param(effect_id, "threshold", 0.75f32);
+            assert!(result.is_ok());
+        }
+
+        #[test]
+        fn returns_error_for_unknown_effect() {
+            let bus = EffectParameterBus::new();
+            let (cid, ch) = make_channel();
+            bus.register_channel(cid, ch);
+
+            let result = bus.set_param(Uuid::new_v4(), "threshold", 0.5f32);
+            assert!(result.is_err());
+        }
+
+        #[test]
+        fn finds_effect_across_multiple_channels() {
+            let bus = EffectParameterBus::new();
+            let effect_id = Uuid::new_v4();
+            let (cid1, ch1) = make_channel();
+            let (cid2, ch2) = make_channel_with_effect(effect_id);
+            bus.register_channel(cid1, ch1);
+            bus.register_channel(cid2, ch2);
+
+            let result = bus.set_param(effect_id, "threshold", 0.3f32);
+            assert!(result.is_ok());
+        }
+
+        #[test]
+        fn returns_error_for_unknown_parameter() {
+            let bus = EffectParameterBus::new();
+            let effect_id = Uuid::new_v4();
+            let (cid, ch) = make_channel_with_effect(effect_id);
+            bus.register_channel(cid, ch);
+
+            let result = bus.set_param(effect_id, "nonexistent_param", 0.5f32);
+            assert!(result.is_err());
+        }
+    }
+
+    mod toggle_bypass {
+        use super::*;
+
+        #[test]
+        fn toggles_effect_on_matching_channel() {
+            let bus = EffectParameterBus::new();
+            let effect_id = Uuid::new_v4();
+            let (cid, ch) = make_channel_with_effect(effect_id);
+            bus.register_channel(cid, ch);
+
+            let result = bus.toggle_bypass(effect_id);
+            assert!(result.is_ok());
+        }
+
+        #[test]
+        fn returns_error_for_unknown_effect() {
+            let bus = EffectParameterBus::new();
+            let (cid, ch) = make_channel();
+            bus.register_channel(cid, ch);
+
+            let result = bus.toggle_bypass(Uuid::new_v4());
+            assert!(result.is_err());
+        }
+    }
+}

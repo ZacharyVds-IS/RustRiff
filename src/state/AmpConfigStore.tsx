@@ -256,14 +256,18 @@ export const useAmpStore = create<AmpState>((set, get) => ({
 
         updateEffectActiveState: (effectId: string, isActive: boolean) => {
             set((state) => ({
-                channels: state.channels.map((c) => ({
-                    ...c,
-                    effect_chain: c.effect_chain.map((effect) =>
-                        effect.data.id === effectId
-                            ? withUpdatedEffectActiveState(effect, isActive)
-                            : effect
-                    ) as EffectDto[],
-                })),
+                channels: state.channels.map((c) =>
+                    c.id === state.current_channel
+                        ? {
+                              ...c,
+                              effect_chain: c.effect_chain.map((effect) =>
+                                  effect.data.id === effectId
+                                      ? withUpdatedEffectActiveState(effect, isActive)
+                                      : effect
+                              ) as EffectDto[],
+                          }
+                        : c
+                ),
             }));
         },
 

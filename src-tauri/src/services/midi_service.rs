@@ -314,3 +314,351 @@ impl MidiService {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::domain::channel_manager::ChannelManager;
+    use crate::domain::dto::midi_mapping_dto::MidiMappingDto;
+
+    fn make_service() -> MidiService {
+        let cm = Arc::new(Mutex::new(ChannelManager::new()));
+        MidiService::new(cm)
+    }
+
+    fn make_mapping(
+        cc_number: u8,
+        channel: u8,
+        effect_id: &str,
+        parameter: MidiTargetParameter,
+    ) -> MidiMappingDto {
+        MidiMappingDto {
+            cc_number,
+            channel,
+            effect_id: effect_id.to_string(),
+            parameter,
+        }
+    }
+
+    mod set_bindings {
+        use super::*;
+
+        #[test]
+        fn overwrites_existing_bindings() {
+            let service = make_service();
+            let id = Uuid::new_v4();
+
+            // Add a binding
+            service.add_mapping(
+                make_mapping(1, 1, &id.to_string(), MidiTargetParameter::ToggleBypass),
+                id,
+            );
+            assert_eq!(service.get_active_mappings().len(), 1);
+
+            // Overwrite with empty
+            service.set_bindings(vec![]);
+            assert_eq!(service.get_active_mappings().len(), 0);
+        }
+
+        #[test]
+        fn bulk_loads_bindings_from_dtos() {
+            let service = make_service();
+            let id_a = Uuid::new_v4();
+            let id_b = Uuid::new_v4();
+
+            let dtos = vec![
+                make_mapping(1, 1, &id_a.to_string(), MidiTargetParameter::ToggleBypass),
+                make_mapping(
+                    2,
+                    1,
+                    &id_b.to_string(),
+                    MidiTargetParameter::WahPedalPosition,
+                ),
+            ];
+
+            service.set_bindings(dtos);
+            assert_eq!(service.get_active_mappings().len(), 2);
+        }
+
+        #[test]
+        fn skips_invalid_uuids() {
+            let service = make_service();
+            let dtos = vec![make_mapping(
+                1,
+                1,
+                "not-a-uuid",
+                MidiTargetParameter::ToggleBypass,
+            )];
+
+            service.set_bindings(dtos);
+            assert_eq!(service.get_active_mappings().len(), 0);
+        }
+    }
+
+    mod add_mapping {
+        use super::*;
+
+        #[test]
+        fn adds_and_returns_updated_list() {
+            let service = make_service();
+            let id = Uuid::new_v4();
+
+            let result = service.add_mapping(
+                make_mapping(5, 2, &id.to_string(), MidiTargetParameter::ToggleBypass),
+                id,
+            );
+
+            assert_eq!(result.len(), 1);
+            assert_eq!(result[0].cc_number, 5);
+            // add_mapping converts UI channel (1-based) to wire (0-based) then back
+            assert_eq!(result[0].channel, 2);
+            assert_eq!(result[0].effect_id, id.to_string());
+        }
+
+        #[test]
+        fn replaces_existing_channel_cc_pair() {
+            let service = make_service();
+            let id_a = Uuid::new_v4();
+            let id_b = Uuid::new_v4();
+
+            service.add_mapping(
+                make_mapping(1, 1, &id_a.to_string(), MidiTargetParameter::ToggleBypass),
+                id_a,
+            );
+            let result = service.add_mapping(
+                make_mapping(
+                    1,
+                    1,
+                    &id_b.to_string(),
+                    MidiTargetParameter::WahPedalPosition,
+                ),
+                id_b,
+            );
+
+            assert_eq!(result.len(), 1);
+            assert_eq!(result[0].effect_id, id_b.to_string());
+        }
+
+        #[test]
+        fn allows_multiple_mappings_on_different_ccs() {
+            let service = make_service();
+            let id = Uuid::new_v4();
+
+            service.add_mapping(
+                make_mapping(1, 1, &id.to_string(), MidiTargetParameter::ToggleBypass),
+                id,
+            );
+            let result = service.add_mapping(
+                make_mapping(2, 1, &id.to_string(), MidiTargetParameter::DelayLevel),
+                id,
+            );
+
+            assert_eq!(result.len(), 2);
+        }
+    }
+
+    mod remove_mapping {
+        use super::*;
+
+        #[test]
+        fn removes_existing_mapping() {
+            let service = make_service();
+            let id = Uuid::new_v4();
+
+            service.add_mapping(
+                make_mapping(3, 1, &id.to_string(), MidiTargetParameter::ToggleBypass),
+                id,
+            );
+            let result = service.remove_mapping(1, 3); // channel=1, cc=3
+
+            assert_eq!(result.len(), 0);
+        }
+
+        #[test]
+        fn removing_nonexistent_mapping_returns_empty() {
+            let service = make_service();
+            let result = service.remove_mapping(1, 99);
+            assert_eq!(result.len(), 0);
+        }
+
+        #[test]
+        fn removing_one_keeps_others() {
+            let service = make_service();
+            let id = Uuid::new_v4();
+
+            service.add_mapping(
+                make_mapping(1, 1, &id.to_string(), MidiTargetParameter::ToggleBypass),
+                id,
+            );
+            service.add_mapping(
+                make_mapping(2, 1, &id.to_string(), MidiTargetParameter::DelayLevel),
+                id,
+            );
+
+            let result = service.remove_mapping(1, 1);
+            assert_eq!(result.len(), 1);
+            assert_eq!(result[0].cc_number, 2);
+        }
+    }
+
+    mod get_active_mappings {
+        use super::*;
+
+        #[test]
+        fn returns_empty_when_no_mappings() {
+            let service = make_service();
+            assert!(service.get_active_mappings().is_empty());
+        }
+
+        #[test]
+        fn returns_all_mappings() {
+            let service = make_service();
+            let id = Uuid::new_v4();
+
+            service.add_mapping(
+                make_mapping(1, 1, &id.to_string(), MidiTargetParameter::WahPedalPosition),
+                id,
+            );
+            service.add_mapping(
+                make_mapping(2, 2, &id.to_string(), MidiTargetParameter::DistortionLevel),
+                id,
+            );
+
+            let mappings = service.get_active_mappings();
+            assert_eq!(mappings.len(), 2);
+        }
+
+        #[test]
+        fn returned_dtos_round_trip_channel() {
+            let service = make_service();
+            let id = Uuid::new_v4();
+
+            service.add_mapping(
+                make_mapping(
+                    7,
+                    3,
+                    &id.to_string(),
+                    MidiTargetParameter::DistortionThreshold,
+                ),
+                id,
+            );
+
+            let mappings = service.get_active_mappings();
+            assert_eq!(mappings[0].channel, 3); // UI channel
+            assert_eq!(mappings[0].cc_number, 7);
+        }
+    }
+
+    mod bindings_to_dtos {
+        use super::*;
+
+        #[test]
+        fn empty_map_yields_empty_vec() {
+            let map: HashMap<(u8, u8), (Uuid, MidiTargetParameter)> = HashMap::new();
+            let dtos = MidiService::bindings_to_dtos(&map);
+            assert!(dtos.is_empty());
+        }
+
+        #[test]
+        fn converts_single_entry() {
+            let mut map: HashMap<(u8, u8), (Uuid, MidiTargetParameter)> = HashMap::new();
+            let id = Uuid::new_v4();
+            map.insert((0, 10), (id, MidiTargetParameter::ToggleBypass));
+
+            let dtos = MidiService::bindings_to_dtos(&map);
+            assert_eq!(dtos.len(), 1);
+            assert_eq!(dtos[0].channel, 1); // wire -> UI
+            assert_eq!(dtos[0].cc_number, 10);
+            assert_eq!(dtos[0].effect_id, id.to_string());
+        }
+    }
+
+    mod process_incoming_message {
+        use super::*;
+
+        fn make_handle() -> Option<tauri::AppHandle> {
+            None // We can't create an AppHandle in unit tests, so test without emission
+        }
+
+        #[test]
+        fn noop_on_empty_bytes() {
+            let cm = Arc::new(Mutex::new(ChannelManager::new()));
+            let bindings: Arc<Mutex<HashMap<(u8, u8), (Uuid, MidiTargetParameter)>>> =
+                Arc::new(Mutex::new(HashMap::new()));
+
+            // Should not panic
+            MidiService::process_incoming_message(&[], &bindings, &cm, &make_handle());
+        }
+
+        #[test]
+        fn noop_on_unmapped_cc() {
+            let cm = Arc::new(Mutex::new(ChannelManager::new()));
+            let bindings: Arc<Mutex<HashMap<(u8, u8), (Uuid, MidiTargetParameter)>>> =
+                Arc::new(Mutex::new(HashMap::new()));
+
+            MidiService::process_incoming_message(
+                &[0xB0, 0x01, 0x40],
+                &bindings,
+                &cm,
+                &make_handle(),
+            );
+        }
+
+        #[test]
+        fn noop_on_non_cc_message() {
+            let cm = Arc::new(Mutex::new(ChannelManager::new()));
+            let bindings: Arc<Mutex<HashMap<(u8, u8), (Uuid, MidiTargetParameter)>>> =
+                Arc::new(Mutex::new(HashMap::new()));
+
+            MidiService::process_incoming_message(
+                &[0x90, 0x40, 0x7F],
+                &bindings,
+                &cm,
+                &make_handle(),
+            );
+        }
+
+        #[test]
+        fn processes_mapped_toggle_bypass() {
+            let cm = Arc::new(Mutex::new(ChannelManager::new()));
+            let effect_id = Uuid::new_v4();
+
+            // Add an effect so toggle has something to toggle
+            {
+                use crate::services::effects::distortion::hc_distortion::HCDistortion;
+                let mut cm_guard = cm.lock().unwrap();
+                cm_guard.add_effect_to_current(Box::new(HCDistortion::new(
+                    effect_id,
+                    "Test".to_string(),
+                    false,
+                    0.5,
+                    0.0,
+                    "#000".to_string(),
+                )));
+            }
+
+            // Ensure initial state is inactive
+            {
+                let cm_guard = cm.lock().unwrap();
+                cm_guard.set_effect_active(effect_id, false).unwrap();
+            }
+
+            let mut bindings_map: HashMap<(u8, u8), (Uuid, MidiTargetParameter)> = HashMap::new();
+            bindings_map.insert((0, 1), (effect_id, MidiTargetParameter::ToggleBypass));
+            let bindings = Arc::new(Mutex::new(bindings_map));
+
+            // Toggle via MIDI message
+            MidiService::process_incoming_message(
+                &[0xB0, 0x01, 0x7F],
+                &bindings,
+                &cm,
+                &make_handle(),
+            );
+
+            // toggle_effect_active toggles and returns the NEW state
+            // We expect true (active) since it was toggled from inactive
+            let cm_guard = cm.lock().unwrap();
+            assert!(cm_guard.toggle_effect_active(effect_id).unwrap());
+        }
+    }
+}

@@ -112,6 +112,10 @@ vi.mock("../../components/SampleRateWarning.tsx", () => ({
     SampleRateWarning: () => <div />,
 }));
 
+vi.mock("../../components/MidiSection.tsx", () => ({
+    MidiSection: () => <div>MidiSection</div>,
+}));
+
 vi.mock("../../domain/commands.ts", () => ({
     measureBufferLatency: vi.fn(),
     getBufferSizeFrames: vi.fn(),
