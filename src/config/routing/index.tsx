@@ -20,7 +20,7 @@ export const router = createHashRouter([
                 element: <SettingsScreen/>,
             },
             {
-                path:"midi-test",
+                path:"midi-mappings",
                 element:<MidiTestScreen/>
             }
         ],

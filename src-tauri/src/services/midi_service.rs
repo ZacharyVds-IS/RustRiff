@@ -66,6 +66,18 @@ impl MidiService {
         }
     }
 
+    pub fn remove_mapping(&self, channel: u8, cc_number: u8) {
+        if let Ok(mut bindings) = self.bindings.lock() {
+            let wire_channel = if channel > 0 { channel - 1 } else { 0 };
+            if bindings.remove(&(wire_channel, cc_number)).is_some() {
+                info!(
+                    "Removed MIDI mapping on Wire Channel {}, CC {}",
+                    wire_channel, cc_number
+                );
+            }
+        }
+    }
+
     pub fn connect_to_device(&self, device_id: &str) -> Result<(), String> {
         self.disconnect();
 
@@ -106,6 +118,26 @@ impl MidiService {
         }
     }
 
+    pub fn get_active_mappings(&self) -> Vec<MidiMappingDto> {
+        if let Ok(bindings) = self.bindings.lock() {
+            bindings
+                .iter()
+                .map(|((wire_channel, cc_number), (effect_id, parameter))| {
+                    let ui_channel = (*wire_channel as u32) + 1;
+
+                    MidiMappingDto {
+                        channel: ui_channel as u8,
+                        cc_number: *cc_number,
+                        effect_id: effect_id.to_string(),
+                        parameter: parameter.clone(),
+                    }
+                })
+                .collect()
+        } else {
+            Vec::new()
+        }
+    }
+
     fn process_incoming_message(
         bytes: &[u8],
         bindings_ref: &Arc<Mutex<HashMap<(u8, u8), (Uuid, MidiTargetParameter)>>>,
@@ -119,7 +151,7 @@ impl MidiService {
             .join(" ");
         info!("RAW MIDI: [{}] {} bytes", raw_hex, bytes.len());
 
-        if bytes.len() < 1 {
+        if bytes.is_empty() {
             return;
         }
 
@@ -139,13 +171,21 @@ impl MidiService {
             _ => "Unknown",
         };
 
-        if msg_type == 0xB0 && bytes.len() >= 3 {
-            info!(
-                "MIDI CC: ch={} cc={} value={} (raw={})",
-                channel, bytes[1], bytes[2], bytes[2]
-            );
-
+        // 0xB0 matches standard Control Change status bits
+        if msg_type == 0xB0 {
+            // Extract and clean byte fields using the structured ParsedMidiCc helper object
             if let Some(cc) = ParsedMidiCc::from_bytes(bytes) {
+                info!(
+                    "MIDI CC Struct: ch={} cc_number={} value={}",
+                    cc.channel, cc.control_number, cc.value
+                );
+
+                // Broadcast raw activity to Tauri frontend for interactive MIDI Learn/Sniff modes
+                if let Some(handle) = app_handle {
+                    let ui_channel = cc.channel + 1;
+                    let _ = handle.emit("midi-raw-sniff", (ui_channel, cc.control_number));
+                }
+
                 if let Ok(bindings) = bindings_ref.lock() {
                     if let Some((effect_id, param)) = bindings.get(&(cc.channel, cc.control_number))
                     {
@@ -237,7 +277,7 @@ impl MidiService {
                     } else {
                         info!(
                             "MIDI CC (unmapped): ch={} cc={} value={}",
-                            channel, bytes[1], bytes[2]
+                            cc.channel, cc.control_number, cc.value
                         );
                     }
                 }

@@ -14,13 +14,9 @@ export function AppLayout() {
     const channels = ampStore.channels;
     const currentChannelId = ampStore.current_channel;
     const currentChannel = ampStore.channels.find(c => c.id === currentChannelId) || {id: "", name: "No Channel"};
-
-    console.log("AppLayout - channels:", channels, "currentChannelName:", currentChannel.name);
-
     const channelOptions = channels.map((channel) => ({label: channel.name, value: channel.id}));
 
     const handleChannelChange = async (id: string) => {
-        console.log("Changing channel to id:", id);
         await ampStore.setChannelById(id);
     };
 
@@ -97,7 +93,6 @@ export function AppLayout() {
                             </Typography>
                         )}
                         <Button color="inherit" onClick={() => navigate("/")}>Home</Button>
-                        <Button color="inherit" onClick={() => navigate("/midi-test")}>MIDI-TEST</Button>
                         <Button
                             color="inherit"
                             onClick={async () => {

@@ -1,7 +1,6 @@
 use crate::domain::dto::midi_mapping_dto::MidiMappingDto;
 use crate::domain::dto::MidiDeviceDto::MidiDeviceDto;
 use crate::services::midi_service::MidiService;
-// src/commands/midi_commands.rs
 use tauri::State;
 
 #[tauri::command]
@@ -34,5 +33,22 @@ pub async fn register_midi_binding(
         .map_err(|_| format!("Invalid UUID format provided: {}", mapping.effect_id))?;
 
     midi_service.add_mapping(mapping, parsed_uuid);
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn get_midi_bindings(
+    midi_service: State<'_, MidiService>,
+) -> Result<Vec<MidiMappingDto>, String> {
+    Ok(midi_service.get_active_mappings())
+}
+
+#[tauri::command]
+pub async fn remove_midi_binding(
+    midi_service: State<'_, MidiService>,
+    channel: u8,
+    cc_number: u8,
+) -> Result<(), String> {
+    midi_service.remove_mapping(channel, cc_number);
     Ok(())
 }

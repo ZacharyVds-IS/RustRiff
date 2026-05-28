@@ -7,7 +7,7 @@ import * as commands from "../domain/commands.ts";
 import * as types from "../domain/types.ts";
 import {DeviceRoutingSection} from "../components/DeviceroutingSection.tsx";
 import {LatencySection} from "../components/LatencySection.tsx";
-import {SampleRateWarning} from "../components/SampleRateWarning.tsx";
+import {MidiSection} from "../components/MidiSection.tsx";
 
 export function SettingsScreen() {
     const theme = useTheme();
@@ -338,10 +338,6 @@ export function SettingsScreen() {
                                              onChange={(e) => setDeveloperMode(e.target.checked)} />}
                             label="Developer Mode"
                         />
-                        <SampleRateWarning
-                            inputSampleRate={inputSampleRate}
-                            outputSampleRate={outputSampleRate}
-                        />
                         <LatencySection
                             bufferSizeOptions={bufferSizeOptions}
                             bufferSizeFrames={bufferSizeFrames}
@@ -354,6 +350,7 @@ export function SettingsScreen() {
                             roundTripError={roundTripError}
                             roundTripLatency={roundTripLatency}
                         />
+                        <MidiSection/>
                     </Box>
                     <Divider orientation="vertical" flexItem />
                     <DeviceRoutingSection

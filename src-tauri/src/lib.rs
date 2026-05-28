@@ -35,7 +35,8 @@ use crate::commands::latency_testing::{
 };
 use crate::commands::loopback::start_loopback;
 use crate::commands::midi::{
-    connect_midi_device, disconnect_midi_device, get_midi_inputs, register_midi_binding,
+    connect_midi_device, disconnect_midi_device, get_midi_bindings, get_midi_inputs,
+    register_midi_binding, remove_midi_binding,
 };
 use crate::commands::settings::{
     get_available_audio_drivers, get_buffer_size_frames, get_input_channel_options,
@@ -283,7 +284,9 @@ pub fn run() {
             get_midi_inputs,
             connect_midi_device,
             disconnect_midi_device,
-            register_midi_binding
+            register_midi_binding,
+            get_midi_bindings,
+            remove_midi_binding
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

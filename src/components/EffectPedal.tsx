@@ -1,4 +1,4 @@
-import {Box, Stack, Typography} from "@mui/material";
+import {Box, IconButton, Stack, Tooltip, Typography} from "@mui/material";
 import chroma from "chroma-js";
 import {
     DelayDto,
@@ -22,6 +22,8 @@ import {HCDistortionControls} from "./pedals/HCDistortionControls.tsx";
 import {SCDistortionControls} from "./pedals/SCDistortionControls.tsx";
 import {DelayControls} from "./pedals/DelayControls.tsx";
 import {WahControls} from "./pedals/WahControls.tsx";
+import SettingsInputHdmiIcon from '@mui/icons-material/SettingsInputHdmi';
+import {MidiBindingDialog} from "./dialogs/MidiBindingDialog/MidiBindingDialog.tsx";
 
 interface EffectPedalProps {
     effect: EffectDto;
@@ -42,15 +44,15 @@ function knobsForEffect(
 ): React.ReactNode {
     switch (effect.kind) {
         case "HCDistortion":
-            return <HCDistortionControls data={effect.data as HcDistortionDto} handlers={handlers} />;
+            return <HCDistortionControls data={effect.data as HcDistortionDto} handlers={handlers}/>;
 
         case "SCDistortion":
-            return <SCDistortionControls data={effect.data as ScDistortionDto} handlers={handlers} />;
+            return <SCDistortionControls data={effect.data as ScDistortionDto} handlers={handlers}/>;
 
         case "Delay":
-            return <DelayControls data={effect.data as DelayDto} handlers={handlers} />;
+            return <DelayControls data={effect.data as DelayDto} handlers={handlers}/>;
         case "Wah":
-            return <WahControls data={effect.data as WahDto} handlers={handlers} />;
+            return <WahControls data={effect.data as WahDto} handlers={handlers}/>;
 
         default:
             return null;
@@ -58,8 +60,9 @@ function knobsForEffect(
 }
 
 export function EffectPedal({effect, onToggle}: EffectPedalProps) {
-    // Local mirror of is_active so the LED reacts instantly without waiting for a full AmpConfig reload
     const [isActive, setIsActive] = useState(effect.data.is_active);
+    const [midiModalOpen, setMidiModalOpen] = useState(false);
+
     const updateEffectActiveState = useAmpStore((state) => state.updateEffectActiveState);
     const updateHcDistortionParams = useAmpStore((state) => state.updateHcDistortionParams);
     const updateScDistortionParams = useAmpStore((state) => state.updateScDistortionParams);
@@ -67,8 +70,6 @@ export function EffectPedal({effect, onToggle}: EffectPedalProps) {
     const updateWahParams = useAmpStore((state) => state.updateWahParams);
     const chassisColor = chroma(effect.data.color).hex();
 
-    // Sync local isActive state when the effect prop changes
-    // Prevents stale state if parent re-renders with a different effect
     useEffect(() => {
         setIsActive(effect.data.is_active);
     }, [effect.data.id, effect.data.is_active]);
@@ -81,8 +82,6 @@ export function EffectPedal({effect, onToggle}: EffectPedalProps) {
             onToggle?.(effect.data.id, newActive);
         } catch (error) {
             console.error(`Failed to toggle effect ${effect.data.id}:`, error);
-            // Keep the current local/store state unchanged on failure.
-            // The backend command did not confirm a new state, so we avoid any optimistic UI flip here.
         }
     }
 
@@ -144,114 +143,134 @@ export function EffectPedal({effect, onToggle}: EffectPedalProps) {
     }
 
     function handlePedalPositionChange(effectId: string, pedalPosition: number, previousPedalPosition: number) {
-        updateWahParams(effectId, { pedal_position: pedalPosition });
-
-        void setWahPedalPosition({ effectId, pedalPosition }).catch((error) => {
+        updateWahParams(effectId, {pedal_position: pedalPosition});
+        void setWahPedalPosition({effectId, pedalPosition}).catch((error) => {
             console.error("Failed to update Wah pedal position:", error);
-            updateWahParams(effectId, { pedal_position: previousPedalPosition });
+            updateWahParams(effectId, {pedal_position: previousPedalPosition});
         });
     }
 
-
     return (
-        <Box
-            sx={{
-                width: 180,
-                minHeight: 280,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                position: 'relative',
-                filter: (theme) => theme.palette.mode === 'dark'
-                    ? 'drop-shadow(0 12px 24px rgba(255, 255, 255, 0.3))'
-                    : 'drop-shadow(0 6px 12px rgba(0,0,0,0.4))',
-            }}
-        >
-            {/* Top Chassis */}
-            <Box
-                sx={{
-                    width: '100%',
-                    height: 'auto',
-                    flexGrow: 1,
-                    background: `linear-gradient(180deg, ${chroma(chassisColor).brighten(0.3)}, ${chassisColor})`,
-                    borderRadius: '6px 6px 0 0',
-                    border: '1px solid rgba(0,0,0,0.4)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    pt: 2,
-                    zIndex: 2
-                }}
-            >
+        <>
+            <Stack direction={"column"} sx={{alignItems: "center"}}>
+                <Tooltip title="MIDI Mapping" arrow placement="top">
+                    <IconButton
+                        aria-label="midi config"
+                        size="small"
+                        sx={{ mb: 0.5 }}
+                        onClick={() => setMidiModalOpen(true)}
+                    >
+                        <SettingsInputHdmiIcon />
+                    </IconButton>
+                </Tooltip>
+
                 <Box
                     sx={{
-                        width: 8,
-                        height: 8,
-                        borderRadius: '50%',
-                        border: '1px solid rgba(0,0,0,0.3)',
-                        bgcolor: isActive ? '#00ff00' : '#ff0000',
-                        boxShadow: isActive ? '0 0 6px #00ff00' : '0 0 6px #ff0000',
-                        mb: 2,
-                        transition: 'background-color 0.1s, box-shadow 0.1s',
+                        width: 180,
+                        minHeight: 280,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        position: 'relative',
+                        filter: (theme) => theme.palette.mode === 'dark'
+                            ? 'drop-shadow(0 12px 24px rgba(255, 255, 255, 0.3))'
+                            : 'drop-shadow(0 6px 12px rgba(0,0,0,0.4))',
                     }}
-                />
-
-                <Stack direction="row" spacing={1} sx={{justifyContent: 'center'}}>
-                    {knobsForEffect(effect, {
-                        onThresholdChange: effect.kind == "HCDistortion" ? handleHCThresholdChange : handleSCThresholdChange,
-                        onLevelChange: effect.kind == "Delay" ? handleDelayLevelChange : effect.kind == "HCDistortion" ? handleHCDLevelChange : handleSCLevelChange,
-                        onDelayTimeChange: handleDelayTimeChange,
-                        onSmoothingChange: handleSmoothingChange,
-                        onPedalPositionChange:handlePedalPositionChange
-                    })}
-                </Stack>
-
-                <Typography
-                    sx={{
-                        mt: 'auto',
-                        mb: 2,
-                        fontWeight: 900,
-                        fontSize: '1.2rem',
-                        color: 'rgba(0,0,0,0.7)',
-                        textTransform: 'uppercase',
-                        fontStyle: 'italic'
-                    }}
-                    noWrap={true}
                 >
-                    {effect.data.name}
-                </Typography>
-            </Box>
+                    <Box
+                        sx={{
+                            width: '100%',
+                            height: 'auto',
+                            flexGrow: 1,
+                            background: `linear-gradient(180deg, ${chroma(chassisColor).brighten(0.3)}, ${chassisColor})`,
+                            borderRadius: '6px 6px 0 0',
+                            border: '1px solid rgba(0,0,0,0.4)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            pt: 2,
+                            zIndex: 2
+                        }}
+                    >
+                        <Box
+                            sx={{
+                                width: 8,
+                                height: 8,
+                                borderRadius: '50%',
+                                border: '1px solid rgba(0,0,0,0.3)',
+                                bgcolor: isActive ? '#00ff00' : '#ff0000',
+                                boxShadow: isActive ? '0 0 6px #00ff00' : '0 0 6px #ff0000',
+                                mb: 2,
+                                transition: 'background-color 0.1s, box-shadow 0.1s',
+                            }}
+                        />
 
-            <Box
-                onClick={handleFootswitchClick}
-                sx={{
-                    width: 'calc(100% + 8px)',
-                    height: 110,
-                    flexShrink: 0,
-                    bgcolor: '#1a1a1a',
-                    borderRadius: '2px 2px 8px 8px',
-                    border: '2px solid #000',
-                    boxShadow: 'inset 0 2px 4px rgba(255,255,255,0.1)',
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'flex-end',
-                    pb: 1,
-                    cursor: 'pointer',
-                    zIndex: 3,
-                    transition: 'transform 0.05s',
-                    '&:active': {transform: 'scale(0.98) translateY(2px)'}
-                }}
-            >
-                <Box
-                    sx={{
-                        width: 12,
-                        height: 12,
-                        borderRadius: '50%',
-                        background: 'radial-gradient(circle, #444, #000)',
-                        border: '1px solid #333'
-                    }}
-                />
-            </Box>
-        </Box>
+                        <Stack direction="row" spacing={1} sx={{justifyContent: 'center'}}>
+                            {knobsForEffect(effect, {
+                                onThresholdChange: effect.kind == "HCDistortion" ? handleHCThresholdChange : handleSCThresholdChange,
+                                onLevelChange: effect.kind == "Delay" ? handleDelayLevelChange : effect.kind == "HCDistortion" ? handleHCDLevelChange : handleSCLevelChange,
+                                onDelayTimeChange: handleDelayTimeChange,
+                                onSmoothingChange: handleSmoothingChange,
+                                onPedalPositionChange: handlePedalPositionChange
+                            })}
+                        </Stack>
+
+                        <Typography
+                            sx={{
+                                mt: 'auto',
+                                mb: 2,
+                                fontWeight: 900,
+                                fontSize: '1.2rem',
+                                color: 'rgba(0,0,0,0.7)',
+                                textTransform: 'uppercase',
+                                fontStyle: 'italic'
+                            }}
+                            noWrap={true}
+                        >
+                            {effect.data.name}
+                        </Typography>
+                    </Box>
+
+                    <Box
+                        onClick={handleFootswitchClick}
+                        sx={{
+                            width: 'calc(100% + 8px)',
+                            height: 110,
+                            flexShrink: 0,
+                            bgcolor: '#1a1a1a',
+                            borderRadius: '2px 2px 8px 8px',
+                            border: '2px solid #000',
+                            boxShadow: 'inset 0 2px 4px rgba(255,255,255,0.1)',
+                            display: 'flex',
+                            justifyContent: 'center',
+                            alignItems: 'flex-end',
+                            pb: 1,
+                            cursor: 'pointer',
+                            zIndex: 3,
+                            transition: 'transform 0.05s',
+                            '&:active': {transform: 'scale(0.98) translateY(2px)'}
+                        }}
+                    >
+                        <Box
+                            sx={{
+                                width: 12,
+                                height: 12,
+                                borderRadius: '50%',
+                                background: 'radial-gradient(circle, #444, #000)',
+                                border: '1px solid #333'
+                            }}
+                        />
+                    </Box>
+                </Box>
+            </Stack>
+
+            <MidiBindingDialog
+                open={midiModalOpen}
+                onClose={() => setMidiModalOpen(false)}
+                effectId={effect.data.id}
+                effectName={effect.data.name}
+                effectKind={effect.kind}
+            />
+        </>
     );
 }
