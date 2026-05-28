@@ -3,7 +3,7 @@ import {SettingsScreen} from "../../screens/SettingsScreen.tsx";
 import {MainScreen} from "../../screens/MainScreen.tsx";
 import {AppLayout} from "../../screens/AppLayout.tsx";
 import {AnalyzerWindow} from "../../windows/AnalyzerWindow";
-import {MidiTestScreen} from "../../screens/MidiTestScreen.tsx";
+import {MidiConfigScreen} from "../../screens/MidiConfigScreen.tsx";
 
 
 export const router = createHashRouter([
@@ -21,7 +21,7 @@ export const router = createHashRouter([
             },
             {
                 path:"midi-mappings",
-                element:<MidiTestScreen/>
+                element:<MidiConfigScreen/>
             }
         ],
     },

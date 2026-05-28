@@ -19,8 +19,9 @@ import {
 import RefreshIcon from '@mui/icons-material/Refresh';
 import DeleteIcon from '@mui/icons-material/Delete';
 import {listen} from "@tauri-apps/api/event";
-
 import {getAmpConfig, getMidiBindings, MidiTargetParameter, registerMidiBinding, removeMidiBinding} from "../domain";
+import {useNavigate} from "react-router-dom";
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 
 interface ActiveBinding {
     channel: number;
@@ -29,7 +30,8 @@ interface ActiveBinding {
     parameter: MidiTargetParameter;
 }
 
-export function MidiTestScreen() {
+export function MidiConfigScreen() {
+    const navigate = useNavigate();
     const [bindings, setBindings] = useState<ActiveBinding[]>([]);
     const [activeEffects, setActiveEffects] = useState<{ id: string; name: string; kind: string }[]>([]);
     const [loading, setLoading] = useState<boolean>(false);
@@ -158,6 +160,15 @@ export function MidiTestScreen() {
                     </Typography>
                 </Box>
                 <Stack direction="row" spacing={1.5}>
+                    {/* Back Button added to actions area */}
+                    <Button
+                        variant="outlined"
+                        color="inherit"
+                        startIcon={<ArrowBackIcon />}
+                        onClick={() => navigate(-1)}
+                    >
+                        Back
+                    </Button>
                     <Button
                         variant="contained"
                         startIcon={<RefreshIcon />}
