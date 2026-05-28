@@ -1,4 +1,6 @@
+use crate::commands::helpers::persist_amp_config;
 use crate::domain::dto::audio_device_dto::AudioDeviceDto;
+use crate::services::amp_config_service::AmpConfigPersistenceService;
 use crate::services::audio_service::AudioService;
 use crate::services::device_service::DeviceService;
 use cpal::traits::DeviceTrait;
@@ -361,20 +363,26 @@ fn apply_asio_device_route(
 }
 
 #[tauri::command]
-pub fn get_available_audio_drivers(device_service: tauri::State<DeviceService>) -> Vec<String> {
+pub fn get_available_audio_drivers(
+    device_service: tauri::State<'_, Mutex<DeviceService>>,
+) -> Vec<String> {
+    let device_service = device_service.lock().unwrap();
     device_service.available_audio_drivers()
 }
 
 #[tauri::command]
-pub fn get_selected_audio_driver(device_service: tauri::State<DeviceService>) -> String {
+pub fn get_selected_audio_driver(device_service: tauri::State<'_, Mutex<DeviceService>>) -> String {
+    let device_service = device_service.lock().unwrap();
     device_service.selected_audio_driver()
 }
 
 #[tauri::command]
 pub fn get_input_channel_options(
-    device_service: tauri::State<DeviceService>,
+    device_service: tauri::State<'_, Mutex<DeviceService>>,
     device_id: String,
 ) -> Result<Vec<u16>, String> {
+    let device_service = device_service.lock().unwrap();
+
     let device = device_service
         .find_input_device_by_id(&device_id)
         .ok_or_else(|| "Input device not found".to_string())?;
@@ -383,9 +391,11 @@ pub fn get_input_channel_options(
 
 #[tauri::command]
 pub fn get_output_channel_options(
-    device_service: tauri::State<DeviceService>,
+    device_service: tauri::State<'_, Mutex<DeviceService>>,
     device_id: String,
 ) -> Result<Vec<u16>, String> {
+    let device_service = device_service.lock().unwrap();
+
     let device = device_service
         .find_output_device_by_id(&device_id)
         .ok_or_else(|| "Output device not found".to_string())?;
@@ -414,12 +424,14 @@ pub fn get_selected_output_channel_count(
 
 #[tauri::command]
 pub fn set_asio_channel_config(
-    device_service: tauri::State<DeviceService>,
+    device_service: tauri::State<'_, Mutex<DeviceService>>,
     audio_service: tauri::State<'_, Mutex<AudioService>>,
     device_id: String,
     input_channels: u16,
     output_channels: u16,
 ) -> Result<(), String> {
+    let device_service = device_service.lock().unwrap();
+
     if !device_service.is_asio_selected() {
         return Err(
             "ASIO channel selection is only available when ASIO driver is selected".to_string(),
@@ -441,10 +453,13 @@ pub fn set_asio_channel_config(
 
 #[tauri::command]
 pub fn set_audio_driver(
-    device_service: tauri::State<DeviceService>,
+    device_service: tauri::State<'_, Mutex<DeviceService>>,
     audio_service: tauri::State<'_, Mutex<AudioService>>,
+    persistence_service: tauri::State<Mutex<AmpConfigPersistenceService>>,
     driver: String,
 ) -> Result<(), String> {
+    let device_service = device_service.lock().unwrap();
+
     let previous_driver = device_service.selected_audio_driver();
     device_service.set_selected_audio_driver(&driver)?;
 
@@ -461,6 +476,7 @@ pub fn set_audio_driver(
                 input_config,
                 output_config,
             );
+            persist_amp_config(&audio, &device_service, &persistence_service);
             return Ok(());
         }
 
@@ -472,6 +488,7 @@ pub fn set_audio_driver(
             .lock()
             .map_err(|_| "Failed to lock audio service".to_string())?;
         audio.set_io_devices(input_device, output_device, input_config, output_config);
+        persist_amp_config(&audio, &device_service, &persistence_service);
         Ok(())
     })();
 
@@ -497,8 +514,10 @@ pub fn set_audio_driver(
 /// A [`Vec`] of [`AudioDeviceDto`] representing available input devices.
 #[tauri::command]
 pub(crate) fn get_input_device_list(
-    device_service: tauri::State<DeviceService>,
+    device_service: tauri::State<'_, Mutex<DeviceService>>,
 ) -> Vec<AudioDeviceDto> {
+    let device_service = device_service.lock().unwrap();
+
     device_service.get_input_devices()
 }
 
@@ -516,8 +535,10 @@ pub(crate) fn get_input_device_list(
 /// A [`Vec`] of [`AudioDeviceDto`] representing available output devices.
 #[tauri::command]
 pub(crate) fn get_output_device_list(
-    device_service: tauri::State<DeviceService>,
+    device_service: tauri::State<'_, Mutex<DeviceService>>,
 ) -> Vec<AudioDeviceDto> {
+    let device_service = device_service.lock().unwrap();
+
     device_service.get_output_devices()
 }
 
@@ -539,10 +560,12 @@ pub(crate) fn get_output_device_list(
 /// or the service state cannot be locked.
 #[tauri::command]
 pub fn set_input_device(
-    device_service: tauri::State<DeviceService>,
+    device_service: tauri::State<'_, Mutex<DeviceService>>,
     audio_service: tauri::State<'_, Mutex<AudioService>>,
     device_id: String,
 ) -> Result<(), String> {
+    let device_service = device_service.lock().unwrap();
+
     let device = device_service
         .find_input_device_by_id(&device_id)
         .ok_or("Device not found")?;
@@ -588,10 +611,12 @@ pub fn set_input_device(
 /// or the service state cannot be locked.
 #[tauri::command]
 pub fn set_output_device(
-    device_service: tauri::State<DeviceService>,
+    device_service: tauri::State<'_, Mutex<DeviceService>>,
     audio_service: tauri::State<'_, Mutex<AudioService>>,
     device_id: String,
 ) -> Result<(), String> {
+    let device_service = device_service.lock().unwrap();
+
     let device = device_service
         .find_output_device_by_id(&device_id)
         .ok_or("Device not found")?;

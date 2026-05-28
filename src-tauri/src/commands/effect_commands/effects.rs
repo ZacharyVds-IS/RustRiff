@@ -3,6 +3,7 @@ use crate::domain::dto::effect::effect_dto::EffectDto;
 use crate::domain::effect::Effect;
 use crate::services::amp_config_service::AmpConfigPersistenceService;
 use crate::services::audio_service::AudioService;
+use crate::services::device_service::DeviceService;
 use std::sync::Mutex;
 use tracing::info;
 use uuid::Uuid;
@@ -10,21 +11,23 @@ use uuid::Uuid;
 #[tauri::command]
 pub(crate) fn add_effect(
     audio_service: tauri::State<Mutex<AudioService>>,
+    device_service: tauri::State<Mutex<DeviceService>>,
     persistence_service: tauri::State<Mutex<AmpConfigPersistenceService>>,
     effect_dto: EffectDto,
 ) -> Result<(), String> {
-    let mut service = audio_service.inner().lock().unwrap();
-    let target_channel_id = *service.current_channel_id();
-    let dsp_sample_rate = service.dsp_chain_sample_rate();
+    let mut audio_service = audio_service.inner().lock().unwrap();
+    let target_channel_id = *audio_service.current_channel_id();
+    let dsp_sample_rate = audio_service.dsp_chain_sample_rate();
 
-    if let Some(channel) = service
+    if let Some(channel) = audio_service
         .channels_mut()
         .iter_mut()
         .find(|c| c.id() == target_channel_id)
     {
         let effect = effect_dto.add_to_domain(dsp_sample_rate);
         channel.add_effect_to_chain(effect);
-        persist_amp_config(&service, &persistence_service);
+        let device_service = device_service.inner().lock().unwrap();
+        persist_amp_config(&audio_service, &device_service, &persistence_service);
         Ok(())
     } else {
         Err("Channel not found".into())
@@ -34,19 +37,21 @@ pub(crate) fn add_effect(
 #[tauri::command]
 pub(crate) fn remove_effect(
     audio_service: tauri::State<Mutex<AudioService>>,
+    device_service: tauri::State<Mutex<DeviceService>>,
     persistence_service: tauri::State<Mutex<AmpConfigPersistenceService>>,
     effect_id: String,
 ) {
-    let mut service = audio_service.inner().lock().unwrap();
-    let channel_id = *service.current_channel_id();
-    let current_channel = service
+    let mut audio_service = audio_service.inner().lock().unwrap();
+    let channel_id = *audio_service.current_channel_id();
+    let current_channel = audio_service
         .channels_mut()
         .iter_mut()
         .find(|c| c.id() == channel_id)
         .unwrap();
     current_channel
         .remove_effect_from_chain(Uuid::parse_str(&effect_id).expect("failed to parse id"));
-    persist_amp_config(&service, &persistence_service);
+    let device_service = device_service.inner().lock().unwrap();
+    persist_amp_config(&audio_service, &device_service, &persistence_service);
 }
 
 #[tauri::command]
@@ -54,10 +59,10 @@ pub(crate) fn apply_effect_order_change(
     audio_service: tauri::State<Mutex<AudioService>>,
     effects: Vec<EffectDto>,
 ) {
-    let mut service = audio_service.inner().lock().unwrap();
-    let dsp_sample_rate = service.dsp_chain_sample_rate();
-    let channel_id = *service.current_channel_id();
-    let current_channel = service
+    let mut audio_service = audio_service.inner().lock().unwrap();
+    let dsp_sample_rate = audio_service.dsp_chain_sample_rate();
+    let channel_id = *audio_service.current_channel_id();
+    let current_channel = audio_service
         .channels_mut()
         .iter_mut()
         .find(|c| c.id() == channel_id)
@@ -89,25 +94,29 @@ pub(crate) fn apply_effect_order_change(
 #[tauri::command]
 pub fn toggle_effect(
     audio_service: tauri::State<Mutex<AudioService>>,
+    device_service: tauri::State<Mutex<DeviceService>>,
     persistence_service: tauri::State<Mutex<AmpConfigPersistenceService>>,
     effect_id: String,
 ) -> Result<bool, String> {
-    let service = audio_service
+    let audio_service = audio_service
         .lock()
         .map_err(|_| "Failed to lock audio service".to_string())?;
-    let channel = service
+    let channel = audio_service
         .channels()
         .iter()
-        .find(|c| c.id() == *service.current_channel_id())
+        .find(|c| c.id() == *audio_service.current_channel_id())
         .ok_or("No active channel")?;
     let new_state =
         channel.toggle_effect(Uuid::parse_str(&effect_id).expect("failed to parse id"))?;
     info!(
-        channel_id = service.current_channel_id().to_string(),
+        channel_id = audio_service.current_channel_id().to_string(),
         effect_id,
         is_active = new_state,
         "Effect toggled"
     );
-    persist_amp_config(&service, &persistence_service);
+    let device_service = device_service
+        .lock()
+        .map_err(|_| "Failed to lock device service".to_string())?;
+    persist_amp_config(&audio_service, &device_service, &persistence_service);
     Ok(new_state)
 }

@@ -1,6 +1,7 @@
 use crate::domain::dto::amp_config_dto::AmpConfigDto;
 use crate::infrastructure::persistence::amp_config_persistence_trait::AmpConfigPersistence;
 use crate::services::audio_service::AudioService;
+use crate::services::device_service::DeviceService;
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
 use tracing::error;
@@ -62,8 +63,12 @@ impl AmpConfigPersistenceService {
     /// This is the primary method used by mutating Tauri commands after they
     /// successfully update amplifier state. Disk I/O is executed by a background
     /// worker thread so command handlers return quickly.
-    pub fn persist_from_audio_service(&self, audio_service: &AudioService) -> Result<(), String> {
-        let snapshot = AmpConfigDto::from_service(audio_service);
+    pub fn persist_from_audio_service(
+        &self,
+        audio_service: &AudioService,
+        device_service: &DeviceService,
+    ) -> Result<(), String> {
+        let snapshot = AmpConfigDto::from_service(audio_service, device_service);
         self.persist_snapshot(snapshot)
     }
 
@@ -82,7 +87,7 @@ impl AmpConfigPersistenceService {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::infrastructure::audio_handler::MockAudioHandlerTrait;
+    use crate::domain::dto::audio_settings_dto::AudioSettingsDto;
     use std::sync::{Arc, Condvar, Mutex};
     use std::time::Duration;
 
@@ -218,6 +223,15 @@ mod tests {
             is_active: false,
             channels: Vec::new(),
             current_channel: expected_id.clone(),
+            audio_settings: AudioSettingsDto {
+                input_device_name: "Test Input".to_string(),
+                output_device_name: "Test Output".to_string(),
+                input_sample_rate: 44100,
+                output_sample_rate: 44100,
+                input_channels: 2,
+                output_channels: 2,
+                audio_driver: "".to_string(),
+            },
         };
 
         *state
@@ -261,11 +275,12 @@ mod tests {
             state: Arc::clone(&state),
         }));
 
-        let mock = MockAudioHandlerTrait::new();
+        let mock = crate::tests::mock::make_mock_handler();
         let audio_service = AudioService::new_with_handler(Arc::new(mock));
+        let device_service = DeviceService::new();
 
         service
-            .persist_from_audio_service(&audio_service)
+            .persist_from_audio_service(&audio_service, &device_service)
             .expect("persist should succeed");
 
         let saved = state.wait_for_saved_count(1, Duration::from_secs(1));
@@ -289,11 +304,12 @@ mod tests {
         let service = AmpConfigPersistenceService::new(Box::new(SpyRepository {
             state: Arc::clone(&state),
         }));
-        let mock = MockAudioHandlerTrait::new();
+        let mock = crate::tests::mock::make_mock_handler();
         let audio_service = AudioService::new_with_handler(Arc::new(mock));
+        let device_service = DeviceService::new();
 
         service
-            .persist_from_audio_service(&audio_service)
+            .persist_from_audio_service(&audio_service, &device_service)
             .expect("enqueue should succeed");
 
         let saved = state.wait_for_saved_count(1, Duration::from_secs(1));
@@ -319,6 +335,15 @@ mod tests {
             is_active: false,
             channels: Vec::new(),
             current_channel,
+            audio_settings: AudioSettingsDto {
+                input_device_name: "Test Input".to_string(),
+                output_device_name: "Test Output".to_string(),
+                input_sample_rate: 44100,
+                output_sample_rate: 44100,
+                input_channels: 2,
+                output_channels: 2,
+                audio_driver: "".to_string(),
+            },
         };
 
         service

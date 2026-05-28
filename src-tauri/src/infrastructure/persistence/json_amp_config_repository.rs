@@ -1,4 +1,5 @@
 use crate::domain::dto::amp_config_dto::AmpConfigDto;
+use crate::domain::dto::audio_settings_dto::AudioSettingsDto;
 use crate::domain::dto::channel_dto::ChannelDto;
 use crate::infrastructure::persistence::amp_config_persistence_trait::AmpConfigPersistence;
 use serde::{Deserialize, Serialize};
@@ -29,6 +30,7 @@ struct PersistedAmpConfig {
     master_volume: f32,
     channels: Vec<ChannelDto>,
     current_channel: String,
+    audio_settings: AudioSettingsDto,
 }
 
 impl From<&AmpConfigDto> for PersistedAmpConfig {
@@ -37,6 +39,7 @@ impl From<&AmpConfigDto> for PersistedAmpConfig {
             master_volume: config.master_volume,
             channels: config.channels.clone(),
             current_channel: config.current_channel.clone(),
+            audio_settings: config.audio_settings.clone(),
         }
     }
 }
@@ -48,6 +51,7 @@ impl From<PersistedAmpConfig> for AmpConfigDto {
             is_active: false,
             channels: config.channels,
             current_channel: config.current_channel,
+            audio_settings: config.audio_settings,
         }
     }
 }
@@ -163,6 +167,18 @@ mod tests {
         std::env::temp_dir().join(format!("rustriff-amp-config-{nanos}.json"))
     }
 
+    fn basic_audio_settings() -> AudioSettingsDto {
+        AudioSettingsDto {
+            input_device_name: "Test Input".to_string(),
+            output_device_name: "Test Output".to_string(),
+            input_sample_rate: 44100,
+            output_sample_rate: 44100,
+            input_channels: 2,
+            output_channels: 2,
+            audio_driver: "".to_string(),
+        }
+    }
+
     #[test]
     fn save_leaves_no_tmp_file_after_success() {
         let path = unique_test_path();
@@ -173,6 +189,7 @@ mod tests {
             is_active: false,
             channels: Vec::new(),
             current_channel: "0".to_string(),
+            audio_settings: basic_audio_settings(),
         };
 
         repo.save(&config).expect("save should succeed");
@@ -196,6 +213,7 @@ mod tests {
             is_active: true,
             channels: Vec::new(),
             current_channel: "0".to_string(),
+            audio_settings: basic_audio_settings(),
         };
 
         repo.save(&config).expect("save should succeed");
