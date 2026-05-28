@@ -1,4 +1,5 @@
 use crate::domain::dto::channel_dto::ChannelDto;
+use crate::domain::dto::midi_mapping_dto::MidiMappingDto;
 use crate::services::audio_service::AudioService;
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::Ordering;
@@ -10,10 +11,30 @@ pub struct AmpConfigDto {
     pub is_active: bool,
     pub channels: Vec<ChannelDto>,
     pub current_channel: String,
+    /// MIDI CC → effect bindings. Persisted across restarts; absent from
+    /// files written before this field was introduced is tolerated via
+    /// `#[serde(default)]` on the persistence-layer struct.
+    pub midi_bindings: Vec<MidiMappingDto>,
+}
+
+impl Default for AmpConfigDto {
+    fn default() -> Self {
+        Self {
+            master_volume: 1.0,
+            is_active: false,
+            channels: Vec::new(),
+            current_channel: String::new(),
+            midi_bindings: Vec::new(),
+        }
+    }
 }
 
 impl AmpConfigDto {
     /// Constructs an `AmpConfigDto` from the current state of an [`AudioService`].
+    ///
+    /// `midi_bindings` is intentionally left empty here: MIDI state is owned
+    /// by `MidiService`, not `AudioService`. The persistence service merges
+    /// the two concerns before writing to disk.
     pub fn from_service(service: &AudioService) -> Self {
         let cm = service
             .channel_manager()
@@ -25,6 +46,7 @@ impl AmpConfigDto {
             is_active: *service.is_active(),
             channels: cm.to_channel_dtos(),
             current_channel: cm.current_channel_id().to_string(),
+            midi_bindings: Vec::new(),
         }
     }
 }

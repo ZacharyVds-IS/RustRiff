@@ -190,14 +190,22 @@ pub fn run() {
 
             {
                 let audio_service_state = app.state::<Mutex<AudioService>>();
-                let mut audio_service = audio_service_state
-                    .lock()
-                    .map_err(|_| "Failed to lock audio service during startup")?;
 
                 match amp_config_persistence_service.load_amp_config() {
                     Ok(Some(config)) => {
                         info!("Loaded persisted amplifier configuration");
-                        audio_service.apply_amp_config(config);
+
+                        if let Ok(mut audio_service) = app.state::<Mutex<AudioService>>().lock() {
+                            audio_service.apply_amp_config(config.clone());
+                        } else {
+                            error!("Failed to lock audio service during startup");
+                        }
+
+                        if !config.midi_bindings.is_empty() {
+                            midi.set_bindings(config.midi_bindings);
+                        } else {
+                            info!("No saved MIDI bindings found — starting fresh");
+                        }
                     }
                     Ok(None) => info!("No persisted amplifier configuration found"),
                     Err(err) => error!("Failed to load persisted amplifier configuration: {err}"),

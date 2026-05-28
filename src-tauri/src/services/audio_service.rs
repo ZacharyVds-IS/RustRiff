@@ -64,13 +64,6 @@ impl AudioService {
     /// Creates a new `AudioService` using the provided CPAL input/output devices and stream config.
     ///
     /// An [`AudioHandler`] is constructed internally from the given parameters.
-    ///
-    /// # Arguments
-    ///
-    /// * `input_device` - The CPAL device to capture audio from.
-    /// * `output_device` - The CPAL device to send processed audio to.
-    /// * `input_config` - The [`StreamConfig`] used for the input stream.
-    /// * `output_config` - The [`StreamConfig`] used for the output stream.
     pub fn new(
         input_device: Device,
         output_device: Device,
@@ -84,13 +77,7 @@ impl AudioService {
 
     /// Creates an `AudioService` with a custom handler.
     ///
-    /// This constructor is primarily intended for unit and integration testing,
-    /// where a mock [`AudioHandlerTrait`] implementation can be injected in place
-    /// of a real [`AudioHandler`].
-    ///
-    /// # Arguments
-    ///
-    /// * `handler` - An [`Arc`]-wrapped implementation of [`AudioHandlerTrait`].
+    /// Primarily intended for unit and integration testing.
     pub fn new_with_handler(
         handler: Arc<dyn AudioHandlerTrait>,
         channel_manager: Arc<Mutex<ChannelManager>>,
@@ -101,13 +88,11 @@ impl AudioService {
             is_active: false,
             channel_manager,
             master_volume: Arc::new(AtomicF32::new(1.0)),
-            // Keep constructor side-effect free for tests using minimal mocks.
-            // Real sample-rate metadata is applied when loopback starts.
             spectrum_tap: Arc::new(SpectrumTap::new(DEFAULT_ANALYZER_SAMPLE_RATE_HZ)),
         }
     }
 
-    // ── Public accessors ────────────────────────────────────────────────────
+    // ── Public accessors ─────────────────────────────────────────────────────
 
     pub fn is_active(&self) -> &bool {
         &self.is_active
@@ -131,10 +116,6 @@ impl AudioService {
 
     // ── Private helpers ──────────────────────────────────────────────────────
 
-    /// Clones the processor `Arc`s from the channel that is currently active.
-    ///
-    /// Panics if `current_channel_id` does not match any channel (which would be a
-    /// programming error, not a user error).
     fn resolve_channel_arcs(&self) -> ChannelArcs {
         self.channel_manager
             .lock()
@@ -142,14 +123,6 @@ impl AudioService {
             .resolve_channel_arcs()
     }
 
-    /// Spawns the inner DSP worker thread.
-    ///
-    /// The worker pops samples from `i_consumer`, runs them through the full DSP
-    /// chain (gain → tone stack → effects → volume → master volume → spectrum tap),
-    /// applies the resampling policy at the correct point, and pushes results into
-    /// `o_producer`. It exits cleanly when `shutdown` is set to `true`.
-    ///
-    /// Returns the thread `JoinHandle`.
     #[allow(clippy::too_many_arguments)]
     fn spawn_dsp_worker(
         arcs: ChannelArcs,
@@ -187,10 +160,6 @@ impl AudioService {
                 }
 
                 if let Some(sample) = i_consumer.try_pop() {
-                    // `policy.process` applies the resampler at the right moment:
-                    //   PreDsp  → resamples first, then calls `run_dsp` on each result
-                    //   PostDsp → calls `run_dsp` first, then resamples the output
-                    //   Bypass  → calls `run_dsp` directly, returns a single sample
                     for processed in policy.process(sample, &mut |s| run_dsp(s)) {
                         let _ = o_producer.try_push(processed);
                     }
@@ -199,25 +168,12 @@ impl AudioService {
                 }
             }
 
-            // Flush any samples still held inside the resampler.
             for processed in policy.flush(&mut |s| run_dsp(s)) {
                 let _ = o_producer.try_push(processed);
             }
         })
     }
 
-    /// Builds and spawns the outer I/O thread that owns the CPAL streams.
-    ///
-    /// Responsibilities:
-    /// 1. Size and create the lock-free ring buffers.
-    /// 2. Select the [`ResamplePolicy`] from the input/output sample rates.
-    /// 3. Build the CPAL input and output streams via the handler.
-    /// 4. Delegate DSP work to [`spawn_dsp_worker`].
-    /// 5. Play both streams and park until [`stop_loopback`] unparks the thread.
-    /// 6. Signal the worker to shut down and join it before returning.
-    ///
-    /// [`spawn_dsp_worker`]: AudioService::spawn_dsp_worker
-    /// [`stop_loopback`]: AudioService::stop_loopback
     fn spawn_io_thread(
         handler: Arc<dyn AudioHandlerTrait>,
         arcs: ChannelArcs,
@@ -226,23 +182,12 @@ impl AudioService {
         dsp_sample_rate: u32,
     ) -> JoinHandle<()> {
         thread::spawn(move || {
-            // How many input samples to batch before the resampler produces output.
-            // Larger = better quality, more latency. Smaller = lower latency, cheaper.
             const RESAMPLER_CHUNK_SIZE: usize = 256;
 
             let ringbuffer_size = handler
                 .input_sample_rate()
                 .max(handler.output_sample_rate()) as usize;
 
-            // ── Resampling decision ──────────────────────────────────────────
-            // `ResamplePolicy::from_rates` compares input and output sample rates
-            // and picks one of three strategies (logged at startup):
-            //
-            //   input == output  →  Bypass   – no resampler created at all
-            //   input  > output  →  PreDsp   – downsample BEFORE the DSP chain
-            //                                  (DSP runs at the lower output rate → cheaper)
-            //   input  < output  →  PostDsp  – upsample AFTER the DSP chain
-            //                                  (DSP runs at the lower input rate → cheaper)
             let policy = ResamplePolicy::from_rates(
                 handler.input_sample_rate(),
                 handler.output_sample_rate(),
@@ -271,7 +216,6 @@ impl AudioService {
             input_stream.play();
             output_stream.play();
 
-            // Park here until `stop_loopback` calls `unpark`.
             thread::park();
 
             shutdown.store(true, Ordering::SeqCst);
@@ -281,19 +225,6 @@ impl AudioService {
 
     // ── Public API ───────────────────────────────────────────────────────────
 
-    /// Starts the audio loopback on a dedicated background thread.
-    ///
-    /// On startup the service:
-    /// 1. Reads the input and output sample rates from the active [`AudioHandlerTrait`].
-    /// 2. Selects a [`ResamplePolicy`] based on those rates (logged at `info` level).
-    /// 3. Builds a pair of lock-free ring buffers sized to the larger of the two rates.
-    /// 4. Asks the handler to open the input and output CPAL streams.
-    /// 5. Spawns a worker thread that runs the full DSP + resampling pipeline.
-    ///
-    /// If the loopback is already active this method is a no-op.
-    ///
-    /// [`AudioHandlerTrait`]: AudioHandlerTrait
-    /// [`ResamplePolicy`]: ResamplePolicy
     pub fn start_loopback(&mut self) {
         if self.is_active {
             return;
@@ -313,11 +244,6 @@ impl AudioService {
         self.loopback_thread = Some(thread);
     }
 
-    /// Stops the audio loopback and joins the background thread.
-    ///
-    /// Unparks the loopback thread, signals the inner worker to shut down,
-    /// and waits for both threads to finish. If the loopback is not currently
-    /// active this method is a no-op.
     pub fn stop_loopback(&mut self) {
         if !self.is_active {
             return;
@@ -333,18 +259,6 @@ impl AudioService {
         self.is_active = false;
     }
 
-    /// Sets the master volume value.
-    ///
-    /// The master volume value is atomically updated and will be read by the audio processing
-    /// thread on the next sample cycle.
-    ///
-    /// # Arguments
-    ///
-    /// * `master_volume` - The new master volume value. Must be positive (> 0.0).
-    ///
-    /// # Panics
-    ///
-    /// Panics if `master_volume` is negative or zero.
     pub fn set_master_volume(&self, master_volume: f32) {
         if master_volume.is_sign_positive() {
             self.master_volume.store(master_volume, Ordering::Relaxed);
@@ -354,14 +268,6 @@ impl AudioService {
         }
     }
 
-    /// Replaces the underlying audio handler, restarting the loopback if it was running.
-    ///
-    /// If the loopback is active when this method is called it will be stopped,
-    /// the handler swapped, and then the loopback restarted automatically.
-    ///
-    /// # Arguments
-    ///
-    /// * `new_handler` - The replacement [`AudioHandlerTrait`] implementation.
     pub(crate) fn set_audio_handler(&mut self, new_handler: Arc<dyn AudioHandlerTrait>) {
         let was_active = self.is_active;
         if was_active {
@@ -377,16 +283,6 @@ impl AudioService {
         }
     }
 
-    /// Switches the audio input device without interrupting playback longer than necessary.
-    ///
-    /// Constructs a new [`AudioHandler`] that pairs the given `input` device with the
-    /// existing output device and stream config, then delegates to [`set_audio_handler`].
-    ///
-    /// # Arguments
-    ///
-    /// * `input` - The new CPAL input device to capture audio from.
-    ///
-    /// [`set_audio_handler`]: AudioService::set_audio_handler
     pub fn set_input_device(&mut self, input: Device, input_config: StreamConfig) {
         info!("Switching input device");
 
@@ -401,16 +297,6 @@ impl AudioService {
         self.set_audio_handler(Arc::new(new_handler));
     }
 
-    /// Switches the audio output device without interrupting playback longer than necessary.
-    ///
-    /// Constructs a new [`AudioHandler`] that pairs the existing input device with the
-    /// given `output` device and stream config, then delegates to [`set_audio_handler`].
-    ///
-    /// # Arguments
-    ///
-    /// * `output` - The new CPAL output device to send processed audio to.
-    ///
-    /// [`set_audio_handler`]: AudioService::set_audio_handler
     pub fn set_output_device(&mut self, output: Device, output_config: StreamConfig) {
         info!("Switching output device");
 
@@ -425,10 +311,6 @@ impl AudioService {
         self.set_audio_handler(Arc::new(new_handler));
     }
 
-    /// Switches both audio input and output devices in one operation.
-    ///
-    /// This is used by driver modes (for example ASIO) that require the
-    /// same hardware route to be reconfigured atomically.
     pub fn set_io_devices(
         &mut self,
         input: Device,
@@ -441,14 +323,6 @@ impl AudioService {
         self.set_audio_handler(Arc::new(new_handler));
     }
 
-    /// Toggles the audio loopback on or off.
-    ///
-    /// - If `is_on` is `true` and the loopback is not active, [`start_loopback`] is called.
-    /// - If `is_on` is `false` and the loopback is active, [`stop_loopback`] is called.
-    /// - If the requested state already matches the current state, this method is a no-op.
-    ///
-    /// [`start_loopback`]: AudioService::start_loopback
-    /// [`stop_loopback`]: AudioService::stop_loopback
     pub fn toggle_loopback(&mut self, is_on: bool) {
         if self.is_active == is_on {
             return;
@@ -460,7 +334,6 @@ impl AudioService {
         }
     }
 
-    /// Adds a new channel and restarts loopback if active.
     pub fn add_channel(&mut self, channel_name: String) -> Uuid {
         let id = self
             .channel_manager
@@ -475,7 +348,6 @@ impl AudioService {
         id
     }
 
-    /// Removes a channel and restarts loopback if active.
     pub fn remove_channel(&mut self, channel_id: Uuid) {
         let was_on = self.is_active;
         self.stop_loopback();
@@ -488,7 +360,6 @@ impl AudioService {
         }
     }
 
-    /// Sets the current channel id, restarting the loopback if it was active.
     pub fn set_current_channel_id(&mut self, new_current_channel_id: Uuid) {
         let was_on = self.is_active;
         self.stop_loopback();
@@ -501,9 +372,6 @@ impl AudioService {
         }
     }
 
-    /// Returns the current buffer size in frames.
-    ///
-    /// If the handler uses `BufferSize::Default`, returns 256 as a practical fallback.
     pub fn buffer_size_frames(&self) -> u32 {
         match self.audio_handler.input_config().buffer_size {
             BufferSize::Fixed(frames) => frames,
@@ -511,14 +379,6 @@ impl AudioService {
         }
     }
 
-    /// Updates the buffer size for both input and output streams.
-    ///
-    /// Rebuilds the audio handler with a `BufferSize::Fixed(frames)` config and
-    /// restarts the loopback if it was active.
-    ///
-    /// # Arguments
-    ///
-    /// * `frames` - The desired buffer size in frames.
     pub fn set_buffer_size_frames(&mut self, frames: u32) -> Result<(), String> {
         let old = self.audio_handler.clone();
         let mut input_config = old.input_config().clone();
@@ -536,6 +396,10 @@ impl AudioService {
     }
 
     /// Applies a persisted amplifier configuration snapshot to the live service.
+    ///
+    /// `midi_bindings` carried inside `config` is intentionally ignored here —
+    /// that field belongs to `MidiService` and is only present on `AmpConfigDto`
+    /// for the persistence round-trip.
     pub fn apply_amp_config(&mut self, config: AmpConfigDto) {
         {
             let mut cm = self.channel_manager.lock().expect("channel_manager lock");
@@ -742,6 +606,7 @@ mod tests {
                     ),
                 ],
                 current_channel: channel_id_2.clone(),
+                ..AmpConfigDto::default()
             };
 
             service.apply_amp_config(config);
@@ -810,6 +675,7 @@ mod tests {
                     )],
                 )],
                 current_channel: channel_id_1.to_string(),
+                ..AmpConfigDto::default()
             };
 
             service.apply_amp_config(config);
@@ -845,6 +711,7 @@ mod tests {
                     vec![],
                 )],
                 current_channel: Uuid::new_v4().to_string(),
+                ..AmpConfigDto::default()
             };
 
             service.apply_amp_config(config);
@@ -872,6 +739,7 @@ mod tests {
                 is_active: false,
                 channels: vec![],
                 current_channel: Uuid::new_v4().to_string(),
+                ..AmpConfigDto::default()
             });
 
             let cm = channels(&service);
@@ -897,6 +765,7 @@ mod tests {
                     vec![],
                 )],
                 current_channel: channel_id_1.to_string(),
+                ..AmpConfigDto::default()
             });
 
             assert!(*service.is_active());

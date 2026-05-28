@@ -1,6 +1,8 @@
 use crate::domain::dto::midi_mapping_dto::MidiMappingDto;
 use crate::domain::dto::MidiDeviceDto::MidiDeviceDto;
+use crate::services::amp_config_service::AmpConfigPersistenceService;
 use crate::services::midi_service::MidiService;
+use std::sync::Mutex;
 use tauri::State;
 
 #[tauri::command]
@@ -27,12 +29,19 @@ pub async fn disconnect_midi_device(midi_service: State<'_, MidiService>) -> Res
 #[tauri::command]
 pub async fn register_midi_binding(
     midi_service: State<'_, MidiService>,
+    persistence_service: State<'_, Mutex<AmpConfigPersistenceService>>,
     mapping: MidiMappingDto,
 ) -> Result<(), String> {
     let parsed_uuid = uuid::Uuid::parse_str(&mapping.effect_id)
         .map_err(|_| format!("Invalid UUID format provided: {}", mapping.effect_id))?;
 
-    midi_service.add_mapping(mapping, parsed_uuid);
+    let updated_dtos = midi_service.add_mapping(mapping, parsed_uuid);
+
+    let persistence = persistence_service.lock().unwrap();
+    if let Err(e) = persistence.persist_midi_bindings(updated_dtos) {
+        tracing::warn!("Failed to persist MIDI bindings after register_midi_binding: {e}");
+    }
+
     Ok(())
 }
 
@@ -46,9 +55,16 @@ pub async fn get_midi_bindings(
 #[tauri::command]
 pub async fn remove_midi_binding(
     midi_service: State<'_, MidiService>,
+    persistence_service: State<'_, Mutex<AmpConfigPersistenceService>>,
     channel: u8,
     cc_number: u8,
 ) -> Result<(), String> {
-    midi_service.remove_mapping(channel, cc_number);
+    let updated_dtos = midi_service.remove_mapping(channel, cc_number);
+
+    let persistence = persistence_service.lock().unwrap();
+    if let Err(e) = persistence.persist_midi_bindings(updated_dtos) {
+        tracing::warn!("Failed to persist MIDI bindings after remove_midi_binding: {e}");
+    }
+
     Ok(())
 }

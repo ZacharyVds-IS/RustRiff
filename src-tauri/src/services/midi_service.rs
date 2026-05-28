@@ -46,13 +46,23 @@ impl MidiService {
         MidiHandler::list_devices()
     }
 
-    pub fn add_mapping(&self, config: MidiMappingDto, parsed_id: Uuid) {
+    /// Overwrites the internal mappings completely using a collection of DTOs.
+    pub fn set_bindings(&self, midi_bindings: Vec<MidiMappingDto>) {
         if let Ok(mut bindings) = self.bindings.lock() {
-            let wire_channel = if config.channel > 0 {
-                config.channel - 1
-            } else {
-                0
-            };
+            bindings.clear();
+            for mapping in midi_bindings {
+                let wire_channel = mapping.channel.saturating_sub(1);
+                if let Ok(id) = Uuid::parse_str(&mapping.effect_id) {
+                    bindings.insert((wire_channel, mapping.cc_number), (id, mapping.parameter));
+                }
+            }
+            info!("Restored {} MIDI binding(s) into memory", bindings.len());
+        }
+    }
+
+    pub fn add_mapping(&self, config: MidiMappingDto, parsed_id: Uuid) -> Vec<MidiMappingDto> {
+        if let Ok(mut bindings) = self.bindings.lock() {
+            let wire_channel = config.channel.saturating_sub(1);
 
             bindings.insert(
                 (wire_channel, config.cc_number),
@@ -63,18 +73,25 @@ impl MidiService {
                 "Mapped CC {} on Raw Channel {} (UI Channel {}) to Effect {}",
                 config.cc_number, wire_channel, config.channel, parsed_id
             );
+
+            Self::bindings_to_dtos(&bindings)
+        } else {
+            Vec::new()
         }
     }
 
-    pub fn remove_mapping(&self, channel: u8, cc_number: u8) {
+    pub fn remove_mapping(&self, channel: u8, cc_number: u8) -> Vec<MidiMappingDto> {
         if let Ok(mut bindings) = self.bindings.lock() {
-            let wire_channel = if channel > 0 { channel - 1 } else { 0 };
+            let wire_channel = channel.saturating_sub(1);
             if bindings.remove(&(wire_channel, cc_number)).is_some() {
                 info!(
                     "Removed MIDI mapping on Wire Channel {}, CC {}",
                     wire_channel, cc_number
                 );
             }
+            Self::bindings_to_dtos(&bindings)
+        } else {
+            Vec::new()
         }
     }
 
@@ -120,22 +137,30 @@ impl MidiService {
 
     pub fn get_active_mappings(&self) -> Vec<MidiMappingDto> {
         if let Ok(bindings) = self.bindings.lock() {
-            bindings
-                .iter()
-                .map(|((wire_channel, cc_number), (effect_id, parameter))| {
-                    let ui_channel = (*wire_channel as u32) + 1;
-
-                    MidiMappingDto {
-                        channel: ui_channel as u8,
-                        cc_number: *cc_number,
-                        effect_id: effect_id.to_string(),
-                        parameter: parameter.clone(),
-                    }
-                })
-                .collect()
+            Self::bindings_to_dtos(&bindings)
         } else {
             Vec::new()
         }
+    }
+
+    // ── Private helpers ───────────────────────────────────────────────────────
+
+    /// Converts the in-memory bindings map to a `Vec` of DTOs suitable for
+    /// persistence or command responses.
+    fn bindings_to_dtos(
+        bindings: &HashMap<(u8, u8), (Uuid, MidiTargetParameter)>,
+    ) -> Vec<MidiMappingDto> {
+        bindings
+            .iter()
+            .map(
+                |((wire_channel, cc_number), (effect_id, parameter))| MidiMappingDto {
+                    channel: wire_channel.saturating_add(1),
+                    cc_number: *cc_number,
+                    effect_id: effect_id.to_string(),
+                    parameter: parameter.clone(),
+                },
+            )
+            .collect()
     }
 
     fn process_incoming_message(
@@ -171,16 +196,13 @@ impl MidiService {
             _ => "Unknown",
         };
 
-        // 0xB0 matches standard Control Change status bits
         if msg_type == 0xB0 {
-            // Extract and clean byte fields using the structured ParsedMidiCc helper object
             if let Some(cc) = ParsedMidiCc::from_bytes(bytes) {
                 info!(
                     "MIDI CC Struct: ch={} cc_number={} value={}",
                     cc.channel, cc.control_number, cc.value
                 );
 
-                // Broadcast raw activity to Tauri frontend for interactive MIDI Learn/Sniff modes
                 if let Some(handle) = app_handle {
                     let ui_channel = cc.channel + 1;
                     let _ = handle.emit("midi-raw-sniff", (ui_channel, cc.control_number));

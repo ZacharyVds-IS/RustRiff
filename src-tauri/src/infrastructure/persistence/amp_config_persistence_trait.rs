@@ -1,4 +1,5 @@
 use crate::domain::dto::amp_config_dto::AmpConfigDto;
+use crate::domain::dto::midi_mapping_dto::MidiMappingDto;
 
 /// Backend abstraction for amplifier configuration persistence.
 ///
@@ -21,4 +22,18 @@ pub trait AmpConfigPersistence: Send + Sync {
     /// the application's point of view: after a successful return, the new
     /// state is considered the canonical persisted config.
     fn save(&self, config: &AmpConfigDto) -> Result<(), String>;
+
+    /// Loads the current snapshot, replaces its `midi_bindings`, and saves.
+    ///
+    /// The default implementation is correct for all single-file repositories:
+    /// it reads whatever is on disk (falling back to [`AmpConfigDto::default`]
+    /// when the file does not exist yet), splices in the new bindings, and
+    /// delegates to [`save`].
+    ///
+    /// [`save`]: AmpConfigPersistence::save
+    fn save_midi_bindings(&self, bindings: Vec<MidiMappingDto>) -> Result<(), String> {
+        let mut config = self.load()?.unwrap_or_default();
+        config.midi_bindings = bindings;
+        self.save(&config)
+    }
 }
