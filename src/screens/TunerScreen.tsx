@@ -92,7 +92,7 @@ export function TunerScreen() {
             >
                 <CircularProgress size={40} thickness={4}/>
                 <Typography variant="body1" color="text.secondary" sx={{fontWeight: "medium"}}>
-                    Listening for audio input... Pluck a string! 🎸
+                    Listening for audio input... Make sure you're amp is on and pluck a string!
                 </Typography>
             </Box>
         );

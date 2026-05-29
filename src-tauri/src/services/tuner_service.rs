@@ -1,6 +1,5 @@
 use crate::domain::dto::pitch_snapshot_dto::PitchSnapshotDto;
 use crate::services::analyzers::spectrum_tap::{SpectrumTap, SPECTRUM_WINDOW_SIZE};
-use log::info;
 use pitch_detection::detector::mcleod::McLeodDetector;
 use pitch_detection::detector::PitchDetector;
 use std::cell::RefCell;
@@ -135,11 +134,6 @@ impl TunerService {
         let note_name = format!("{}{}", note_names[note_index], octave);
 
         let cents_deviation = (n - n.round()) * 100.0;
-
-        info!(
-            "Detected pitch: {:.2} Hz, note: {}, cents deviation: {:.2}, clarity: {:.2}",
-            frequency, note_name, cents_deviation, clarity
-        );
 
         PitchSnapshotDto {
             frequency_hz: frequency,
