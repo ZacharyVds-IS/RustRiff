@@ -3,6 +3,7 @@ import {SettingsScreen} from "../../screens/SettingsScreen.tsx";
 import {MainScreen} from "../../screens/MainScreen.tsx";
 import {AppLayout} from "../../screens/AppLayout.tsx";
 import {AnalyzerWindow} from "../../windows/AnalyzerWindow";
+import {TunerScreen} from "../../screens/TunerScreen.tsx";
 
 
 export const router = createHashRouter([
@@ -18,6 +19,10 @@ export const router = createHashRouter([
                 path: "settings",
                 element: <SettingsScreen/>,
             },
+            {
+                path: "tuner",
+                element: <TunerScreen/>,
+            }
         ],
     },
     {

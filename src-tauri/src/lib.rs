@@ -40,6 +40,9 @@ use crate::commands::settings::{
     set_asio_channel_config, set_audio_driver, set_buffer_size_frames, set_input_device,
     set_output_device,
 };
+use crate::commands::tuner::{
+    get_tuner_contract, start_live_tuner_stream, stop_live_tuner_stream, TunerStreamState,
+};
 use crate::config::{get_default_ir_file, init_tracing};
 use crate::infrastructure::file_loader::FileLoader;
 use crate::infrastructure::persistence::json_amp_config_repository::JsonFileAmpConfigRepository;
@@ -156,6 +159,7 @@ pub fn run() {
     tauri::Builder::default()
         .manage(Mutex::new(audio_service))
         .manage(SpectrumStreamState::default())
+        .manage(TunerStreamState::default())
         .manage(Mutex::new(device_service))
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
@@ -270,6 +274,9 @@ pub fn run() {
             set_sc_distortion_threshold,
             set_sc_distortion_level,
             set_sc_distortion_smoothing,
+            get_tuner_contract,
+            start_live_tuner_stream,
+            stop_live_tuner_stream
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
