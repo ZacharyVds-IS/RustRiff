@@ -88,7 +88,8 @@ describe("ParameterCard", () => {
                 );
             });
 
-            const paper = container.querySelector('[class*="MuiPaper"]');
+            const paper = container.querySelector('[class*="MuiPaper"]') as HTMLElement | null;
+
             if (paper) {
                 await act(async () => {
                     paper.click();

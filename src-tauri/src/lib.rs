@@ -1,43 +1,63 @@
-pub mod commands;
 pub mod config;
 pub mod domain;
 pub mod infrastructure;
 pub mod services;
 
+#[cfg(feature = "audio-backend")]
+pub mod commands;
+
 #[cfg(test)]
 pub mod tests;
 
+use crate::config::{get_default_ir_file, init_tracing};
+
+#[cfg(feature = "audio-backend")]
 use crate::commands::analyzer::{
     get_live_spectrum, get_spectrum_contract, start_live_spectrum_stream,
     stop_live_spectrum_stream, SpectrumStreamState,
 };
+#[cfg(feature = "audio-backend")]
 use crate::commands::channels::{
     add_channel, get_all_channels, get_channel_id, remove_channel, set_channel_id,
 };
+#[cfg(feature = "audio-backend")]
 use crate::commands::default_controls::{
     get_amp_config, set_bass, set_gain, set_master_volume, set_middle, set_tone_stack, set_treble,
     set_volume, toggle_on_off,
 };
+#[cfg(feature = "audio-backend")]
 use crate::commands::effect_commands::cabinet_ir::{
     get_all_ir_profiles, remove_ir_profile, upload_ir_profile,
 };
+#[cfg(feature = "audio-backend")]
 use crate::commands::effect_commands::delay::{set_delay_delay_time, set_delay_level};
+#[cfg(feature = "audio-backend")]
+use crate::commands::effect_commands::effects::{
+    add_effect, apply_effect_order_change, remove_effect, toggle_effect,
+};
+#[cfg(feature = "audio-backend")]
 use crate::commands::effect_commands::hc_distortion::{
     set_hc_distortion_level, set_hc_distortion_threshold,
 };
+#[cfg(feature = "audio-backend")]
 use crate::commands::effect_commands::sc_distortion::{
     set_sc_distortion_level, set_sc_distortion_smoothing, set_sc_distortion_threshold,
 };
+#[cfg(feature = "audio-backend")]
 use crate::commands::effect_commands::wah::set_wah_pedal_position;
+#[cfg(feature = "audio-backend")]
 use crate::commands::latency_testing::{
     measure_all_dsp_algorithmic_latency, measure_all_dsp_cpu_timings, measure_buffer_latency,
     measure_round_trip_latency, test_gain_latency,
 };
+#[cfg(feature = "audio-backend")]
 use crate::commands::loopback::start_loopback;
+#[cfg(feature = "audio-backend")]
 use crate::commands::midi::{
     connect_midi_device, disconnect_midi_device, get_midi_bindings, get_midi_inputs,
     register_midi_binding, remove_midi_binding,
 };
+#[cfg(feature = "audio-backend")]
 use crate::commands::settings::{
     get_available_audio_drivers, get_buffer_size_frames, get_input_channel_options,
     get_input_device_list, get_output_channel_options, get_output_device_list,
@@ -45,27 +65,38 @@ use crate::commands::settings::{
     set_asio_channel_config, set_audio_driver, set_buffer_size_frames, set_input_device,
     set_output_device,
 };
-use crate::config::{get_default_ir_file, init_tracing};
+#[cfg(feature = "audio-backend")]
 use crate::domain::channel_manager::ChannelManager;
+#[cfg(feature = "audio-backend")]
 use crate::infrastructure::file_loader::FileLoader;
+#[cfg(feature = "audio-backend")]
 use crate::infrastructure::persistence::json_amp_config_repository::JsonFileAmpConfigRepository;
+#[cfg(feature = "audio-backend")]
 use crate::services::amp_config_service::AmpConfigPersistenceService;
+#[cfg(feature = "audio-backend")]
 use crate::services::audio_service::AudioService;
+#[cfg(feature = "audio-backend")]
 use crate::services::device_service::DeviceService;
+#[cfg(feature = "audio-backend")]
 use crate::services::file_service::FileService;
+#[cfg(feature = "audio-backend")]
 use crate::services::midi_service::MidiService;
-use commands::effect_commands::effects::{
-    add_effect, apply_effect_order_change, remove_effect, toggle_effect,
-};
+#[cfg(feature = "audio-backend")]
 use cpal::traits::{DeviceTrait, HostTrait};
+#[cfg(feature = "audio-backend")]
 use cpal::{available_hosts, default_host, host_from_id};
+#[cfg(feature = "audio-backend")]
 use cpal::{BufferSize, StreamConfig};
+#[cfg(feature = "audio-backend")]
 use std::sync::{Arc, Mutex};
+#[cfg(feature = "audio-backend")]
 use tauri::Manager;
+#[cfg(feature = "audio-backend")]
 use tracing::{error, info};
 
 const AMP_CONFIG_FILE_NAME: &str = "amp-config.json";
 
+#[cfg(feature = "audio-backend")]
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     init_tracing();
@@ -298,4 +329,9 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(not(feature = "audio-backend"))]
+pub fn run() {
+    panic!("The `audio-backend` feature is required to run the application");
 }

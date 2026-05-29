@@ -1,7 +1,9 @@
 use crate::domain::dto::channel_dto::ChannelDto;
 use crate::domain::dto::midi_mapping_dto::MidiMappingDto;
+#[cfg(feature = "audio-backend")]
 use crate::services::audio_service::AudioService;
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "audio-backend")]
 use std::sync::atomic::Ordering;
 
 /// Represents the complete amplifier configuration state.
@@ -30,11 +32,7 @@ impl Default for AmpConfigDto {
 }
 
 impl AmpConfigDto {
-    /// Constructs an `AmpConfigDto` from the current state of an [`AudioService`].
-    ///
-    /// `midi_bindings` is intentionally left empty here: MIDI state is owned
-    /// by `MidiService`, not `AudioService`. The persistence service merges
-    /// the two concerns before writing to disk.
+    #[cfg(feature = "audio-backend")]
     pub fn from_service(service: &AudioService) -> Self {
         let cm = service
             .channel_manager()

@@ -15,7 +15,7 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "test": "npm run test:rust && npm run test:ui",
-    "test:rust": "cd ./src-tauri && cargo test",
+    "test:rust": "cd ./src-tauri && cargo test --no-default-features",
     "test:rust-mutation": "cd ./src-tauri && cargo mutants",
     "test:ui": "vitest run",
     "test:ui-ui": "vitest run --ui --watch",
