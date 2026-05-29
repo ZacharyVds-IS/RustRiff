@@ -71,7 +71,7 @@ impl TunerService {
         let signal: Vec<f64> = samples.iter().map(|&s| s as f64).collect();
 
         let power_threshold = 0.05;
-        let clarity_threshold = 0.72;
+        let clarity_threshold = 0.73;
 
         MCLEOD_DETECTOR.with(|cell| {
             let mut detector = cell.borrow_mut();
