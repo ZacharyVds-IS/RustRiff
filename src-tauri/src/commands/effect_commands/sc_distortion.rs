@@ -58,7 +58,7 @@ pub fn set_sc_distortion_threshold(
     let device_service = device_service
         .lock()
         .map_err(|_| "Failed to lock device service".to_string())?;
-    persist_amp_config(&service,&device_service, &persistence_service);
+    persist_amp_config(&service, &device_service, &persistence_service);
     Ok(())
 }
 

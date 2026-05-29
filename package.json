@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "vite",
     "lint": "eslint .",
-    "format-rust": "cd ./src-tauri && cargo fmt --all",
+    "format-rust": "cd ./src-tauri && cargo fmt --all -- --check",
     "clippy-rust": "cd ./src-tauri && cargo clippy --all-targets --all-features -- ",
     "generate-types": "cargo tauri-typegen generate --output-path ./src/domain && npm run generate-effect-types",
     "generate-effect-types": "node scripts/generate-effect-types.mjs",
