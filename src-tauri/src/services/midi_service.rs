@@ -169,7 +169,7 @@ impl MidiService {
         channel_manager_ref: &Arc<Mutex<ChannelManager>>,
         app_handle: &Option<tauri::AppHandle>,
     ) {
-        let raw_hex: String = bytes
+        let _raw_hex: String = bytes
             .iter()
             .map(|b| format!("{:02X}", b))
             .collect::<Vec<_>>()
@@ -181,9 +181,9 @@ impl MidiService {
 
         let status = bytes[0];
         let msg_type = status & 0xF0;
-        let channel = status & 0x0F;
+        let _channel = status & 0x0F;
 
-        let type_name = match msg_type {
+        let _type_name = match msg_type {
             0x80 => "NoteOff",
             0x90 => "NoteOn",
             0xA0 => "PolyKeyPressure",
@@ -212,7 +212,7 @@ impl MidiService {
                                     Ok(new_active) => {
                                         (if new_active { 1.0 } else { 0.0 }, "active")
                                     }
-                                    Err(e) => (0.0, "active"),
+                                    Err(_e) => (0.0, "active"),
                                 }
                             } else {
                                 match param {
@@ -272,7 +272,7 @@ impl MidiService {
                 }
             }
         } else if bytes.len() >= 2 {
-            let data: String = bytes[1..]
+            let _data: String = bytes[1..]
                 .iter()
                 .map(|b| format!("{}", b))
                 .collect::<Vec<_>>()
