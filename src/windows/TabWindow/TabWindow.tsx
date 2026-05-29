@@ -1,26 +1,27 @@
 import {useEffect, useRef} from "react";
-import {AlphaTabApi, CoreSettings, PlayerSettings} from "@coderline/alphatab";
-import {Box, Button, Stack, Typography} from "@mui/material";
+import {AlphaTabApi} from "@coderline/alphatab";
+import {Box, Button, Stack} from "@mui/material";
 
 export function TabWindow() {
     const tabContainerRef = useRef<HTMLDivElement | null>(null);
-
     const apiRef = useRef<AlphaTabApi | null>(null);
 
     useEffect(() => {
         if (tabContainerRef.current) {
-            const settings: { player: PlayerSettings, core: CoreSettings } = {
-                player: {
-                    soundFont: 'https://cdn.jsdelivr.net/npm/@alphatab/alphatab@latest/dist/soundfont/sonivox.sf2'
-                } as Partial<PlayerSettings> as PlayerSettings,
+            // Automatically extracts the exact expected options type for your alphaTab version
+            const settings: ConstructorParameters<typeof AlphaTabApi>[1] = {
                 core: {
-                    fontDirectory: 'https://cdn.jsdelivr.net/npm/@alphatab/alphatab@latest/dist/font/'
-                } as Partial<CoreSettings> as CoreSettings,
+                    fontDirectory: '/font/'
+                },
+                player: {
+                    enablePlayer: true,
+                    soundFont: '/soundfont/sonivox.sf2'
+                }
             };
+
             apiRef.current = new AlphaTabApi(tabContainerRef.current, settings);
         }
 
-        // Cleanup: safely destroy the instance when the component unmounts
         return () => {
             if (apiRef.current) {
                 apiRef.current.destroy();
@@ -29,7 +30,6 @@ export function TabWindow() {
         };
     }, []);
 
-    // Example handler for a type-safe button interaction
     const handlePlayPause = (): void => {
         if (apiRef.current) {
             apiRef.current.playPause();
@@ -37,20 +37,17 @@ export function TabWindow() {
     };
 
     return (
-        <Box>
-            <Stack>
-                <Typography variant={"h2"}>
-                    Test Tab
-                </Typography>
-                <Button onClick={handlePlayPause} variant={"contained"} color={"primary"}>
+        <Box sx={{p: 3}}>
+            <Stack spacing={2} sx={{mb: 3}}>
+                <Button onClick={handlePlayPause} variant="contained" color="primary" sx={{width: 'fit-content'}}>
                     Play / Pause
                 </Button>
             </Stack>
 
-            {/* Container element for alphaTab */}
+            {/* Container element for alphaTab - Points to public folder */}
             <div
                 ref={tabContainerRef}
-                data-file="Dire Straits - Sultans of Swing.gp"
+                data-file="/sultans-of-swing.gp"
             />
         </Box>
     );
