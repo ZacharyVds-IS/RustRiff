@@ -3,7 +3,9 @@ use crate::domain::dto::channel_dto::ChannelDto;
 use crate::domain::dto::midi_mapping_dto::MidiMappingDto;
 #[cfg(feature = "audio-backend")]
 use crate::services::audio_service::AudioService;
+#[cfg(feature = "audio-backend")]
 use crate::services::device_service::DeviceService;
+#[cfg(feature = "audio-backend")]
 use cpal::traits::DeviceTrait;
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "audio-backend")]
@@ -23,7 +25,9 @@ pub struct AmpConfigDto {
     pub channels: Vec<ChannelDto>,
     /// The current channel id
     pub current_channel: String,
-    /// Hardware Configuration
+    /// Hardware Configuration. Absent from files written before this field
+    /// was introduced is tolerated via `#[serde(default)]`.
+    #[serde(default)]
     pub audio_settings: AudioSettingsDto,
     /// MIDI CC → effect bindings. Persisted across restarts; absent from
     /// files written before this field was introduced is tolerated via
@@ -41,6 +45,7 @@ impl AmpConfigDto {
     /// * `service` - The [`AudioService`] to snapshot.
     #[cfg(feature = "audio-backend")]
     pub fn from_service(audio_service: &AudioService, device_service: &DeviceService) -> Self {
+        let cm = audio_service.channel_manager().lock().unwrap();
         Self {
             master_volume: audio_service.master_volume().load(Ordering::Relaxed),
             is_active: *audio_service.is_active(),

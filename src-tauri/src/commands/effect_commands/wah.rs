@@ -1,6 +1,7 @@
 use crate::commands::helpers::persist_amp_config;
 use crate::services::amp_config_service::AmpConfigPersistenceService;
 use crate::services::audio_service::AudioService;
+use crate::services::device_service::DeviceService;
 use std::sync::Mutex;
 use tracing::info;
 use uuid::Uuid;
@@ -29,6 +30,7 @@ use uuid::Uuid;
 #[tauri::command]
 pub fn set_wah_pedal_position(
     audio_service: tauri::State<Mutex<AudioService>>,
+    device_service: tauri::State<Mutex<DeviceService>>,
     persistence_service: tauri::State<Mutex<AmpConfigPersistenceService>>,
     effect_id: String,
     pedal_position: f32,
@@ -61,8 +63,12 @@ pub fn set_wah_pedal_position(
     );
     drop(cm);
 
+    let device_service_guard = device_service
+        .lock()
+        .map_err(|_| "Failed to lock device service".to_string())?;
+
     // Persist config
-    persist_amp_config(&service, &persistence_service);
+    persist_amp_config(&service, &device_service_guard, &persistence_service);
 
     Ok(())
 }

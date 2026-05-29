@@ -9,6 +9,7 @@ pub mod commands;
 #[cfg(test)]
 pub mod tests;
 
+#[cfg(feature = "audio-backend")]
 use crate::config::{get_default_ir_file, init_tracing};
 
 #[cfg(feature = "audio-backend")]
@@ -233,15 +234,16 @@ pub fn run() {
                         info!("Loaded persisted amplifier configuration");
 
                         if let Ok(mut audio_service) = app.state::<Mutex<AudioService>>().lock() {
+                            let midi_bindings = config.midi_bindings.clone();
                             audio_service.apply_amp_config(config, &device_service);
+
+                            if !midi_bindings.is_empty() {
+                                midi.set_bindings(midi_bindings);
+                            } else {
+                                info!("No saved MIDI bindings found — starting fresh");
+                            }
                         } else {
                             error!("Failed to lock audio service during startup");
-                        }
-
-                        if !config.midi_bindings.is_empty() {
-                            midi.set_bindings(config.midi_bindings);
-                        } else {
-                            info!("No saved MIDI bindings found — starting fresh");
                         }
                     }
                     Ok(None) => info!("No persisted amplifier configuration found"),

@@ -5,7 +5,6 @@ use crate::services::audio_service::AudioService;
 use crate::services::device_service::DeviceService;
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
-use cpal::Device;
 use tracing::error;
 
 /// Application service coordinating amplifier configuration persistence.
@@ -70,8 +69,12 @@ impl AmpConfigPersistenceService {
     /// This is the primary method used by mutating Tauri commands after they
     /// successfully update amplifier state. Disk I/O is executed by a background
     /// worker thread so command handlers return quickly.
-    pub fn persist_from_audio_service(&self, audio_service: &AudioService, device_service: &DeviceService) -> Result<(), String> {
-        let snapshot = AmpConfigDto::from_service(audio_service, device_service);
+    pub fn persist_from_audio_service(
+        &self,
+        audio_service: &AudioService,
+        device_service: &DeviceService,
+    ) -> Result<(), String> {
+        let mut snapshot = AmpConfigDto::from_service(audio_service, device_service);
         snapshot.midi_bindings = self
             .repository
             .load()
@@ -115,7 +118,9 @@ impl AmpConfigPersistenceService {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::domain::channel_manager::ChannelManager;
     use crate::domain::dto::audio_settings_dto::AudioSettingsDto;
+    use crate::infrastructure::audio_handler::MockAudioHandlerTrait;
     use std::sync::{Arc, Condvar, Mutex};
     use std::time::Duration;
 
@@ -237,20 +242,6 @@ mod tests {
         }
     }
 
-    fn make_audio_service() -> AudioService {
-        let mock = MockAudioHandlerTrait::new();
-        AudioService::new_with_handler(Arc::new(mock), Arc::new(Mutex::new(ChannelManager::new())))
-    }
-
-    fn sample_binding() -> MidiMappingDto {
-        MidiMappingDto {
-            channel: 1,
-            cc_number: 11,
-            effect_id: uuid::Uuid::new_v4().to_string(),
-            parameter: MidiTargetParameter::WahPedalPosition,
-        }
-    }
-
     #[test]
     fn load_amp_config_returns_repository_value() {
         let state = Arc::new(SpyRepositoryState::new());
@@ -260,6 +251,8 @@ mod tests {
             is_active: false,
             channels: Vec::new(),
             current_channel: expected_id.clone(),
+            audio_settings: AudioSettingsDto::default(),
+            midi_bindings: vec![],
         };
 
         *state
@@ -304,18 +297,23 @@ mod tests {
         }));
 
         let mock = MockAudioHandlerTrait::new();
-        let audio_service = AudioService::new_with_handler(Arc::new(mock));
+        let audio_service = AudioService::new_with_handler(
+            Arc::new(mock),
+            Arc::new(Mutex::new(ChannelManager::new())),
+        );
+        let device_service = DeviceService::new();
 
         service
-            .persist_from_audio_service(&audio_service)
+            .persist_from_audio_service(&audio_service, &device_service)
             .expect("persist should succeed");
 
         let saved = state.wait_for_saved_count(1, Duration::from_secs(1));
         assert_eq!(saved.len(), 1);
 
+        let cm = audio_service.channel_manager().lock().unwrap();
         assert_eq!(
             saved[0].current_channel,
-            audio_service.current_channel_id().to_string()
+            cm.current_channel_id().to_string()
         );
         assert!(!saved[0].is_active);
     }
@@ -332,10 +330,14 @@ mod tests {
             state: Arc::clone(&state),
         }));
         let mock = MockAudioHandlerTrait::new();
-        let audio_service = AudioService::new_with_handler(Arc::new(mock));
+        let audio_service = AudioService::new_with_handler(
+            Arc::new(mock),
+            Arc::new(Mutex::new(ChannelManager::new())),
+        );
+        let device_service = DeviceService::new();
 
         service
-            .persist_from_audio_service(&audio_service)
+            .persist_from_audio_service(&audio_service, &device_service)
             .expect("enqueue should succeed");
 
         let saved = state.wait_for_saved_count(1, Duration::from_secs(1));
@@ -361,6 +363,8 @@ mod tests {
             is_active: false,
             channels: Vec::new(),
             current_channel,
+            audio_settings: AudioSettingsDto::default(),
+            midi_bindings: vec![],
         };
 
         service

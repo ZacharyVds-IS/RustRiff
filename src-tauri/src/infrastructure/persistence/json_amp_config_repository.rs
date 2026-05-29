@@ -165,6 +165,7 @@ impl AmpConfigPersistence for JsonFileAmpConfigRepository {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::domain::dto::audio_settings_dto::AudioSettingsDto;
     use crate::domain::dto::midi_mapping_dto::MidiMappingDto;
     use crate::domain::midi_target_parameter::MidiTargetParameter;
     use std::time::{SystemTime, UNIX_EPOCH};
@@ -183,6 +184,7 @@ mod tests {
             is_active: false,
             channels: Vec::new(),
             current_channel: "0".to_string(),
+            audio_settings: AudioSettingsDto::default(),
             midi_bindings: Vec::new(),
         }
     }
@@ -213,6 +215,7 @@ mod tests {
             is_active: true, // must be reset to false on load
             channels: Vec::new(),
             current_channel: "0".to_string(),
+            audio_settings: AudioSettingsDto::default(),
             midi_bindings: Vec::new(),
         };
 
@@ -282,9 +285,22 @@ mod tests {
         let path = unique_test_path();
         fs::write(
             &path,
-            r#"{ "master_volume": 0.6, "channels": [], "current_channel": "0" }"#,
+            r#"{
+              "master_volume": 0.6,
+              "channels": [],
+              "current_channel": "0",
+              "audio_settings": {
+                "input_device_name": "asio:Focusrite USB ASIO",
+                "output_device_name": "asio:Focusrite USB ASIO",
+                "input_sample_rate": 48000,
+                "output_sample_rate": 48000,
+                "input_channels": 2,
+                "output_channels": 2,
+                "audio_driver": "ASIO"
+              }
+            }"#,
         )
-            .expect("write should succeed");
+        .expect("Failed to write mock config file");
 
         let repo = JsonFileAmpConfigRepository::new(path.clone());
         let loaded = repo

@@ -49,9 +49,9 @@ pub(crate) fn toggle_on_off(
     is_on: bool,
 ) {
     let mut service = audio_service.inner().lock().unwrap();
-    let device_service = device_service.inner().lock().unwrap();
+    let device_service_guard = device_service.inner().lock().unwrap();
     service.toggle_loopback(is_on);
-    persist_amp_config(&audio_service, &device_service, &persistence_service);
+    persist_amp_config(&service, &device_service_guard, &persistence_service);
 }
 
 /// Sets the input gain level for the amplifier.
@@ -72,13 +72,13 @@ pub(crate) fn set_gain(
     gain: f32,
 ) {
     let service = audio_service.inner().lock().unwrap();
-    let device_service = device_service.inner().lock().unwrap();
+    let device_service_guard = device_service.inner().lock().unwrap();
     let cm = service.channel_manager().lock().unwrap();
     cm.current_channel()
         .expect("current channel must exist")
         .set_gain(gain);
     drop(cm);
-    persist_amp_config(&audio_service, &device_service, &persistence_service);
+    persist_amp_config(&service, &device_service_guard, &persistence_service);
 }
 
 /// Sets the master volume level for the amplifier.
@@ -99,9 +99,9 @@ pub(crate) fn set_master_volume(
     master_volume: f32,
 ) {
     let service = audio_service.inner().lock().unwrap();
-    let device_service = device_service.inner().lock().unwrap();
+    let device_service_guard = device_service.inner().lock().unwrap();
     service.set_master_volume(master_volume);
-    persist_amp_config(&audio_service, &device_service, &persistence_service);
+    persist_amp_config(&service, &device_service_guard, &persistence_service);
 }
 
 /// Sets the tone stack configuration for the current channel.
@@ -124,14 +124,14 @@ pub(crate) fn set_tone_stack(
     tone_stack: ToneStackDto,
 ) {
     let service = audio_service.inner().lock().unwrap();
-    let device_service = device_service.inner().lock().unwrap();
+    let device_service_guard = device_service.inner().lock().unwrap();
     let cm = service.channel_manager().lock().unwrap();
     cm.current_channel()
         .expect("current channel must exist")
         .set_tone_stack(tone_stack);
     drop(cm);
 
-    persist_amp_config(&audio_service, &device_service, &persistence_service);
+    persist_amp_config(&service, &device_service_guard, &persistence_service);
 }
 
 /// Sets the bass level for the current channel.
@@ -154,13 +154,13 @@ pub(crate) fn set_bass(
     bass: f32,
 ) {
     let service = audio_service.inner().lock().unwrap();
-    let device_service = device_service.inner().lock().unwrap();
+    let device_service_guard = device_service.inner().lock().unwrap();
     let cm = service.channel_manager().lock().unwrap();
     cm.current_channel()
         .expect("current channel must exist")
         .set_bass(bass);
     drop(cm);
-    persist_amp_config(&audio_service, &device_service, &persistence_service);
+    persist_amp_config(&service, &device_service_guard, &persistence_service);
 }
 
 /// Sets the middle frequency level for the current channel.
@@ -183,13 +183,13 @@ pub(crate) fn set_middle(
     middle: f32,
 ) {
     let service = audio_service.inner().lock().unwrap();
-    let device_service = device_service.inner().lock().unwrap();
+    let device_service_guard = device_service.inner().lock().unwrap();
     let cm = service.channel_manager().lock().unwrap();
     cm.current_channel()
         .expect("current channel must exist")
         .set_middle(middle);
     drop(cm);
-    persist_amp_config(&audio_service, &device_service, &persistence_service);
+    persist_amp_config(&service, &device_service_guard, &persistence_service);
 }
 
 /// Sets the treble level for the current channel.
@@ -212,13 +212,13 @@ pub(crate) fn set_treble(
     treble: f32,
 ) {
     let service = audio_service.inner().lock().unwrap();
-    let device_service = device_service.inner().lock().unwrap();
+    let device_service_guard = device_service.inner().lock().unwrap();
     let cm = service.channel_manager().lock().unwrap();
     cm.current_channel()
         .expect("current channel must exist")
         .set_treble(treble);
     drop(cm);
-    persist_amp_config(&audio_service, &device_service, &persistence_service);
+    persist_amp_config(&service, &device_service_guard, &persistence_service);
 }
 
 /// Sets the output volume for the current channel.
@@ -241,11 +241,11 @@ pub(crate) fn set_volume(
     volume: f32,
 ) {
     let service = audio_service.inner().lock().unwrap();
-    let device_service = device_service.inner().lock().unwrap();
+    let device_service_guard = device_service.inner().lock().unwrap();
     let cm = service.channel_manager().lock().unwrap();
     cm.current_channel()
         .expect("current channel must exist")
         .set_volume(volume);
     drop(cm);
-    persist_amp_config(&audio_service, &device_service, &persistence_service);
+    persist_amp_config(&service, &device_service_guard, &persistence_service);
 }

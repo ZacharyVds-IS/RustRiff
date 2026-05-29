@@ -87,8 +87,10 @@ impl AudioService {
     /// # Arguments
     ///
     /// * `handler` - An [`Arc`]-wrapped implementation of [`AudioHandlerTrait`].
-    pub fn new_with_handler(handler: Arc<dyn AudioHandlerTrait>,channel_manager: Arc<Mutex<ChannelManager>>) -> Self {
-        let default_channel_id = Uuid::new_v4();
+    pub fn new_with_handler(
+        handler: Arc<dyn AudioHandlerTrait>,
+        channel_manager: Arc<Mutex<ChannelManager>>,
+    ) -> Self {
         Self {
             audio_handler: handler,
             loopback_thread: None,
@@ -466,11 +468,6 @@ impl AudioService {
         id
     }
 
-    /// Returns a mutable reference to the channel list, allowing channels to be modified or reordered.
-    pub fn channels_mut(&mut self) -> &mut Vec<Channel> {
-        &mut self.channels
-    }
-
     /// Removes the channel with the given id from the channel list and sets `current_channel_id` to 0 (default channel).
     ///
     /// # Arguments
@@ -561,63 +558,11 @@ impl AudioService {
     /// `is_active = false`, so persisted sessions restart with loopback turned
     /// off even though this method is capable of applying either state.
     pub fn apply_amp_config(&mut self, config: AmpConfigDto, device_service: &DeviceService) {
-        let mut restored_channels = Vec::new();
-        //TODO:UPDATE THIS TO USE CHANNEL MANAGER CORRECTLY
-        // Backward compatibility: older snapshots stored tone values as 0..100.
-        // New normalized format is 0.0..1.0 end-to-end.
-        let normalize_tone_value = |value: f32| -> f32 {
-            if value > 1.0 {
-                (value / 100.0).clamp(0.0, 1.0)
-            } else {
-                value.clamp(0.0, 1.0)
-            }
-        };
-
-        for channel_dto in config.channels {
-            let mut channel = Channel::new(
-                Uuid::parse_str(channel_dto.id.as_str()).expect("Could not parse UUID"),
-                channel_dto.name,
-                Some(channel_dto.gain.max(0.0001)),
-                Some(channel_dto.volume.max(0.0001)),
-            );
-
-            channel.set_bass(normalize_tone_value(channel_dto.tone_stack.bass));
-            channel.set_middle(normalize_tone_value(channel_dto.tone_stack.middle));
-            channel.set_treble(normalize_tone_value(channel_dto.tone_stack.treble));
-
-            let restored_effects = channel_dto
-                .effect_chain
-                .into_iter()
-                .map(|effect_dto: EffectDto| effect_dto.to_domain(self.dsp_chain_sample_rate()))
-                .collect::<Vec<_>>();
-
-            if !restored_effects.is_empty() {
-                channel.restore_effect_chain(restored_effects);
-            }
-            restored_channels.push(channel);
-        }
-
-        if restored_channels.is_empty() {
-            restored_channels.push(Channel::new(
-                Uuid::new_v4(),
-                "Default".to_string(),
-                None,
-                None,
-            ));
-        }
-
-        let current_channel = if restored_channels
-            .iter()
-            .any(|c| c.id().to_string() == config.current_channel)
+        let dsp_sample_rate = self.dsp_chain_sample_rate();
         {
-            config.current_channel
-        } else {
-            restored_channels[0].id().to_string()
-        };
-
-        self.channels = restored_channels;
-        self.current_channel_id =
-            Uuid::parse_str(current_channel.as_str()).expect("Could not parse UUID");
+            let mut cm = self.channel_manager.lock().expect("channel_manager lock");
+            cm.restore_from_dtos(config.channels, &config.current_channel, dsp_sample_rate);
+        }
         self.master_volume
             .store(config.master_volume.max(0.0001), Ordering::Relaxed);
 
@@ -895,24 +840,26 @@ mod tests {
                 ],
                 current_channel: channel_id_2.clone(),
                 audio_settings: basic_audio_settings(),
+                midi_bindings: vec![],
             };
 
             service.apply_amp_config(config, &DeviceService::new());
 
-            let channels = service.channels();
-            let clean = channels
+            let cm = channels(&service);
+            let clean = cm
+                .channels()
                 .iter()
                 .find(|channel| channel.id().to_string() == channel_id_1)
                 .unwrap();
-            let lead = channels
+            let lead = cm
+                .channels()
                 .iter()
                 .find(|channel| channel.id().to_string() == channel_id_2)
                 .unwrap();
 
             // Verify directly from service state (avoid from_service which requires device mocking)
-            let channels = service.channels();
-            assert_eq!(channels.len(), 2);
-            assert_eq!(service.current_channel_id().to_string(), channel_id_2);
+            assert_eq!(cm.channels().len(), 2);
+            assert_eq!(cm.current_channel_id().to_string(), channel_id_2);
             assert!(!*service.is_active());
             assert!((service.master_volume().load(Ordering::Relaxed) - 0.42).abs() < f32::EPSILON);
 
@@ -957,14 +904,15 @@ mod tests {
                 )],
                 current_channel: channel_id_1.to_string(),
                 audio_settings: basic_audio_settings(),
+                midi_bindings: vec![],
             };
 
             service.apply_amp_config(config, &DeviceService::new());
 
-            let channels = service.channels();
-            assert_eq!(channels.len(), 1);
+            let cm = channels(&service);
+            assert_eq!(cm.channels().len(), 1);
 
-            let channel = &channels[0];
+            let channel = &cm.channels()[0];
             let effect_chain_arc = channel.effect_chain();
             let chain = effect_chain_arc.lock().unwrap();
             assert_eq!(chain.len(), 1);
@@ -987,6 +935,7 @@ mod tests {
                 )],
                 current_channel: Uuid::new_v4().to_string(),
                 audio_settings: basic_audio_settings(),
+                midi_bindings: vec![],
             };
 
             service.apply_amp_config(config, &DeviceService::new());
@@ -1016,16 +965,20 @@ mod tests {
                     channels: vec![],
                     current_channel: Uuid::new_v4().to_string(),
                     audio_settings: basic_audio_settings(),
+                    midi_bindings: vec![],
                 },
                 &DeviceService::new(),
             );
-            service.apply_amp_config(AmpConfigDto {
-                master_volume: 0.75,
-                is_active: false,
-                channels: vec![],
-                current_channel: Uuid::new_v4().to_string(),
-                ..AmpConfigDto::default()
-            });
+            service.apply_amp_config(
+                AmpConfigDto {
+                    master_volume: 0.75,
+                    is_active: false,
+                    channels: vec![],
+                    current_channel: Uuid::new_v4().to_string(),
+                    ..AmpConfigDto::default()
+                },
+                &DeviceService::new(),
+            );
 
             let cm = channels(&service);
             assert_eq!(cm.channels().len(), 1);
@@ -1052,23 +1005,27 @@ mod tests {
                     )],
                     current_channel: channel_id_1.to_string(),
                     audio_settings: basic_audio_settings(),
+                    midi_bindings: vec![],
                 },
                 &DeviceService::new(),
             );
-            service.apply_amp_config(AmpConfigDto {
-                master_volume: 0.9,
-                is_active: true,
-                channels: vec![channel_dto(
-                    channel_id_1.to_string(),
-                    "Loopback",
-                    1.0,
-                    1.0,
-                    tone_stack(0.5, 0.5, 0.5),
-                    vec![],
-                )],
-                current_channel: channel_id_1.to_string(),
-                ..AmpConfigDto::default()
-            });
+            service.apply_amp_config(
+                AmpConfigDto {
+                    master_volume: 0.9,
+                    is_active: true,
+                    channels: vec![channel_dto(
+                        channel_id_1.to_string(),
+                        "Loopback",
+                        1.0,
+                        1.0,
+                        tone_stack(0.5, 0.5, 0.5),
+                        vec![],
+                    )],
+                    current_channel: channel_id_1.to_string(),
+                    ..AmpConfigDto::default()
+                },
+                &DeviceService::new(),
+            );
 
             assert!(*service.is_active());
 
@@ -1138,6 +1095,7 @@ mod tests {
                 channels: vec![],
                 current_channel: "".to_string(),
                 audio_settings,
+                midi_bindings: vec![],
             };
 
             service.apply_amp_config(config, &device_service);

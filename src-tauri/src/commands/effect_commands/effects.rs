@@ -15,7 +15,7 @@ pub(crate) fn add_effect(
     persistence_service: tauri::State<Mutex<AmpConfigPersistenceService>>,
     effect_dto: EffectDto,
 ) -> Result<(), String> {
-    let mut service = audio_service.inner().lock().unwrap();
+    let service = audio_service.inner().lock().unwrap();
     let dsp_sample_rate = service.dsp_chain_sample_rate();
 
     let effect = effect_dto.add_to_domain(dsp_sample_rate);
@@ -23,8 +23,8 @@ pub(crate) fn add_effect(
         let mut cm = service.channel_manager().lock().unwrap();
         cm.add_effect_to_current(effect);
     }
-    let device_service = device_service.inner().lock().unwrap();
-    persist_amp_config(&service,  &device_service, &persistence_service);
+    let device_service_guard = device_service.inner().lock().unwrap();
+    persist_amp_config(&service, &device_service_guard, &persistence_service);
     Ok(())
 }
 
@@ -40,8 +40,8 @@ pub(crate) fn remove_effect(
         let mut cm = service.channel_manager().lock().unwrap();
         cm.remove_effect_from_current(Uuid::parse_str(&effect_id).expect("failed to parse id"));
     }
-    let device_service = device_service.inner().lock().unwrap();
-    persist_amp_config(&service,&device_service, &persistence_service);
+    let device_service_guard = device_service.inner().lock().unwrap();
+    persist_amp_config(&service, &device_service_guard, &persistence_service);
 }
 
 #[tauri::command]
@@ -49,7 +49,7 @@ pub(crate) fn apply_effect_order_change(
     audio_service: tauri::State<Mutex<AudioService>>,
     effects: Vec<EffectDto>,
 ) {
-    let mut service = audio_service.inner().lock().unwrap();
+    let service = audio_service.inner().lock().unwrap();
     let dsp_sample_rate = service.dsp_chain_sample_rate();
     let boxed_effects: Vec<Box<dyn Effect>> = effects
         .into_iter()
@@ -96,10 +96,10 @@ pub fn toggle_effect(
         "Effect toggled"
     );
 
-    let device_service = device_service
+    let device_service_guard = device_service
         .lock()
         .map_err(|_| "Failed to lock device service".to_string())?;
     drop(cm);
-    persist_amp_config(&audio_service, &device_service, &persistence_service);
+    persist_amp_config(&service, &device_service_guard, &persistence_service);
     Ok(new_state)
 }

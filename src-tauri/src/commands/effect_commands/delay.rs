@@ -23,7 +23,7 @@ pub fn set_delay_level(
     let service = audio_service
         .lock()
         .map_err(|_| "Failed to lock audio service".to_string())?;
-    let device_service = device_service
+    let device_service_guard = device_service
         .lock()
         .map_err(|_| "Failed to lock device service".to_string())?;
     let cm = service.channel_manager().lock().unwrap();
@@ -33,7 +33,7 @@ pub fn set_delay_level(
         level,
     )?;
     drop(cm);
-    persist_amp_config(&audio_service, &device_service, &persistence_service);
+    persist_amp_config(&service, &device_service_guard, &persistence_service);
     Ok(())
 }
 
@@ -48,7 +48,7 @@ pub fn set_delay_delay_time(
     let service = audio_service
         .lock()
         .map_err(|_| "Failed to lock audio service".to_string())?;
-    let device_service = device_service
+    let device_service_guard = device_service
         .lock()
         .map_err(|_| "Failed to lock device service".to_string())?;
     let cm = service.channel_manager().lock().unwrap();
@@ -58,6 +58,6 @@ pub fn set_delay_delay_time(
         delay_time,
     )?;
     drop(cm);
-    persist_amp_config(&audio_service, &device_service, &persistence_service);
+    persist_amp_config(&service, &device_service_guard, &persistence_service);
     Ok(())
 }
