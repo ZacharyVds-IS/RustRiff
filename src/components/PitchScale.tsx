@@ -112,7 +112,7 @@ export function PitchScale({ renderCents, isSignalActive, is_in_tune }: PitchSca
                         zIndex: 2,
                         left: `calc(50% + ${Math.min(50, Math.max(-50, renderCents)) * 0.9}%)`,
                         transform: "translateX(-50%)",
-                        transition: "bgcolor 0.2s ease"
+                        transition: "bgcolor 0.2s ease, left 0.1s ease-out",
                     }}
                 />
             </Box>
