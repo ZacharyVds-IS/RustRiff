@@ -66,6 +66,15 @@ interface AmpState extends AmpConfigDto {
 export const useAmpStore = create<AmpState>((set, get) => ({
         master_volume: 1,
         is_active: false,
+        audio_settings: {
+            input_device_name: "",
+            output_device_name: "",
+            input_sample_rate: 0,
+            output_sample_rate: 0,
+            input_channels: 0,
+            output_channels: 0,
+            audio_driver: "",
+        },
         channels: [{
             id: "0",
             name: "Default",

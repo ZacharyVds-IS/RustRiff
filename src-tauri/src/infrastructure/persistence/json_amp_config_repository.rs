@@ -1,4 +1,5 @@
 use crate::domain::dto::amp_config_dto::AmpConfigDto;
+use crate::domain::dto::audio_settings_dto::AudioSettingsDto;
 use crate::domain::dto::channel_dto::ChannelDto;
 use crate::domain::dto::midi_mapping_dto::MidiMappingDto;
 use crate::infrastructure::persistence::amp_config_persistence_trait::AmpConfigPersistence;
@@ -33,6 +34,7 @@ struct PersistedAmpConfig {
     master_volume: f32,
     channels: Vec<ChannelDto>,
     current_channel: String,
+    audio_settings: AudioSettingsDto,
     #[serde(default)]
     midi_bindings: Vec<MidiMappingDto>,
 }
@@ -43,6 +45,7 @@ impl From<&AmpConfigDto> for PersistedAmpConfig {
             master_volume: config.master_volume,
             channels: config.channels.clone(),
             current_channel: config.current_channel.clone(),
+            audio_settings: config.audio_settings.clone(),
             midi_bindings: config.midi_bindings.clone(),
         }
     }
@@ -55,6 +58,7 @@ impl From<PersistedAmpConfig> for AmpConfigDto {
             is_active: false,
             channels: config.channels,
             current_channel: config.current_channel,
+            audio_settings: config.audio_settings,
             midi_bindings: config.midi_bindings,
         }
     }
@@ -280,7 +284,7 @@ mod tests {
             &path,
             r#"{ "master_volume": 0.6, "channels": [], "current_channel": "0" }"#,
         )
-        .expect("write should succeed");
+            .expect("write should succeed");
 
         let repo = JsonFileAmpConfigRepository::new(path.clone());
         let loaded = repo

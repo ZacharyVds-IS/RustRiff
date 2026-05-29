@@ -66,9 +66,10 @@ export default defineConfig({
         ]
       },
       {
-        text: 'Arc42 Description',
+        text: 'Research',
         items:[
-          {text: 'Architecture Description', link:'/arc42/arc42_project_descriptions.md'}
+          {text: 'Architecture Description (arc42)', link:'/arc42/arc42_project_descriptions.md'},
+          {text: 'Neural Networking in DSP', link:'/arc42/neural-network-research.md'}
         ]
       }
     ],

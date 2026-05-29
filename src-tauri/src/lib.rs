@@ -196,11 +196,12 @@ pub fn run() {
         output_config,
         channel_manager.clone(),
     );
+    let device_service = DeviceService::new();
 
     tauri::Builder::default()
         .manage(Mutex::new(audio_service))
         .manage(SpectrumStreamState::default())
-        .manage(DeviceService::new())
+        .manage(Mutex::new(device_service))
         .manage(MidiService::new(channel_manager))
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
@@ -222,12 +223,17 @@ pub fn run() {
             {
                 let _audio_service_state = app.state::<Mutex<AudioService>>();
 
+                let device_service_state = app.state::<Mutex<DeviceService>>();
+                let device_service = device_service_state
+                    .lock()
+                    .map_err(|_| "Failed to lock device service during startup")?;
+
                 match amp_config_persistence_service.load_amp_config() {
                     Ok(Some(config)) => {
                         info!("Loaded persisted amplifier configuration");
 
                         if let Ok(mut audio_service) = app.state::<Mutex<AudioService>>().lock() {
-                            audio_service.apply_amp_config(config.clone());
+                            audio_service.apply_amp_config(config, &device_service);
                         } else {
                             error!("Failed to lock audio service during startup");
                         }
