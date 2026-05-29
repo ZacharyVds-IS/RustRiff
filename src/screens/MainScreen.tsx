@@ -19,9 +19,6 @@ export function MainScreen() {
         state.channels.find((c) => c.id === state.current_channel)
     );
     const currentChannelId = useAmpStore((state) => state.current_channel);
-
-    const [editOrderOpen, setEditOrderOpen] = useState<boolean>(false);
-
     const [selection, setSelection] = useState<EffectSelection>("amp");
     useEffect(() => {
         setSelection("amp");
@@ -63,15 +60,14 @@ export function MainScreen() {
                             effectId: selected.data.id,
                         });
                     }}
-                    onReorderOpen={setEditOrderOpen}
                 />
             }
-            {!editOrderOpen &&
-                ((resolvedSelection === "amp" || !resolvedSelection)
+            {
+                    (resolvedSelection === "amp" || !resolvedSelection)
                     ? <DefaultAmpControls/>
                     : resolvedSelection.kind === "Cabinet"
                     ? <CabinetEffect effect={resolvedSelection}/>
-                    : <EffectPedal effect={resolvedSelection}/>)
+                    : <EffectPedal effect={resolvedSelection}/>
             }
         </Box>
     );
