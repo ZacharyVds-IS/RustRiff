@@ -148,9 +148,7 @@ impl AudioProcessor for Wah {
         let low_pass = f * band_pass + self.s2;
         self.s1 = band_pass;
         self.s2 = low_pass;
-        let wah_signal = band_pass * 2.5;
-
-        wah_signal
+        band_pass * 2.5
     }
 }
 

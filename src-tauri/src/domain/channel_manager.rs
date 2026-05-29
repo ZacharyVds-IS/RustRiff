@@ -26,6 +26,12 @@ pub struct ChannelManager {
     current_channel_id: Uuid,
 }
 
+impl Default for ChannelManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ChannelManager {
     pub fn new() -> Self {
         let default_channel_id = Uuid::new_v4();

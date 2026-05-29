@@ -79,6 +79,7 @@ export const useAmpStore = create<AmpState>((set, get) => ({
             effect_chain: [],
         }],
         current_channel: "0",
+        midi_bindings: [],
         chain_snapshot: null,
 
         init: async () => {

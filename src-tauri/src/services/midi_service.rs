@@ -8,8 +8,10 @@ use uuid::Uuid;
 
 use crate::domain::channel_manager::ChannelManager;
 use crate::domain::dto::midi_mapping_dto::MidiMappingDto;
-use crate::domain::dto::MidiDeviceDto::MidiDeviceDto;
 use crate::domain::midi_target_parameter::MidiTargetParameter;
+
+type BindingsMap = HashMap<(u8, u8), (Uuid, MidiTargetParameter)>;
+use crate::domain::dto::midi_device_dto::MidiDeviceDto;
 use crate::infrastructure::midi_handler::MidiHandler;
 use crate::infrastructure::midi_parser::ParsedMidiCc;
 
@@ -23,7 +25,7 @@ pub struct MidiValueChangedPayload {
 
 pub struct MidiService {
     active_connection: Mutex<Option<MidiInputConnection<()>>>,
-    bindings: Arc<Mutex<HashMap<(u8, u8), (Uuid, MidiTargetParameter)>>>,
+    bindings: Arc<Mutex<BindingsMap>>,
     channel_manager: Arc<Mutex<ChannelManager>>,
     app_handle: Mutex<Option<tauri::AppHandle>>,
 }
@@ -147,9 +149,7 @@ impl MidiService {
 
     /// Converts the in-memory bindings map to a `Vec` of DTOs suitable for
     /// persistence or command responses.
-    fn bindings_to_dtos(
-        bindings: &HashMap<(u8, u8), (Uuid, MidiTargetParameter)>,
-    ) -> Vec<MidiMappingDto> {
+    fn bindings_to_dtos(bindings: &BindingsMap) -> Vec<MidiMappingDto> {
         bindings
             .iter()
             .map(
@@ -165,7 +165,7 @@ impl MidiService {
 
     fn process_incoming_message(
         bytes: &[u8],
-        bindings_ref: &Arc<Mutex<HashMap<(u8, u8), (Uuid, MidiTargetParameter)>>>,
+        bindings_ref: &Arc<Mutex<BindingsMap>>,
         channel_manager_ref: &Arc<Mutex<ChannelManager>>,
         app_handle: &Option<tauri::AppHandle>,
     ) {
@@ -554,14 +554,14 @@ mod tests {
 
         #[test]
         fn empty_map_yields_empty_vec() {
-            let map: HashMap<(u8, u8), (Uuid, MidiTargetParameter)> = HashMap::new();
+            let map: BindingsMap = HashMap::new();
             let dtos = MidiService::bindings_to_dtos(&map);
             assert!(dtos.is_empty());
         }
 
         #[test]
         fn converts_single_entry() {
-            let mut map: HashMap<(u8, u8), (Uuid, MidiTargetParameter)> = HashMap::new();
+            let mut map: BindingsMap = HashMap::new();
             let id = Uuid::new_v4();
             map.insert((0, 10), (id, MidiTargetParameter::ToggleBypass));
 
@@ -583,8 +583,7 @@ mod tests {
         #[test]
         fn noop_on_empty_bytes() {
             let cm = Arc::new(Mutex::new(ChannelManager::new()));
-            let bindings: Arc<Mutex<HashMap<(u8, u8), (Uuid, MidiTargetParameter)>>> =
-                Arc::new(Mutex::new(HashMap::new()));
+            let bindings: Arc<Mutex<BindingsMap>> = Arc::new(Mutex::new(HashMap::new()));
 
             // Should not panic
             MidiService::process_incoming_message(&[], &bindings, &cm, &make_handle());
@@ -593,8 +592,7 @@ mod tests {
         #[test]
         fn noop_on_unmapped_cc() {
             let cm = Arc::new(Mutex::new(ChannelManager::new()));
-            let bindings: Arc<Mutex<HashMap<(u8, u8), (Uuid, MidiTargetParameter)>>> =
-                Arc::new(Mutex::new(HashMap::new()));
+            let bindings: Arc<Mutex<BindingsMap>> = Arc::new(Mutex::new(HashMap::new()));
 
             MidiService::process_incoming_message(
                 &[0xB0, 0x01, 0x40],
@@ -607,8 +605,7 @@ mod tests {
         #[test]
         fn noop_on_non_cc_message() {
             let cm = Arc::new(Mutex::new(ChannelManager::new()));
-            let bindings: Arc<Mutex<HashMap<(u8, u8), (Uuid, MidiTargetParameter)>>> =
-                Arc::new(Mutex::new(HashMap::new()));
+            let bindings: Arc<Mutex<BindingsMap>> = Arc::new(Mutex::new(HashMap::new()));
 
             MidiService::process_incoming_message(
                 &[0x90, 0x40, 0x7F],
@@ -643,7 +640,7 @@ mod tests {
                 cm_guard.set_effect_active(effect_id, false).unwrap();
             }
 
-            let mut bindings_map: HashMap<(u8, u8), (Uuid, MidiTargetParameter)> = HashMap::new();
+            let mut bindings_map: BindingsMap = HashMap::new();
             bindings_map.insert((0, 1), (effect_id, MidiTargetParameter::ToggleBypass));
             let bindings = Arc::new(Mutex::new(bindings_map));
 

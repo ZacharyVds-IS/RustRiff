@@ -12,7 +12,7 @@ use uuid::Uuid;
 /// Atomic handles retained by `Channel` after the effect chain is moved to the
 /// audio worker thread.  Commands write through these Arcs; the audio thread
 /// reads from the same Arcs on every sample — completely lock-free.
-struct EffectHandles {
+pub(crate) struct EffectHandles {
     pub(crate) is_active: Arc<AtomicBool>,
     /// Named f32 parameters (e.g. `"threshold"`). The Effect trait's
     /// `f32_params()` method populates this, so no downcasting is needed.

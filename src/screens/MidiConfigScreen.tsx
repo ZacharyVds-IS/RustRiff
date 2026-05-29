@@ -1,4 +1,4 @@
-import {useEffect, useState} from "react";
+import {useCallback, useEffect, useState} from "react";
 import {
     Alert,
     Box,
@@ -19,9 +19,14 @@ import {
 import RefreshIcon from '@mui/icons-material/Refresh';
 import DeleteIcon from '@mui/icons-material/Delete';
 import {listen} from "@tauri-apps/api/event";
-import {getAmpConfig, getMidiBindings, MidiTargetParameter, registerMidiBinding, removeMidiBinding} from "../domain";
+import {getAmpConfig, getMidiBindings, MidiTargetParameter, removeMidiBinding} from "../domain";
 import {useNavigate} from "react-router-dom";
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+
+interface EffectEntry {
+    kind: string;
+    data?: { id?: string; name?: string };
+}
 
 interface ActiveBinding {
     channel: number;
@@ -41,21 +46,18 @@ export function MidiConfigScreen() {
     // Track state of the hardware recognition module
     const [isLearning, setIsLearning] = useState<boolean>(false);
 
-    const [targetMode, setTargetMode] = useState<"live" | "custom">("custom");
+    const [, setMidiChannel] = useState<number>(1);
+    const [, setCcNumber] = useState<number>(11);
     const [selectedEffectId, setSelectedEffectId] = useState<string>("");
-    const [customEffectId, setCustomEffectId] = useState<string>("");
-    const [targetParam, setTargetParam] = useState<MidiTargetParameter>("ToggleBypass");
-    const [ccNumber, setCcNumber] = useState<number>(11);
-    const [midiChannel, setMidiChannel] = useState<number>(1);
 
-    const fetchMidiMatrixData = async () => {
+    const fetchMidiMatrixData = useCallback(async () => {
         setLoading(true);
         setError(null);
         try {
             const ampConfig = await getAmpConfig();
-            const incomingEffects: any[] = (ampConfig as any)?.effects || [];
+            const incomingEffects: EffectEntry[] = (ampConfig as { effects?: EffectEntry[] })?.effects || [];
 
-            const parsedEffects = incomingEffects.map((eff: any) => ({
+            const parsedEffects = incomingEffects.map((eff) => ({
                 id: eff.data?.id || "",
                 name: eff.data?.name || `${eff.kind || 'DSP'} Module`,
                 kind: eff.kind || "Unknown"
@@ -67,7 +69,6 @@ export function MidiConfigScreen() {
 
             if (parsedEffects.length > 0 && !selectedEffectId) {
                 setSelectedEffectId(parsedEffects[0].id);
-                autoAssignDefaultParam(parsedEffects[0].kind);
             }
         } catch (err) {
             console.error("Failed to sync system matrices:", err);
@@ -75,7 +76,7 @@ export function MidiConfigScreen() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [selectedEffectId]);
 
     // Background listener hooks into the Rust backend's raw traffic broadcaster
     useEffect(() => {
@@ -94,44 +95,7 @@ export function MidiConfigScreen() {
         return () => {
             unlistenPromise.then((cleanup) => cleanup());
         };
-    }, [isLearning]);
-
-    const autoAssignDefaultParam = (kind: string) => {
-        if (kind.includes("Wah")) setTargetParam("WahPedalPosition");
-        else if (kind.includes("Delay")) setTargetParam("DelayLevel");
-        else if (kind.includes("Distortion")) setTargetParam("DistortionLevel");
-        else setTargetParam("ToggleBypass");
-    };
-
-    const handleSaveBinding = async () => {
-        setError(null);
-        setSuccessMessage(null);
-
-        const finalEffectId = targetMode === "live" ? selectedEffectId : customEffectId.trim();
-
-        if (!finalEffectId) {
-            setError("Effect Identifier cannot be empty.");
-            return;
-        }
-
-        try {
-            const payload = {
-                mapping: {
-                    cc_number: ccNumber,
-                    channel: midiChannel,
-                    effect_id: finalEffectId,
-                    parameter: targetParam
-                }
-            };
-
-            await registerMidiBinding(payload as any);
-            setSuccessMessage(`Registered binding: CC #${ccNumber} mapped successfully!`);
-            await fetchMidiMatrixData();
-        } catch (err) {
-            console.error("Failed to write map entry:", err);
-            setError(typeof err === "string" ? err : "Failed to write target mapping matrix.");
-        }
-    };
+    }, [isLearning, fetchMidiMatrixData]);
 
     const handleRemoveBinding = async (channel: number, ccNumber: number) => {
         setError(null);

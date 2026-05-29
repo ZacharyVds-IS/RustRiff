@@ -12,7 +12,7 @@ interface StepParameterSelectionProps {
     paramOptions: ParameterOption[];
     selectedParam: string;
     effectBindings: Array<{ parameter: string }>;
-    onSelectParam: (value: any) => void;
+    onSelectParam: (value: string) => void;
 }
 
 export function StepParameterSelection({

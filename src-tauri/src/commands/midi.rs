@@ -1,5 +1,5 @@
+use crate::domain::dto::midi_device_dto::MidiDeviceDto;
 use crate::domain::dto::midi_mapping_dto::MidiMappingDto;
-use crate::domain::dto::MidiDeviceDto::MidiDeviceDto;
 use crate::services::amp_config_service::AmpConfigPersistenceService;
 use crate::services::midi_service::MidiService;
 use std::sync::Mutex;

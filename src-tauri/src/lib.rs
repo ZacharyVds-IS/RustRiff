@@ -220,7 +220,7 @@ pub fn run() {
             ));
 
             {
-                let audio_service_state = app.state::<Mutex<AudioService>>();
+                let _audio_service_state = app.state::<Mutex<AudioService>>();
 
                 match amp_config_persistence_service.load_amp_config() {
                     Ok(Some(config)) => {

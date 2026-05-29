@@ -1,4 +1,4 @@
-use crate::domain::dto::MidiDeviceDto::MidiDeviceDto;
+use crate::domain::dto::midi_device_dto::MidiDeviceDto;
 use midir::MidiInput;
 
 pub struct MidiHandler;

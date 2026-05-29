@@ -97,7 +97,7 @@ export function MidiBindingDialog({
             fetchBindings();
         }
         if (!open) setIsLearning(false);
-    }, [open, effectId]);
+    }, [open, effectId,paramOptions]);
 
     useEffect(() => {
         const unlistenPromise = listen<[number, number]>("midi-raw-sniff", (event) => {
@@ -135,7 +135,7 @@ export function MidiBindingDialog({
                     effect_id: effectId,
                     parameter: selectedParam,
                 },
-            } as any);
+            });
             setSuccessMessage(`Mapped: CC #${ccNumber} → ${selectedParamOption?.label}`);
             await fetchBindings();
         } catch (err) {
