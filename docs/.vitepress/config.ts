@@ -30,6 +30,7 @@ export default defineConfig({
             {text:'MIDI support', link:'/project_docs/amp_design/midi-support.md'},
             {text:'Resampling', link:'/project_docs/amp_design/resampling.md'},
           {text:'Visual analysis', link:'/project_docs/amp_design/spectrum-analyzer.md'},
+          {text: 'Tuner', link:'/project_docs/amp_design/tuner.md'},
           {text:'Latency', link:'/project_docs/amp_design/latency'},
           {text:'Gain', link:'/project_docs/amp_design/gain'},
           {text:'Master Volume', link:'/project_docs/amp_design/master-volume'},

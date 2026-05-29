@@ -66,6 +66,10 @@ use crate::commands::settings::{
     set_asio_channel_config, set_audio_driver, set_buffer_size_frames, set_input_device,
     set_output_device,
 };
+use crate::commands::tuner::{
+    get_tuner_contract, start_live_tuner_stream, stop_live_tuner_stream, TunerStreamState,
+};
+use crate::config::{get_default_ir_file, init_tracing};
 #[cfg(feature = "audio-backend")]
 use crate::domain::channel_manager::ChannelManager;
 #[cfg(feature = "audio-backend")]
@@ -202,6 +206,7 @@ pub fn run() {
     tauri::Builder::default()
         .manage(Mutex::new(audio_service))
         .manage(SpectrumStreamState::default())
+        .manage(TunerStreamState::default())
         .manage(Mutex::new(device_service))
         .manage(MidiService::new(channel_manager))
         .plugin(tauri_plugin_opener::init())
@@ -333,7 +338,10 @@ pub fn run() {
             disconnect_midi_device,
             register_midi_binding,
             get_midi_bindings,
-            remove_midi_binding
+            remove_midi_binding,
+            get_tuner_contract,
+            start_live_tuner_stream,
+            stop_live_tuner_stream
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

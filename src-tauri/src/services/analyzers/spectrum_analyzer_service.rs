@@ -212,7 +212,7 @@ mod tests {
 
         #[test]
         fn analyze_samples_returns_expected_bin_shape() {
-            let samples = vec![0.0_f32; 2048];
+            let samples = vec![0.0_f32; SPECTRUM_WINDOW_SIZE];
             let snapshot = SpectrumAnalyzerService::analyze_samples(&samples, 48_000);
 
             assert_eq!(snapshot.sample_rate_hz, 48_000);
@@ -226,7 +226,7 @@ mod tests {
         fn analyze_samples_detects_a_tone_peak() {
             let sample_rate = 48_000.0;
             let target_freq = 1_000.0;
-            let samples = (0..2048)
+            let samples = (0..SPECTRUM_WINDOW_SIZE)
                 .map(|n| {
                     (2.0 * std::f32::consts::PI * target_freq * (n as f32 / sample_rate)).sin()
                         * 0.8

@@ -25,3 +25,4 @@ pub mod loopback;
 pub mod midi;
 #[cfg(feature = "audio-backend")]
 pub mod settings;
+pub mod tuner;
