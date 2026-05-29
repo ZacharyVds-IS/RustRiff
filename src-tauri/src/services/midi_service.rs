@@ -174,7 +174,6 @@ impl MidiService {
             .map(|b| format!("{:02X}", b))
             .collect::<Vec<_>>()
             .join(" ");
-        info!("RAW MIDI: [{}] {} bytes", raw_hex, bytes.len());
 
         if bytes.is_empty() {
             return;
@@ -198,11 +197,6 @@ impl MidiService {
 
         if msg_type == 0xB0 {
             if let Some(cc) = ParsedMidiCc::from_bytes(bytes) {
-                info!(
-                    "MIDI CC Struct: ch={} cc_number={} value={}",
-                    cc.channel, cc.control_number, cc.value
-                );
-
                 if let Some(handle) = app_handle {
                     let ui_channel = cc.channel + 1;
                     let _ = handle.emit("midi-raw-sniff", (ui_channel, cc.control_number));
@@ -216,16 +210,9 @@ impl MidiService {
                             let (value, param_name): (f64, &str) = if param.is_toggle() {
                                 match cm.toggle_effect_active(*effect_id) {
                                     Ok(new_active) => {
-                                        info!(
-                                            "MIDI -> Effect {} ToggleBypass: active={}",
-                                            effect_id, new_active
-                                        );
                                         (if new_active { 1.0 } else { 0.0 }, "active")
                                     }
-                                    Err(e) => {
-                                        info!("MIDI toggle failed for Effect {}: {}", effect_id, e);
-                                        (0.0, "active")
-                                    }
+                                    Err(e) => (0.0, "active"),
                                 }
                             } else {
                                 match param {
@@ -234,10 +221,6 @@ impl MidiService {
                                             *effect_id,
                                             "pedal_position",
                                             normalized,
-                                        );
-                                        info!(
-                                            "MIDI -> Effect {} WahPedalPosition: {:.2}",
-                                            effect_id, normalized
                                         );
                                         (normalized as f64, "pedal_position")
                                     }
@@ -248,38 +231,22 @@ impl MidiService {
                                             "delay_time",
                                             delay_ms,
                                         );
-                                        info!(
-                                            "MIDI -> Effect {} DelayTime: {} ms",
-                                            effect_id, delay_ms
-                                        );
                                         (delay_ms as f64, "delay_time")
                                     }
                                     MidiTargetParameter::DelayLevel => {
                                         let _ = cm
                                             .set_effect_parameter(*effect_id, "level", normalized);
-                                        info!(
-                                            "MIDI -> Effect {} DelayLevel: {:.2}",
-                                            effect_id, normalized
-                                        );
                                         (normalized as f64, "level")
                                     }
                                     MidiTargetParameter::DistortionLevel => {
                                         let gain = 1.0 + normalized;
                                         let _ = cm.set_effect_parameter(*effect_id, "level", gain);
-                                        info!(
-                                            "MIDI -> Effect {} DistortionLevel: {:.2}",
-                                            effect_id, normalized
-                                        );
                                         (gain as f64, "level")
                                     }
                                     MidiTargetParameter::DistortionThreshold => {
                                         let safe = normalized.max(0.001);
                                         let _ =
                                             cm.set_effect_parameter(*effect_id, "threshold", safe);
-                                        info!(
-                                            "MIDI -> Effect {} DistortionThreshold: {:.3}",
-                                            effect_id, safe
-                                        );
                                         (safe as f64, "threshold")
                                     }
                                     _ => unreachable!(),
@@ -310,7 +277,7 @@ impl MidiService {
                 .map(|b| format!("{}", b))
                 .collect::<Vec<_>>()
                 .join(" ");
-            info!("MIDI {}: ch={} data=[{}]", type_name, channel, data);
+            //info!("MIDI {}: ch={} data=[{}]", type_name, channel, data);
         }
     }
 }
