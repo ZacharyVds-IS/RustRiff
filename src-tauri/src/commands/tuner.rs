@@ -1,3 +1,4 @@
+use crate::config::LIVE_TUNER_EVENT;
 use crate::domain::dto::tuner_contract_dto::TunerContractDto;
 use crate::services::audio_service::AudioService;
 use crate::services::tuner_service::TunerService;
@@ -6,8 +7,6 @@ use std::sync::{Arc, Mutex};
 use tauri::Emitter;
 use tokio::time::{interval, Duration};
 
-/// Tauri event name emitted by the backend when a new pitch/tuner frame is calculated.
-const LIVE_TUNER_EVENT: &str = "live-tuner";
 /// Target interval for push-streamed tuner updates (about 60 FPS).
 const TUNER_STREAM_INTERVAL_MS: u64 = 16;
 

@@ -13,6 +13,8 @@
 pub const DEFAULT_IR_FILE: &str = "Vox-ac30.wav";
 /// Filename used for the persisted amplifier configuration JSON document.
 pub const AMP_CONFIG_FILE_NAME: &str = "amp-config.json";
+/// Tauri event name emitted by the backend when a new pitch/tuner frame is calculated.
+pub const LIVE_TUNER_EVENT: &str = "live-tuner";
 /// Initializes the application's tracing subscriber for structured logging.
 ///
 /// Reads the log filter from the `RUST_LOG` environment variable if present,
