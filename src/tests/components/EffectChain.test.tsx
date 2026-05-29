@@ -77,7 +77,10 @@ vi.mock("../../components/dialogs/AddEffectDialog.tsx", () => ({
 
 vi.mock("../../components/dialogs/ConfirmationDialog.tsx", () => ({
     ConfirmationDialog: ({open, onConfirm, onClose}: any) =>
-        open ? <button onClick={() => { onConfirm(); onClose(); }}>confirm-remove</button> : null,
+        open ? <button onClick={() => {
+            onConfirm();
+            onClose();
+        }}>confirm-remove</button> : null,
 }));
 
 function createMockEffect(id: string, name: string): EffectDto {
@@ -106,7 +109,7 @@ describe("EffectChain", () => {
                     effects={effects}
                     selected={"amp"}
                     onSelectionChange={vi.fn()}
-                    onReorderOpen={vi.fn()}
+
                 />
             );
 
@@ -118,7 +121,7 @@ describe("EffectChain", () => {
                     effects={effects}
                     selected={effects[0]}
                     onSelectionChange={vi.fn()}
-                    onReorderOpen={vi.fn()}
+
                 />
             );
             expect(screen.getByText("amp-not-selected")).toBeTruthy();
@@ -133,7 +136,6 @@ describe("EffectChain", () => {
                     effects={effects}
                     selected={"amp"}
                     onSelectionChange={onSelectionChange}
-                    onReorderOpen={vi.fn()}
                 />
             );
 
@@ -144,77 +146,7 @@ describe("EffectChain", () => {
             expect(onSelectionChange).toHaveBeenCalledWith(effects[1], 1);
         });
 
-        it("fires reorder-start actions when Edit Order is pressed", async () => {
-            // Arrange
-            const user = userEvent.setup();
-            const onSelectionChange = vi.fn();
-            const onReorderOpen = vi.fn();
-
-            render(
-                <EffectChain
-                    effects={effects}
-                    selected={"amp"}
-                    onSelectionChange={onSelectionChange}
-                    onReorderOpen={onReorderOpen}
-                />
-            );
-
-            // Act
-            await user.click(screen.getByRole("button", {name: "Edit Order"}));
-
-            // Assert
-            expect(storeState.startEditingChainOrder).toHaveBeenCalledTimes(1);
-            expect(onReorderOpen).toHaveBeenCalledWith(true);
-            expect(screen.getByRole("button", {name: "Apply Changes"})).toBeTruthy();
-        });
-
-        it("fires reorder-cancel actions when Cancel is pressed", async () => {
-            // Arrange
-            const user = userEvent.setup();
-            const onReorderOpen = vi.fn();
-
-            render(
-                <EffectChain
-                    effects={effects}
-                    selected={"amp"}
-                    onSelectionChange={vi.fn()}
-                    onReorderOpen={onReorderOpen}
-                />
-            );
-            await user.click(screen.getByRole("button", {name: "Edit Order"}));
-
-            // Act
-            await user.click(screen.getByRole("button", {name: "Cancel"}));
-
-            // Assert
-            expect(storeState.cancelEditingChainOrder).toHaveBeenCalledTimes(1);
-            expect(onReorderOpen).toHaveBeenLastCalledWith(false);
-        });
-
-        it("fires apply order command when Apply Changes is pressed", async () => {
-            // Arrange
-            const user = userEvent.setup();
-            const onReorderOpen = vi.fn();
-
-            render(
-                <EffectChain
-                    effects={effects}
-                    selected={"amp"}
-                    onSelectionChange={vi.fn()}
-                    onReorderOpen={onReorderOpen}
-                />
-            );
-            await user.click(screen.getByRole("button", {name: "Edit Order"}));
-
-            // Act
-            await user.click(screen.getByRole("button", {name: "Apply Changes"}));
-
-            // Assert
-            expect(storeState.applyChangesToChainOrder).toHaveBeenCalledTimes(1);
-            expect(onReorderOpen).toHaveBeenLastCalledWith(false);
-        });
-
-        it("fires moveEffect when left arrow is pressed on selected effect", async () => {
+        it("fires moveEffect and auto-applies changes when left arrow is pressed on selected effect", async () => {
             // Arrange
             const user = userEvent.setup();
             const {container} = render(
@@ -222,21 +154,22 @@ describe("EffectChain", () => {
                     effects={effects}
                     selected={effects[1]}
                     onSelectionChange={vi.fn()}
-                    onReorderOpen={vi.fn()}
                 />
             );
-            await user.click(screen.getByRole("button", {name: "Edit Order"}));
-            const left = container.querySelector('[data-testid="KeyboardArrowLeftIcon"]')?.closest("button");
-            expect(left).not.toBeNull();
+
+            // Arrows are now rendered immediately when an effect is selected
+            const leftArrow = container.querySelector('[data-testid="KeyboardArrowLeftIcon"]')?.closest("button");
+            expect(leftArrow).toBeTruthy();
 
             // Act
-            await user.click(left as HTMLButtonElement);
+            await user.click(leftArrow as HTMLButtonElement);
 
             // Assert
             expect(storeState.moveEffect).toHaveBeenCalledWith(1, 0);
+            expect(storeState.applyChangesToChainOrder).toHaveBeenCalledTimes(1);
         });
 
-        it("does not move left when selected effect is already first", async () => {
+        it("does not fire moveEffect or apply changes when selected effect is already first and left arrow is pressed", async () => {
             // Arrange
             const user = userEvent.setup();
             const {container} = render(
@@ -244,18 +177,62 @@ describe("EffectChain", () => {
                     effects={effects}
                     selected={effects[0]}
                     onSelectionChange={vi.fn()}
-                    onReorderOpen={vi.fn()}
                 />
             );
-            await user.click(screen.getByRole("button", {name: "Edit Order"}));
-            const left = container.querySelector('[data-testid="KeyboardArrowLeftIcon"]')?.closest("button");
-            expect(left).not.toBeNull();
+
+            const leftArrow = container.querySelector('[data-testid="KeyboardArrowLeftIcon"]')?.closest("button");
+            expect(leftArrow).toBeTruthy();
 
             // Act
-            await user.click(left as HTMLButtonElement);
+            await user.click(leftArrow as HTMLButtonElement);
 
             // Assert
             expect(storeState.moveEffect).not.toHaveBeenCalled();
+            expect(storeState.applyChangesToChainOrder).not.toHaveBeenCalled();
+        });
+
+        it("fires moveEffect and auto-applies changes when right arrow is pressed on selected effect", async () => {
+            // Arrange
+            const user = userEvent.setup();
+            const {container} = render(
+                <EffectChain
+                    effects={effects}
+                    selected={effects[0]}
+                    onSelectionChange={vi.fn()}
+                />
+            );
+
+            const rightArrow = container.querySelector('[data-testid="KeyboardArrowRightIcon"]')?.closest("button");
+            expect(rightArrow).toBeTruthy();
+
+            // Act
+            await user.click(rightArrow as HTMLButtonElement);
+
+            // Assert
+            expect(storeState.moveEffect).toHaveBeenCalledWith(0, 1);
+            expect(storeState.applyChangesToChainOrder).toHaveBeenCalledTimes(1);
+        });
+
+        it("stops event propagation on arrow clicks to prevent selection change toggles", async () => {
+            // Arrange
+            const user = userEvent.setup();
+            const onSelectionChange = vi.fn();
+            const {container} = render(
+                <EffectChain
+                    effects={effects}
+                    selected={effects[1]}
+                    onSelectionChange={onSelectionChange}
+                />
+            );
+
+            const leftArrow = container.querySelector('[data-testid="KeyboardArrowLeftIcon"]')?.closest("button");
+
+            // Act
+            await user.click(leftArrow as HTMLButtonElement);
+
+            // Assert
+            // The selection callback should not trigger because e.stopPropagation() isolates the button click from the Box wrapper
+            expect(onSelectionChange).not.toHaveBeenCalled();
         });
 
         it("calls moveEffect on drag end when destination exists", async () => {
@@ -266,7 +243,7 @@ describe("EffectChain", () => {
                     effects={effects}
                     selected={"amp"}
                     onSelectionChange={vi.fn()}
-                    onReorderOpen={vi.fn()}
+
                 />
             );
 
@@ -285,7 +262,7 @@ describe("EffectChain", () => {
                     effects={effects}
                     selected={"amp"}
                     onSelectionChange={vi.fn()}
-                    onReorderOpen={vi.fn()}
+
                 />
             );
 
@@ -305,7 +282,7 @@ describe("EffectChain", () => {
                     effects={effects}
                     selected={effects[0]}
                     onSelectionChange={onSelectionChange}
-                    onReorderOpen={vi.fn()}
+
                 />
             );
             const remove = container.querySelector('[data-testid="DeleteIcon"]')?.closest("button");
@@ -328,7 +305,7 @@ describe("EffectChain", () => {
                     effects={effects}
                     selected={"amp"}
                     onSelectionChange={vi.fn()}
-                    onReorderOpen={vi.fn()}
+
                 />
             );
             const addIcon = container.querySelector('[data-testid="AddCircleIcon"]');
