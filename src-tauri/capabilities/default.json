@@ -1,8 +1,8 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Capability for main and Analyzer windows",
-  "windows": ["main", "analyzer-view"],
+  "description": "Capability for main, Analyzer and tab windows",
+  "windows": ["main", "analyzer-view","tab-view"],
   "permissions": [
     "core:default",
     "core:event:allow-listen",

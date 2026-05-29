@@ -7,6 +7,7 @@ import {AddChannelDialog} from "../components/dialogs/AddChannelDialog.tsx";
 import DeleteIcon from '@mui/icons-material/Delete';
 import {ConfirmationDialog} from "../components/dialogs/ConfirmationDialog.tsx";
 import {openAnalyzerWindow} from "../windows/AnalyzerWindow";
+import {openTabWindow} from "../windows/TabWindow";
 
 export function AppLayout() {
     const navigate = useNavigate();
@@ -108,6 +109,19 @@ export function AppLayout() {
                             }}
                         >
                             Analyzer
+                        </Button>
+                        <Button color="inherit" onClick={() => navigate("/tuner")}>Tuner</Button>
+                        <Button
+                            color="inherit"
+                            onClick={async () => {
+                                try {
+                                    await openTabWindow();
+                                } catch (error) {
+                                    console.error("Failed to open Tab window", error);
+                                }
+                            }}
+                        >
+                            Tab
                         </Button>
                         <Button color="inherit" onClick={() => navigate("/settings")}>Settings</Button>
                     </Box>
