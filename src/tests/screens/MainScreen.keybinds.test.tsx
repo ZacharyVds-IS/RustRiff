@@ -230,7 +230,7 @@ describe("MainScreen keybind logic", () => {
         });
 
         describe("movement keys — reordering effect in chain", () => {
-            it("moves selected effect right with ArrowRight", async () => {
+            it("moves selected effect right with ArrowRight and persists the new order", async () => {
                 render(<MainScreen/>);
 
                 act(() => {
@@ -242,7 +242,9 @@ describe("MainScreen keybind logic", () => {
                     await Promise.resolve();
                 });
 
+                // Store updated optimistically
                 expect(storeState.moveEffect).toHaveBeenCalledWith(0, 1);
+                // Backend persist was triggered
                 expect(storeState.applyChangesToChainOrder).toHaveBeenCalledTimes(1);
             });
         });

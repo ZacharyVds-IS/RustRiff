@@ -97,13 +97,12 @@ export function MainScreen() {
             const direction = handler.keys?.[0] === "arrowleft" ? -1 : 1;
             const newIndex = selectedChainIndex + direction;
             if (newIndex < 0 || newIndex >= effectChain.length) return;
-
-            void moveEffect(selectedChainIndex, newIndex)
-                .then(() => applyChangesToChainOrder())
-                .catch(() => {
-                    // Reverse the optimistic move so the UI stays in sync with the persisted backend state.
-                    void moveEffect(newIndex, selectedChainIndex);
-                });
+            const fromIndex = selectedChainIndex;
+            const toIndex = newIndex;
+            void moveEffect(fromIndex, toIndex);
+            void applyChangesToChainOrder().catch(() => {
+                void moveEffect(toIndex, fromIndex);
+            });
         },
         {preventDefault: true},
         [selectedChainIndex, effectChain.length],
