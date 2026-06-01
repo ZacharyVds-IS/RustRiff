@@ -27,6 +27,7 @@ export default defineConfig({
         items:[
           {text:'Relation to real amp', link:'/project_docs/amp_design/structure'},
             {text:'Audio Drivers', link:'/project_docs/amp_design/driver_support.md'},
+            {text:'Hotkeys', link:'/project_docs/amp_design/keybinds.md'},
             {text:'Resampling', link:'/project_docs/amp_design/resampling.md'},
           {text:'Visual analysis', link:'/project_docs/amp_design/spectrum-analyzer.md'},
           {text: 'Tuner', link:'/project_docs/amp_design/tuner.md'},
