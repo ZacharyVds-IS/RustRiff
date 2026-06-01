@@ -100,7 +100,10 @@ export function MainScreen() {
 
             void moveEffect(selectedChainIndex, newIndex)
                 .then(() => applyChangesToChainOrder())
-                .catch(() => {});
+                .catch(() => {
+                    // Reverse the optimistic move so the UI stays in sync with the persisted backend state.
+                    void moveEffect(newIndex, selectedChainIndex);
+                });
         },
         {preventDefault: true},
         [selectedChainIndex, effectChain.length],

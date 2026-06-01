@@ -287,7 +287,7 @@ describe("MainScreen keybind logic", () => {
         });
 
         describe("movement keys — no-op when chain order persist rejects", () => {
-            it("still calls moveEffect even when applyChangesToChainOrder rejects", async () => {
+            it("reverses the optimistic move when applyChangesToChainOrder rejects", async () => {
                 storeState.applyChangesToChainOrder.mockRejectedValueOnce(new Error("persist error"));
 
                 render(<MainScreen/>);
@@ -301,8 +301,12 @@ describe("MainScreen keybind logic", () => {
                     await Promise.resolve();
                     await Promise.resolve();
                 });
-                expect(storeState.moveEffect).toHaveBeenCalledWith(0, 1);
-                expect(storeState.applyChangesToChainOrder).toHaveBeenCalledTimes(1);
+
+                // First call: optimistic move forward
+                expect(storeState.moveEffect).toHaveBeenNthCalledWith(1, 0, 1);
+                // Second call: rollback to original position
+                expect(storeState.moveEffect).toHaveBeenNthCalledWith(2, 1, 0);
+                expect(storeState.moveEffect).toHaveBeenCalledTimes(2);
             });
         });
     });
