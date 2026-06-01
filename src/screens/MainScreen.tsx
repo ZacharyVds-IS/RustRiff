@@ -3,6 +3,7 @@ import {EffectChain} from "../components/EffectChain.tsx";
 import {DefaultAmpControls} from "../components/DefaultAmpControls.tsx";
 import {EffectPedal} from "../components/EffectPedal.tsx";
 import {CabinetEffect} from "../components/CabinetEffect.tsx";
+import {KeybindsDialog} from "../components/dialogs/KeybindsDialog.tsx";
 import {useAmpStore} from "../state/AmpConfigStore.tsx";
 import {useEffect, useState} from "react";
 import {EffectDto, toggleEffect} from "../domain";
@@ -26,6 +27,7 @@ export function MainScreen() {
     const isActive = useAmpStore((state) => state.is_active);
     const setIsActive = useAmpStore((state) => state.setIsActive);
     const [selection, setSelection] = useState<EffectSelection>("amp");
+    const [isKeybindsOpen, setIsKeybindsOpen] = useState(false);
     useEffect(() => {
         setSelection("amp");
     }, [currentChannelId]);
@@ -120,6 +122,7 @@ export function MainScreen() {
                 <EffectChain
                     effects={activeChannel.effect_chain}
                     selected={resolvedSelection ?? "amp"}
+                    onOpenKeybinds={() => setIsKeybindsOpen(true)}
                     onSelectionChange={(selected: EffectDto | "amp") => {
                         if (selected === "amp") {
                             setSelection("amp");
@@ -140,6 +143,7 @@ export function MainScreen() {
                     ? <CabinetEffect effect={resolvedSelection}/>
                     : <EffectPedal effect={resolvedSelection}/>
             }
+            <KeybindsDialog open={isKeybindsOpen} onClose={() => setIsKeybindsOpen(false)}/>
         </Box>
     );
 }

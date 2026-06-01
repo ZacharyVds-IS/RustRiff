@@ -1,8 +1,8 @@
-import {Box, IconButton, Stack, Typography} from "@mui/material";
+import {Box, IconButton, Stack, Tooltip, Typography} from "@mui/material";
 import {EffectPedalPreview} from "./EffectPedalPreview.tsx";
 import {CabinetPreview} from "./CabinetPreview.tsx";
 import {EffectDto} from "../domain";
-import {AddCircle, Delete, KeyboardArrowLeft, KeyboardArrowRight} from "@mui/icons-material";
+import {AddCircle, Delete, Keyboard, KeyboardArrowLeft, KeyboardArrowRight} from "@mui/icons-material";
 import {ConfirmationDialog} from "./dialogs/ConfirmationDialog.tsx";
 import {useState} from "react";
 import {AddEffectDialog} from "./dialogs/AddEffectDialog.tsx";
@@ -15,9 +15,10 @@ export interface EffectChainProps {
     selected: EffectDto | "amp";
     /** "amp" = amp head selected, EffectDto = that effect is selected */
     onSelectionChange: (selected: EffectDto | "amp", selectedIndex?: number) => void;
+    onOpenKeybinds?: () => void;
 }
 
-export function EffectChain({effects, selected, onSelectionChange}: EffectChainProps) {
+export function EffectChain({effects, selected, onSelectionChange, onOpenKeybinds}: EffectChainProps) {
     function isAmpSelected() {
         return selected === "amp";
     }
@@ -83,6 +84,18 @@ export function EffectChain({effects, selected, onSelectionChange}: EffectChainP
                 height: 300,
             }}
         >
+            <Box sx={{position: "absolute", top: 8, right: 8, zIndex: 3}}>
+                <Tooltip title="Show keyboard shortcuts">
+                    <IconButton
+                        size="small"
+                        color="primary"
+                        onClick={onOpenKeybinds}
+                        aria-label="Open keyboard shortcuts"
+                    >
+                        <Keyboard fontSize="small"/>
+                    </IconButton>
+                </Tooltip>
+            </Box>
             {/*Scrollable Wrapper*/}
             <Box
                 sx={{
