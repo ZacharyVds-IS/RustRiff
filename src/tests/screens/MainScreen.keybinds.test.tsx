@@ -259,5 +259,51 @@ describe("MainScreen keybind logic", () => {
                 expect(storeState.applyChangesToChainOrder).not.toHaveBeenCalled();
             });
         });
+
+        describe("toggle keys — rollback on backend rejection", () => {
+            it("rolls back the optimistic active-state update when toggleEffect rejects", async () => {
+                toggleEffectMock.mockRejectedValueOnce(new Error("backend error"));
+
+                render(<MainScreen/>);
+
+                // Select effect A (is_active: true)
+                act(() => {
+                    triggerHotkey("2");
+                });
+
+                await act(async () => {
+                    triggerHotkey("space");
+                    // flush the rejected promise
+                    await Promise.resolve();
+                    await Promise.resolve();
+                });
+
+                // First call: optimistic toggle off
+                expect(storeState.updateEffectActiveState).toHaveBeenNthCalledWith(1, "effect-a", false);
+                // Second call: rollback to original value
+                expect(storeState.updateEffectActiveState).toHaveBeenNthCalledWith(2, "effect-a", true);
+                expect(storeState.updateEffectActiveState).toHaveBeenCalledTimes(2);
+            });
+        });
+
+        describe("movement keys — no-op when chain order persist rejects", () => {
+            it("still calls moveEffect even when applyChangesToChainOrder rejects", async () => {
+                storeState.applyChangesToChainOrder.mockRejectedValueOnce(new Error("persist error"));
+
+                render(<MainScreen/>);
+
+                act(() => {
+                    triggerHotkey("2");
+                });
+
+                await act(async () => {
+                    triggerHotkey("arrowright");
+                    await Promise.resolve();
+                    await Promise.resolve();
+                });
+                expect(storeState.moveEffect).toHaveBeenCalledWith(0, 1);
+                expect(storeState.applyChangesToChainOrder).toHaveBeenCalledTimes(1);
+            });
+        });
     });
 });

@@ -98,9 +98,9 @@ export function MainScreen() {
             const newIndex = selectedChainIndex + direction;
             if (newIndex < 0 || newIndex >= effectChain.length) return;
 
-            void moveEffect(selectedChainIndex, newIndex).then(() =>
-                applyChangesToChainOrder(),
-            );
+            void moveEffect(selectedChainIndex, newIndex)
+                .then(() => applyChangesToChainOrder())
+                .catch(() => {});
         },
         {preventDefault: true},
         [selectedChainIndex, effectChain.length],
