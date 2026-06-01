@@ -27,7 +27,6 @@ pub(crate) fn set_channel_id(
     persistence_service: tauri::State<Mutex<AmpConfigPersistenceService>>,
     channel_id: String,
 ) {
-    //TODO: check wether this culd be updated to use our new channel manager.
     let mut service = audio_service.inner().lock().unwrap();
     let device_service_guard = device_service.inner().lock().unwrap();
     service.set_current_channel_id(Uuid::parse_str(&channel_id).expect("failed to parse id"));
