@@ -15,6 +15,7 @@ use tracing::error;
 pub struct AmpConfigPersistenceService {
     repository: Arc<dyn AmpConfigPersistence>,
     pending_snapshot: Arc<(Mutex<Option<AmpConfigDto>>, Condvar)>,
+    latest_midi_bindings: Arc<Mutex<Vec<MidiMappingDto>>>,
 }
 
 impl AmpConfigPersistenceService {
@@ -22,6 +23,13 @@ impl AmpConfigPersistenceService {
     pub fn new(repository: Box<dyn AmpConfigPersistence>) -> Self {
         let repository: Arc<dyn AmpConfigPersistence> = Arc::from(repository);
         let pending_snapshot = Arc::new((Mutex::new(None), Condvar::new()));
+        let latest_midi_bindings = Arc::new(Mutex::new(
+            repository
+                .load()
+                .unwrap_or_default()
+                .unwrap_or_default()
+                .midi_bindings,
+        ));
         let worker_pending_snapshot = Arc::clone(&pending_snapshot);
         let worker_repository = Arc::clone(&repository);
 
@@ -51,6 +59,7 @@ impl AmpConfigPersistenceService {
         Self {
             repository,
             pending_snapshot,
+            latest_midi_bindings,
         }
     }
 
@@ -62,9 +71,9 @@ impl AmpConfigPersistenceService {
     /// Captures a snapshot from the current [`AudioService`] state and
     /// enqueues it for persistence.
     ///
-    /// `midi_bindings` is read from disk and merged into the snapshot so that
-    /// a save triggered by an amp-state change never silently drops the
-    /// bindings that `MidiService` wrote on its last mutation.
+    /// `midi_bindings` is read from the service's in-memory cache (updated on
+    /// every MIDI mutation) so amp-state saves never overwrite fresher bindings
+    /// that may not have reached disk yet.
     ///
     /// This is the primary method used by mutating Tauri commands after they
     /// successfully update amplifier state. Disk I/O is executed by a background
@@ -76,11 +85,10 @@ impl AmpConfigPersistenceService {
     ) -> Result<(), String> {
         let mut snapshot = AmpConfigDto::from_service(audio_service, device_service);
         snapshot.midi_bindings = self
-            .repository
-            .load()
-            .unwrap_or_default()
-            .unwrap_or_default()
-            .midi_bindings;
+            .latest_midi_bindings
+            .lock()
+            .map_err(|_| "Amp config persistence lock is unavailable".to_string())?
+            .clone();
         self.persist_snapshot(snapshot)
     }
 
@@ -102,6 +110,16 @@ impl AmpConfigPersistenceService {
     /// `remove_mapping` so that a single background worker owns all writes
     /// and there is no risk of two concurrent saves racing on the file.
     pub fn persist_midi_bindings(&self, bindings: Vec<MidiMappingDto>) -> Result<(), String> {
+        // Update in-memory cache first so concurrent amp-state persistence can
+        // always merge the latest MIDI snapshot without waiting for disk.
+        {
+            let mut latest_bindings = self
+                .latest_midi_bindings
+                .lock()
+                .map_err(|_| "Amp config persistence lock is unavailable".to_string())?;
+            *latest_bindings = bindings.clone();
+        }
+
         // Read the current on-disk snapshot so we can splice in the new
         // bindings without touching amp-config fields.
         let mut snapshot = self
@@ -120,6 +138,8 @@ mod tests {
     use super::*;
     use crate::domain::channel_manager::ChannelManager;
     use crate::domain::dto::audio_settings_dto::AudioSettingsDto;
+    use crate::domain::dto::midi_mapping_dto::MidiMappingDto;
+    use crate::domain::midi_target_parameter::MidiTargetParameter;
     use crate::infrastructure::audio_handler::MockAudioHandlerTrait;
     use std::sync::{Arc, Condvar, Mutex};
     use std::time::Duration;
@@ -402,5 +422,62 @@ mod tests {
 
         assert!(saved.iter().any(|cfg| cfg.current_channel == id_3));
         assert!(!saved.iter().any(|cfg| cfg.current_channel == id_2));
+    }
+
+    #[test]
+    fn persist_from_audio_service_uses_in_memory_midi_bindings_cache() {
+        let state = Arc::new(SpyRepositoryState::new());
+
+        *state
+            .load_result
+            .lock()
+            .expect("load_result should be lockable") = Ok(Some(AmpConfigDto {
+            master_volume: 1.0,
+            is_active: false,
+            channels: Vec::new(),
+            current_channel: uuid::Uuid::new_v4().to_string(),
+            audio_settings: AudioSettingsDto::default(),
+            midi_bindings: vec![MidiMappingDto {
+                cc_number: 1,
+                channel: 1,
+                effect_id: uuid::Uuid::new_v4().to_string(),
+                parameter: MidiTargetParameter::ToggleBypass,
+            }],
+        }));
+
+        let service = AmpConfigPersistenceService::new(Box::new(SpyRepository {
+            state: Arc::clone(&state),
+        }));
+
+        let newest_binding = MidiMappingDto {
+            cc_number: 64,
+            channel: 2,
+            effect_id: uuid::Uuid::new_v4().to_string(),
+            parameter: MidiTargetParameter::DelayLevel,
+        };
+        service
+            .persist_midi_bindings(vec![newest_binding.clone()])
+            .expect("midi bindings enqueue should succeed");
+
+        let mock = MockAudioHandlerTrait::new();
+        let audio_service = AudioService::new_with_handler(
+            Arc::new(mock),
+            Arc::new(Mutex::new(ChannelManager::new())),
+        );
+        let device_service = DeviceService::new();
+
+        service
+            .persist_from_audio_service(&audio_service, &device_service)
+            .expect("persist should succeed");
+
+        let saved = state.wait_for_saved_count(1, Duration::from_secs(1));
+        assert!(!saved.is_empty());
+        assert_eq!(saved.last().unwrap().midi_bindings.len(), 1);
+        assert_eq!(saved.last().unwrap().midi_bindings[0].cc_number, 64);
+        assert_eq!(saved.last().unwrap().midi_bindings[0].channel, 2);
+        assert_eq!(
+            saved.last().unwrap().midi_bindings[0].parameter,
+            MidiTargetParameter::DelayLevel
+        );
     }
 }
