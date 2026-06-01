@@ -85,6 +85,7 @@ export function EffectChain({effects, selected, onSelectionChange, onOpenKeybind
             }}
         >
             <Box sx={{position: "absolute", top: 8, right: 8, zIndex: 3}}>
+                {onOpenKeybinds && (
                 <Tooltip title="Show keyboard shortcuts">
                     <IconButton
                         size="small"
@@ -95,6 +96,7 @@ export function EffectChain({effects, selected, onSelectionChange, onOpenKeybind
                         <Keyboard fontSize="small"/>
                     </IconButton>
                 </Tooltip>
+                )}
             </Box>
             {/*Scrollable Wrapper*/}
             <Box

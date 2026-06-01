@@ -229,7 +229,7 @@ describe("MainScreen keybind logic", () => {
             });
         });
 
-        describe("movement keys", () => {
+        describe("movement keys — reordering effect in chain", () => {
             it("moves selected effect right with ArrowRight", async () => {
                 render(<MainScreen/>);
 
@@ -246,7 +246,7 @@ describe("MainScreen keybind logic", () => {
                 expect(storeState.applyChangesToChainOrder).toHaveBeenCalledTimes(1);
             });
         });
-        describe("movement keys", () => {
+        describe("movement keys — no-op when amp is selected", () => {
             it("does not move effects with arrows while amp is selected", () => {
                 render(<MainScreen/>);
 

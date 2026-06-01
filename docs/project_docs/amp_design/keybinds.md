@@ -1,13 +1,12 @@
 # Keybinds
 
 To enhance our user experience, we integrated keybinds. These allow users to quickly access features and perform actions
-without navigating through menus or use their mouse.
+without navigating through menus or using their mouse.
 
-Our application uses the react "react-hotkeys" package to easily map these binds.
+Our application uses the react "react-hotkeys-hook" package to easily map these binds.
 
 ## Default keybinds
-
-RustRiff has the following keybinds
+RustRiff has the following keybinds:
 
 | Keybind          | Action                       |
 |------------------|------------------------------|
