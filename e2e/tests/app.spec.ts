@@ -6,33 +6,21 @@ import {expect, test} from "../fixtures";
  * Keep these tests fast and side-effect free; they are the first gate in CI.
  */
 
-test("app shell renders without crashing", async ({ tauriPage }) => {
-  // The body element must be present — proves the webview initialised
-  await tauriPage.waitForSelector("body", { timeout: 15_000 });
-  const content = await tauriPage.content();
-  expect(content).toBeTruthy();
-  expect(content.length).toBeGreaterThan(0);
+test("app shell renders header and primary navigation", async ({tauriPage}) => {
+  await tauriPage.waitForSelector("#root", 20_000);
+
+  await expect(tauriPage.getByText("Rust Riff")).toBeVisible();
+  await expect(tauriPage.getByRole("button", {name: "Home"})).toBeVisible();
+  await expect(tauriPage.getByRole("button", {name: "Tuner"})).toBeVisible();
+  await expect(tauriPage.getByRole("button", {name: "Settings"})).toBeVisible();
 });
 
-test("page has a non-empty document title", async ({ tauriPage }) => {
-  await tauriPage.waitForSelector("body");
-  const title = await tauriPage.title();
-  // Title may be empty in some webviews, so just confirm the page responded
-  expect(typeof title).toBe("string");
-});
+test("home view renders amp controls", async ({tauriPage}) => {
+  await tauriPage.waitForSelector("#root", 20_000);
 
-test("root React mount point is present in the DOM", async ({ tauriPage }) => {
-  await tauriPage.waitForSelector("#root", { timeout: 15_000 });
-  const visible = await tauriPage.isVisible("#root");
-  expect(visible).toBe(true);
+  await expect(tauriPage.getByText("On/Off")).toBeVisible();
+  await expect(tauriPage.getByText("Volume")).toBeVisible();
+  await expect(tauriPage.getByText("Gain")).toBeVisible();
+  await expect(tauriPage.getByText("Tone stack")).toBeVisible();
+  await expect(tauriPage.getByText("Master")).toBeVisible();
 });
-
-test("at least one interactive element is rendered", async ({ tauriPage }) => {
-  // Wait for React to hydrate — any button or input suffices
-  await tauriPage.waitForSelector("button, input, [role='button']", {
-    timeout: 15_000,
-  });
-  const count = await tauriPage.count("button, input, [role='button']");
-  expect(count).toBeGreaterThan(0);
-});
-

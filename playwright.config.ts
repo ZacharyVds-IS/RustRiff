@@ -15,8 +15,7 @@ import {resolve} from "path";
  *
  * Run locally:
  *   npm run test:e2e:browser   # browser-only (no Tauri binary needed)
- *   npm run test:e2e:tauri     # real webview (build binary first)
- *   npm run test:e2e           # all available projects (smart detection)
+ *   npm run test:e2e           # build tauri binary + run both projects
  *
  * Build Tauri binary first (required for tauri tests):
  *   npm run tauri build -- --no-bundle --features e2e-testing
@@ -31,20 +30,22 @@ const TAURI_BINARY = process.env.TAURI_BINARY ?? DEFAULT_BINARY;
 // Check if binary exists for tauri project
 const BINARY_EXISTS = existsSync(resolve(TAURI_BINARY));
 
-// Determine which projects to run
-// The fixture (e2e/fixtures.ts) uses project names to determine browser vs tauri mode
-const projects = [
+// Derive the project type directly from defineConfig so it stays in sync with Playwright.
+type PlaywrightProject = NonNullable<Parameters<typeof defineConfig>[0]["projects"]>[number];
+
+// Determine which projects to run.
+const projects: PlaywrightProject[] = [
   {
     name: "browser-only",
     use: { ...devices["Desktop Chrome"] },
   },
 ];
 
-// Add tauri project if binary exists or explicitly forced
+// Add tauri project if binary exists or explicitly forced.
 if (BINARY_EXISTS || process.env.FORCE_TAURI === "true") {
   projects.push({
     name: "tauri",
-    use: {},
+    use: {},  // No browser device needed; the fixture drives the native webview.
   });
 }
 
@@ -60,6 +61,12 @@ export default defineConfig({
     ["html", { open: "never", outputFolder: "playwright-report" }],
     ...(process.env.CI ? [["github"] as const] : []),
   ],
+  webServer: {
+    command: "npm run dev -- --host 127.0.0.1 --port 1420",
+    url: "http://127.0.0.1:1420",
+    reuseExistingServer: !process.env.CI,
+    timeout: 120_000,
+  },
 
   projects,
 });
