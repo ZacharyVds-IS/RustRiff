@@ -52,10 +52,10 @@ pub async fn get_live_spectrum(
     audio_service: tauri::State<'_, Mutex<AudioService>>,
 ) -> Result<SpectrumSnapshotDto, String> {
     let tap = {
-        let service = audio_service
+        let audio_service = audio_service
             .lock()
             .map_err(|_| "Failed to lock audio service".to_string())?;
-        service.spectrum_tap().clone()
+        audio_service.spectrum_tap().clone()
     };
 
     tauri::async_runtime::spawn_blocking(move || SpectrumAnalyzerService::analyze_tap(tap.as_ref()))
@@ -91,10 +91,10 @@ pub fn start_live_spectrum_stream(
     stream_state: tauri::State<'_, SpectrumStreamState>,
 ) -> Result<(), String> {
     let tap: Arc<_> = {
-        let service = audio_service
+        let audio_service = audio_service
             .lock()
             .map_err(|_| "Failed to lock audio service".to_string())?;
-        service.spectrum_tap().clone()
+        audio_service.spectrum_tap().clone()
     };
 
     let shutdown = Arc::new(AtomicBool::new(false));

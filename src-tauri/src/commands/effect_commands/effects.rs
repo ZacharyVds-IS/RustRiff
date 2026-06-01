@@ -15,16 +15,16 @@ pub(crate) fn add_effect(
     persistence_service: tauri::State<Mutex<AmpConfigPersistenceService>>,
     effect_dto: EffectDto,
 ) -> Result<(), String> {
-    let service = audio_service.inner().lock().unwrap();
-    let dsp_sample_rate = service.dsp_chain_sample_rate();
+    let audio_service = audio_service.inner().lock().unwrap();
+    let dsp_sample_rate = audio_service.dsp_chain_sample_rate();
 
     let effect = effect_dto.add_to_domain(dsp_sample_rate);
     {
-        let mut cm = service.channel_manager().lock().unwrap();
+        let mut cm = audio_service.channel_manager().lock().unwrap();
         cm.add_effect_to_current(effect);
     }
-    let device_service_guard = device_service.inner().lock().unwrap();
-    persist_amp_config(&service, &device_service_guard, &persistence_service);
+    let device_service = device_service.inner().lock().unwrap();
+    persist_amp_config(&audio_service, &device_service, &persistence_service);
     Ok(())
 }
 
@@ -35,13 +35,13 @@ pub(crate) fn remove_effect(
     persistence_service: tauri::State<Mutex<AmpConfigPersistenceService>>,
     effect_id: String,
 ) {
-    let service = audio_service.inner().lock().unwrap();
+    let audio_service = audio_service.inner().lock().unwrap();
     {
-        let mut cm = service.channel_manager().lock().unwrap();
+        let mut cm = audio_service.channel_manager().lock().unwrap();
         cm.remove_effect_from_current(Uuid::parse_str(&effect_id).expect("failed to parse id"));
     }
-    let device_service_guard = device_service.inner().lock().unwrap();
-    persist_amp_config(&service, &device_service_guard, &persistence_service);
+    let device_service = device_service.inner().lock().unwrap();
+    persist_amp_config(&audio_service, &device_service, &persistence_service);
 }
 
 #[tauri::command]
@@ -49,13 +49,13 @@ pub(crate) fn apply_effect_order_change(
     audio_service: tauri::State<Mutex<AudioService>>,
     effects: Vec<EffectDto>,
 ) {
-    let service = audio_service.inner().lock().unwrap();
-    let dsp_sample_rate = service.dsp_chain_sample_rate();
+    let audio_service = audio_service.inner().lock().unwrap();
+    let dsp_sample_rate = audio_service.dsp_chain_sample_rate();
     let boxed_effects: Vec<Box<dyn Effect>> = effects
         .into_iter()
         .map(|dto| dto.to_domain(dsp_sample_rate))
         .collect();
-    let mut cm = service.channel_manager().lock().unwrap();
+    let mut cm = audio_service.channel_manager().lock().unwrap();
     cm.restore_effect_chain_on_current(boxed_effects);
 }
 
@@ -83,10 +83,10 @@ pub fn toggle_effect(
     persistence_service: tauri::State<Mutex<AmpConfigPersistenceService>>,
     effect_id: String,
 ) -> Result<bool, String> {
-    let service = audio_service
+    let audio_service = audio_service
         .lock()
         .map_err(|_| "Failed to lock audio service".to_string())?;
-    let cm = service.channel_manager().lock().unwrap();
+    let cm = audio_service.channel_manager().lock().unwrap();
     let new_state =
         cm.toggle_effect_active(Uuid::parse_str(&effect_id).expect("failed to parse id"))?;
     info!(
@@ -96,10 +96,10 @@ pub fn toggle_effect(
         "Effect toggled"
     );
 
-    let device_service_guard = device_service
+    let device_service = device_service
         .lock()
         .map_err(|_| "Failed to lock device service".to_string())?;
     drop(cm);
-    persist_amp_config(&service, &device_service_guard, &persistence_service);
+    persist_amp_config(&audio_service, &device_service, &persistence_service);
     Ok(new_state)
 }

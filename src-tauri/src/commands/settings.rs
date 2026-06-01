@@ -406,20 +406,20 @@ pub fn get_output_channel_options(
 pub fn get_selected_input_channel_count(
     audio_service: tauri::State<'_, Mutex<AudioService>>,
 ) -> Result<u16, String> {
-    let audio = audio_service
+    let audio_service = audio_service
         .lock()
         .map_err(|_| "Failed to lock audio service".to_string())?;
-    Ok(audio.audio_handler().input_config().channels)
+    Ok(audio_service.audio_handler().input_config().channels)
 }
 
 #[tauri::command]
 pub fn get_selected_output_channel_count(
     audio_service: tauri::State<'_, Mutex<AudioService>>,
 ) -> Result<u16, String> {
-    let audio = audio_service
+    let audio_service = audio_service
         .lock()
         .map_err(|_| "Failed to lock audio service".to_string())?;
-    Ok(audio.audio_handler().output_config().channels)
+    Ok(audio_service.audio_handler().output_config().channels)
 }
 
 #[tauri::command]
@@ -444,10 +444,10 @@ pub fn set_asio_channel_config(
     let (input_config, output_config) =
         build_asio_io_configs(&device, Some(input_channels), Some(output_channels))?;
 
-    let mut audio = audio_service
+    let mut audio_service = audio_service
         .lock()
         .map_err(|_| "Failed to lock audio service".to_string())?;
-    audio.set_io_devices(device.clone(), device, input_config, output_config);
+    audio_service.set_io_devices(device.clone(), device, input_config, output_config);
     Ok(())
 }
 
@@ -467,16 +467,16 @@ pub fn set_audio_driver(
         let (input_device, output_device) = device_service.default_devices_for_selected_driver()?;
         if device_service.is_asio_selected() {
             let (input_config, output_config) = build_asio_io_configs(&input_device, None, None)?;
-            let mut audio = audio_service
+            let mut audio_service = audio_service
                 .lock()
                 .map_err(|_| "Failed to lock audio service".to_string())?;
-            audio.set_io_devices(
+            audio_service.set_io_devices(
                 input_device.clone(),
                 output_device,
                 input_config,
                 output_config,
             );
-            persist_amp_config(&audio, &device_service, &persistence_service);
+            persist_amp_config(&audio_service, &device_service, &persistence_service);
             return Ok(());
         }
 
@@ -484,11 +484,11 @@ pub fn set_audio_driver(
         let input_config = build_input_config(&input_device, should_normalize)?;
         let output_config = build_output_config(&output_device, should_normalize)?;
 
-        let mut audio = audio_service
+        let mut audio_service = audio_service
             .lock()
             .map_err(|_| "Failed to lock audio service".to_string())?;
-        audio.set_io_devices(input_device, output_device, input_config, output_config);
-        persist_amp_config(&audio, &device_service, &persistence_service);
+        audio_service.set_io_devices(input_device, output_device, input_config, output_config);
+        persist_amp_config(&audio_service, &device_service, &persistence_service);
         Ok(())
     })();
 
@@ -585,10 +585,10 @@ pub fn set_input_device(
         device_name, input_config.channels, input_config.sample_rate
     );
 
-    let mut audio = audio_service
+    let mut audio_service = audio_service
         .lock()
         .map_err(|_| "Failed to lock audio service".to_string())?;
-    audio.set_input_device(device, input_config);
+    audio_service.set_input_device(device, input_config);
 
     Ok(())
 }
@@ -636,10 +636,10 @@ pub fn set_output_device(
         device_name, output_config.channels, output_config.sample_rate
     );
 
-    let mut audio = audio_service
+    let mut audio_service = audio_service
         .lock()
         .map_err(|_| "Failed to lock audio service".to_string())?;
-    audio.set_output_device(device, output_config);
+    audio_service.set_output_device(device, output_config);
 
     Ok(())
 }
@@ -648,10 +648,10 @@ pub fn set_output_device(
 pub fn get_buffer_size_frames(
     audio_service: tauri::State<'_, Mutex<AudioService>>,
 ) -> Result<u32, String> {
-    let audio = audio_service
+    let audio_service = audio_service
         .lock()
         .map_err(|_| "Failed to lock audio service".to_string())?;
-    Ok(audio.buffer_size_frames())
+    Ok(audio_service.buffer_size_frames())
 }
 
 #[tauri::command]
@@ -659,8 +659,8 @@ pub fn set_buffer_size_frames(
     audio_service: tauri::State<'_, Mutex<AudioService>>,
     frames: u32,
 ) -> Result<(), String> {
-    let mut audio = audio_service
+    let mut audio_service = audio_service
         .lock()
         .map_err(|_| "Failed to lock audio service".to_string())?;
-    audio.set_buffer_size_frames(frames)
+    audio_service.set_buffer_size_frames(frames)
 }

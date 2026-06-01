@@ -20,20 +20,20 @@ pub fn set_delay_level(
         ));
     }
 
-    let service = audio_service
+    let audio_service = audio_service
         .lock()
         .map_err(|_| "Failed to lock audio service".to_string())?;
-    let device_service_guard = device_service
+    let device_service = device_service
         .lock()
         .map_err(|_| "Failed to lock device service".to_string())?;
-    let cm = service.channel_manager().lock().unwrap();
+    let cm = audio_service.channel_manager().lock().unwrap();
     cm.set_effect_parameter(
         Uuid::parse_str(&effect_id).expect("failed to parse id"),
         "level",
         level,
     )?;
     drop(cm);
-    persist_amp_config(&service, &device_service_guard, &persistence_service);
+    persist_amp_config(&audio_service, &device_service, &persistence_service);
     Ok(())
 }
 
@@ -45,19 +45,19 @@ pub fn set_delay_delay_time(
     effect_id: String,
     delay_time: u32,
 ) -> Result<(), String> {
-    let service = audio_service
+    let audio_service = audio_service
         .lock()
         .map_err(|_| "Failed to lock audio service".to_string())?;
-    let device_service_guard = device_service
+    let device_service = device_service
         .lock()
         .map_err(|_| "Failed to lock device service".to_string())?;
-    let cm = service.channel_manager().lock().unwrap();
+    let cm = audio_service.channel_manager().lock().unwrap();
     cm.set_effect_parameter(
         Uuid::parse_str(&effect_id).expect("failed to parse id"),
         "delay_time",
         delay_time,
     )?;
     drop(cm);
-    persist_amp_config(&service, &device_service_guard, &persistence_service);
+    persist_amp_config(&audio_service, &device_service, &persistence_service);
     Ok(())
 }

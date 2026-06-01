@@ -46,10 +46,10 @@ pub fn set_hc_distortion_threshold(
 
     let safe_threshold = threshold.clamp(0.001, 1.0);
 
-    let service = audio_service
+    let audio_service = audio_service
         .lock()
         .map_err(|_| "Failed to lock audio service".to_string())?;
-    let cm = service.channel_manager().lock().unwrap();
+    let cm = audio_service.channel_manager().lock().unwrap();
     cm.set_effect_parameter(
         Uuid::parse_str(&effect_id).expect("failed to parse id"),
         "threshold",
@@ -65,7 +65,7 @@ pub fn set_hc_distortion_threshold(
         .lock()
         .map_err(|_| "Failed to lock device service".to_string())?;
     drop(cm);
-    persist_amp_config(&service, &device_service, &persistence_service);
+    persist_amp_config(&audio_service, &device_service, &persistence_service);
     Ok(())
 }
 
@@ -114,10 +114,10 @@ pub fn set_hc_distortion_level(
     let safe_level = level.clamp(0.0, 1.0);
     let gain = 1.0 + safe_level;
 
-    let service = audio_service
+    let audio_service = audio_service
         .lock()
         .map_err(|_| "Failed to lock audio service".to_string())?;
-    let cm = service.channel_manager().lock().unwrap();
+    let cm = audio_service.channel_manager().lock().unwrap();
     cm.set_effect_parameter(
         Uuid::parse_str(&effect_id).expect("failed to parse id"),
         "level",
@@ -134,6 +134,6 @@ pub fn set_hc_distortion_level(
         .lock()
         .map_err(|_| "Failed to lock device service".to_string())?;
     drop(cm);
-    persist_amp_config(&service, &device_service, &persistence_service);
+    persist_amp_config(&audio_service, &device_service, &persistence_service);
     Ok(())
 }

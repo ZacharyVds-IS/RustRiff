@@ -23,14 +23,14 @@ pub fn get_amp_config(
     audio_service: tauri::State<'_, Mutex<AudioService>>,
     device_service: tauri::State<'_, Mutex<DeviceService>>,
 ) -> Result<AmpConfigDto, String> {
-    let service = audio_service
+    let audio_service = audio_service
         .lock()
         .map_err(|_| "Failed to lock audio service".to_string())?;
     let device_service = device_service
         .lock()
         .map_err(|_| "Failed to lock device service".to_string())?;
 
-    Ok(AmpConfigDto::from_service(&service, &device_service))
+    Ok(AmpConfigDto::from_service(&audio_service, &device_service))
 }
 
 /// Toggles the audio loopback on or off.
@@ -48,10 +48,10 @@ pub(crate) fn toggle_on_off(
     persistence_service: tauri::State<Mutex<AmpConfigPersistenceService>>,
     is_on: bool,
 ) {
-    let mut service = audio_service.inner().lock().unwrap();
-    let device_service_guard = device_service.inner().lock().unwrap();
-    service.toggle_loopback(is_on);
-    persist_amp_config(&service, &device_service_guard, &persistence_service);
+    let mut audio_service = audio_service.inner().lock().unwrap();
+    let device_service = device_service.inner().lock().unwrap();
+    audio_service.toggle_loopback(is_on);
+    persist_amp_config(&audio_service, &device_service, &persistence_service);
 }
 
 /// Sets the input gain level for the amplifier.
@@ -71,14 +71,14 @@ pub(crate) fn set_gain(
     persistence_service: tauri::State<Mutex<AmpConfigPersistenceService>>,
     gain: f32,
 ) {
-    let service = audio_service.inner().lock().unwrap();
-    let device_service_guard = device_service.inner().lock().unwrap();
-    let cm = service.channel_manager().lock().unwrap();
+    let audio_service = audio_service.inner().lock().unwrap();
+    let device_service = device_service.inner().lock().unwrap();
+    let cm = audio_service.channel_manager().lock().unwrap();
     cm.current_channel()
         .expect("current channel must exist")
         .set_gain(gain);
     drop(cm);
-    persist_amp_config(&service, &device_service_guard, &persistence_service);
+    persist_amp_config(&audio_service, &device_service, &persistence_service);
 }
 
 /// Sets the master volume level for the amplifier.
@@ -98,10 +98,10 @@ pub(crate) fn set_master_volume(
     persistence_service: tauri::State<Mutex<AmpConfigPersistenceService>>,
     master_volume: f32,
 ) {
-    let service = audio_service.inner().lock().unwrap();
-    let device_service_guard = device_service.inner().lock().unwrap();
-    service.set_master_volume(master_volume);
-    persist_amp_config(&service, &device_service_guard, &persistence_service);
+    let audio_service = audio_service.inner().lock().unwrap();
+    let device_service = device_service.inner().lock().unwrap();
+    audio_service.set_master_volume(master_volume);
+    persist_amp_config(&audio_service, &device_service, &persistence_service);
 }
 
 /// Sets the tone stack configuration for the current channel.
@@ -123,15 +123,15 @@ pub(crate) fn set_tone_stack(
     persistence_service: tauri::State<Mutex<AmpConfigPersistenceService>>,
     tone_stack: ToneStackDto,
 ) {
-    let service = audio_service.inner().lock().unwrap();
-    let device_service_guard = device_service.inner().lock().unwrap();
-    let cm = service.channel_manager().lock().unwrap();
+    let audio_service = audio_service.inner().lock().unwrap();
+    let device_service = device_service.inner().lock().unwrap();
+    let cm = audio_service.channel_manager().lock().unwrap();
     cm.current_channel()
         .expect("current channel must exist")
         .set_tone_stack(tone_stack);
     drop(cm);
 
-    persist_amp_config(&service, &device_service_guard, &persistence_service);
+    persist_amp_config(&audio_service, &device_service, &persistence_service);
 }
 
 /// Sets the bass level for the current channel.
@@ -153,14 +153,14 @@ pub(crate) fn set_bass(
     persistence_service: tauri::State<Mutex<AmpConfigPersistenceService>>,
     bass: f32,
 ) {
-    let service = audio_service.inner().lock().unwrap();
-    let device_service_guard = device_service.inner().lock().unwrap();
-    let cm = service.channel_manager().lock().unwrap();
+    let audio_service = audio_service.inner().lock().unwrap();
+    let device_service = device_service.inner().lock().unwrap();
+    let cm = audio_service.channel_manager().lock().unwrap();
     cm.current_channel()
         .expect("current channel must exist")
         .set_bass(bass);
     drop(cm);
-    persist_amp_config(&service, &device_service_guard, &persistence_service);
+    persist_amp_config(&audio_service, &device_service, &persistence_service);
 }
 
 /// Sets the middle frequency level for the current channel.
@@ -182,14 +182,14 @@ pub(crate) fn set_middle(
     persistence_service: tauri::State<Mutex<AmpConfigPersistenceService>>,
     middle: f32,
 ) {
-    let service = audio_service.inner().lock().unwrap();
-    let device_service_guard = device_service.inner().lock().unwrap();
-    let cm = service.channel_manager().lock().unwrap();
+    let audio_service = audio_service.inner().lock().unwrap();
+    let device_service = device_service.inner().lock().unwrap();
+    let cm = audio_service.channel_manager().lock().unwrap();
     cm.current_channel()
         .expect("current channel must exist")
         .set_middle(middle);
     drop(cm);
-    persist_amp_config(&service, &device_service_guard, &persistence_service);
+    persist_amp_config(&audio_service, &device_service, &persistence_service);
 }
 
 /// Sets the treble level for the current channel.
@@ -211,14 +211,14 @@ pub(crate) fn set_treble(
     persistence_service: tauri::State<Mutex<AmpConfigPersistenceService>>,
     treble: f32,
 ) {
-    let service = audio_service.inner().lock().unwrap();
-    let device_service_guard = device_service.inner().lock().unwrap();
-    let cm = service.channel_manager().lock().unwrap();
+    let audio_service = audio_service.inner().lock().unwrap();
+    let device_service = device_service.inner().lock().unwrap();
+    let cm = audio_service.channel_manager().lock().unwrap();
     cm.current_channel()
         .expect("current channel must exist")
         .set_treble(treble);
     drop(cm);
-    persist_amp_config(&service, &device_service_guard, &persistence_service);
+    persist_amp_config(&audio_service, &device_service, &persistence_service);
 }
 
 /// Sets the output volume for the current channel.
@@ -240,12 +240,12 @@ pub(crate) fn set_volume(
     persistence_service: tauri::State<Mutex<AmpConfigPersistenceService>>,
     volume: f32,
 ) {
-    let service = audio_service.inner().lock().unwrap();
-    let device_service_guard = device_service.inner().lock().unwrap();
-    let cm = service.channel_manager().lock().unwrap();
+    let audio_service = audio_service.inner().lock().unwrap();
+    let device_service = device_service.inner().lock().unwrap();
+    let cm = audio_service.channel_manager().lock().unwrap();
     cm.current_channel()
         .expect("current channel must exist")
         .set_volume(volume);
     drop(cm);
-    persist_amp_config(&service, &device_service_guard, &persistence_service);
+    persist_amp_config(&audio_service, &device_service, &persistence_service);
 }

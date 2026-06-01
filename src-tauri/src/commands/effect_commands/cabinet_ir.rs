@@ -102,10 +102,10 @@ fn ensure_profile_can_be_removed(
 fn used_ir_profiles(
     audio_service: &tauri::State<Mutex<AudioService>>,
 ) -> Result<HashSet<String>, String> {
-    let service = audio_service
+    let audio_service = audio_service
         .lock()
         .map_err(|_| "Failed to lock audio service".to_string())?;
-    let cm = service
+    let cm = audio_service
         .channel_manager()
         .lock()
         .map_err(|_| "Failed to lock channel manager".to_string())?;
