@@ -57,13 +57,12 @@ export function EffectChain({effects, selected, onSelectionChange, onOpenKeybind
 
         if (sourceIndex === newIndex) return;
 
-        // Move the effect and instantly commit changes to the backend/store
         moveEffect(sourceIndex, newIndex);
         await applyChangesToChainOrder();
     };
 
     function isEffectSelected(effect: EffectDto) {
-        return selected !== "amp" && selected === effect;
+        return selected !== "amp" && selected.data.id === effect.data.id && selected.kind === effect.kind;
     }
 
     const selectedBorder = {
