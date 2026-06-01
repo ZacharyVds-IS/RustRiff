@@ -1,13 +1,16 @@
 import {useEffect, useRef, useState} from "react";
 import {AlphaTabApi} from "@coderline/alphatab";
-import {Box, Button, Stack, Typography} from "@mui/material";
+import {Box, Button, Stack, Typography, useTheme} from "@mui/material";
+import "./TabWindow.css";
 
 export function TabWindow() {
+    const theme = useTheme();
     const tabContainerRef = useRef<HTMLDivElement | null>(null);
     const apiRef = useRef<AlphaTabApi | null>(null);
     const fileInputRef = useRef<HTMLInputElement | null>(null);
     const prevObjectUrlRef = useRef<string | null>(null);
     const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
+    const cursorBeatBackground = theme.palette.primary.main;
 
     useEffect(() => {
 
@@ -177,9 +180,9 @@ export function TabWindow() {
              {/* Container element for alphaTab */}
              <div
                  ref={tabContainerRef}
+                 className="alphatab-host"
+                 style={{"--cursor-beat-bg": cursorBeatBackground} as React.CSSProperties}
              />
         </Box>
     );
 }
-
-
