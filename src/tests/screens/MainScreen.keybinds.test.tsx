@@ -1,0 +1,263 @@
+// @vitest-environment jsdom
+import React from "react";
+import {act, render, screen} from "@testing-library/react";
+import {beforeEach, describe, expect, it, vi} from "vitest";
+import {MainScreen} from "../../screens/MainScreen";
+
+function createEffectA() {
+    return {
+        kind: "Delay",
+        data: {
+            id: "effect-a",
+            name: "Effect A",
+            is_active: true,
+            delay_time: 200,
+            level: 0.5,
+            color: "#123456",
+        },
+    };
+}
+
+function createEffectB() {
+    return {
+        kind: "Delay",
+        data: {
+            id: "effect-b",
+            name: "Effect B",
+            is_active: true,
+            delay_time: 260,
+            level: 0.6,
+            color: "#654321",
+        },
+    };
+}
+
+const storeState = vi.hoisted(() => ({
+    channels: [
+        {
+            id: "channel-1",
+            effect_chain: [
+                {
+                    kind: "Delay",
+                    data: {
+                        id: "effect-a",
+                        name: "Effect A",
+                        is_active: true,
+                        delay_time: 200,
+                        level: 0.5,
+                        color: "#123456",
+                    },
+                },
+                {
+                    kind: "Delay",
+                    data: {
+                        id: "effect-b",
+                        name: "Effect B",
+                        is_active: true,
+                        delay_time: 260,
+                        level: 0.6,
+                        color: "#654321",
+                    },
+                },
+            ],
+        },
+    ],
+    current_channel: "channel-1",
+    is_active: false,
+    updateEffectActiveState: vi.fn(),
+    moveEffect: vi.fn().mockResolvedValue(undefined),
+    applyChangesToChainOrder: vi.fn().mockResolvedValue(undefined),
+    setIsActive: vi.fn((next: boolean) => {
+        storeState.is_active = next;
+    }),
+}));
+
+const useAmpStoreMock = vi.hoisted(() => {
+    const fn: any = vi.fn((selector?: (state: any) => any) =>
+        typeof selector === "function" ? selector(storeState) : storeState,
+    );
+    fn.getState = () => storeState;
+    return fn;
+});
+
+type HotkeyBinding = {
+    keys: string[];
+    callback: (event?: unknown, handler?: {keys?: string[]}) => void;
+};
+
+const hotkeyBindings = vi.hoisted<HotkeyBinding[]>(() => []);
+
+const toggleEffectMock = vi.hoisted(() => vi.fn().mockResolvedValue(true));
+
+vi.mock("../../state/AmpConfigStore.tsx", () => ({
+    useAmpStore: useAmpStoreMock,
+}));
+
+vi.mock("../../domain", () => ({
+    toggleEffect: toggleEffectMock,
+}));
+
+vi.mock("react-hotkeys-hook", () => ({
+    useHotkeys: (
+        keys: string | string[],
+        callback: (event?: unknown, handler?: {keys?: string[]}) => void,
+    ) => {
+        hotkeyBindings.push({
+            keys: Array.isArray(keys) ? keys : [keys],
+            callback,
+        });
+    },
+}));
+
+vi.mock("../../components/EffectChain.tsx", () => ({
+    EffectChain: ({selected, onOpenKeybinds}: {selected: any; onOpenKeybinds?: () => void}) => (
+        <div>
+            <div data-testid="selected-chain-item">{selected === "amp" ? "amp" : selected.data.id}</div>
+            <button onClick={onOpenKeybinds}>open-keybinds</button>
+        </div>
+    ),
+}));
+
+vi.mock("../../components/DefaultAmpControls.tsx", () => ({
+    DefaultAmpControls: () => <div>amp-controls</div>,
+}));
+
+vi.mock("../../components/EffectPedal.tsx", () => ({
+    EffectPedal: ({effect}: {effect: any}) => <div>{`effect-pedal-${effect.data.id}`}</div>,
+}));
+
+vi.mock("../../components/CabinetEffect.tsx", () => ({
+    CabinetEffect: ({effect}: {effect: any}) => <div>{`cabinet-${effect.data.id}`}</div>,
+}));
+
+vi.mock("../../components/dialogs/KeybindsDialog.tsx", () => ({
+    KeybindsDialog: ({open}: {open: boolean}) => <div>{open ? "keybinds-open" : "keybinds-closed"}</div>,
+}));
+
+function triggerHotkey(key: string) {
+    const binding = [...hotkeyBindings].reverse().find((entry) => entry.keys.includes(key));
+    if (!binding) {
+        throw new Error(`No hotkey binding found for key: ${key}`);
+    }
+    binding.callback(undefined, {keys: [key]});
+}
+
+describe("MainScreen keybind logic", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        hotkeyBindings.length = 0;
+        storeState.channels = [
+            {
+                id: "channel-1",
+                effect_chain: [createEffectA(), createEffectB()],
+            },
+        ];
+        storeState.current_channel = "channel-1";
+        storeState.is_active = false;
+    });
+
+    describe("success_path", () => {
+        describe("selection keys", () => {
+            it("selects first effect with key 2 and returns to amp with key 1", () => {
+                render(<MainScreen/>);
+                expect(screen.getByText("amp-controls")).toBeTruthy();
+
+                act(() => {
+                    triggerHotkey("2");
+                });
+                expect(screen.getByText("effect-pedal-effect-a")).toBeTruthy();
+
+                act(() => {
+                    triggerHotkey("1");
+                });
+                expect(screen.getByText("amp-controls")).toBeTruthy();
+            });
+
+            it("selects the 9th effect with key 0", () => {
+                storeState.channels = [
+                    {
+                        id: "channel-1",
+                        effect_chain: Array.from({length: 9}, (_, index) => ({
+                            kind: "Delay",
+                            data: {
+                                id: `effect-${index + 1}`,
+                                name: `Effect ${index + 1}`,
+                                is_active: true,
+                                delay_time: 200 + index,
+                                level: 0.5,
+                                color: "#123456",
+                            },
+                        })),
+                    },
+                ];
+
+                render(<MainScreen/>);
+
+                act(() => {
+                    triggerHotkey("0");
+                });
+
+                expect(screen.getByText("effect-pedal-effect-9")).toBeTruthy();
+            });
+        });
+
+        describe("toggle keys", () => {
+            it("toggles amp on/off with space when amp is selected", () => {
+                render(<MainScreen/>);
+
+                act(() => {
+                    triggerHotkey("space");
+                });
+
+                expect(storeState.setIsActive).toHaveBeenCalledWith(true);
+            });
+
+            it("toggles selected effect with space and calls backend toggle", async () => {
+                render(<MainScreen/>);
+
+                act(() => {
+                    triggerHotkey("2");
+                });
+
+                await act(async () => {
+                    triggerHotkey("space");
+                    await Promise.resolve();
+                });
+
+                expect(storeState.updateEffectActiveState).toHaveBeenCalledWith("effect-a", false);
+                expect(toggleEffectMock).toHaveBeenCalledWith({effectId: "effect-a"});
+            });
+        });
+
+        describe("movement keys", () => {
+            it("moves selected effect right with ArrowRight", async () => {
+                render(<MainScreen/>);
+
+                act(() => {
+                    triggerHotkey("2");
+                });
+
+                await act(async () => {
+                    triggerHotkey("arrowright");
+                    await Promise.resolve();
+                });
+
+                expect(storeState.moveEffect).toHaveBeenCalledWith(0, 1);
+                expect(storeState.applyChangesToChainOrder).toHaveBeenCalledTimes(1);
+            });
+        });
+        describe("movement keys", () => {
+            it("does not move effects with arrows while amp is selected", () => {
+                render(<MainScreen/>);
+
+                act(() => {
+                    triggerHotkey("arrowleft");
+                    triggerHotkey("arrowright");
+                });
+
+                expect(storeState.moveEffect).not.toHaveBeenCalled();
+                expect(storeState.applyChangesToChainOrder).not.toHaveBeenCalled();
+            });
+        });
+    });
+});
