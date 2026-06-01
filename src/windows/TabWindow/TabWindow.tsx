@@ -28,18 +28,36 @@ export function TabWindow() {
                 tabContainerRef.current.removeAttribute('data-file');
             }
 
-            const settings: ConstructorParameters<typeof AlphaTabApi>[1] = {
-                core: {
-                    fontDirectory: '/font/'
-                },
-                player: {
-                    enablePlayer: true,
-                    soundFont: '/soundfont/sonivox.sf2'
-                }
-            };
+              const settings: ConstructorParameters<typeof AlphaTabApi>[1] = {
+                  core: {
+                      fontDirectory: '/font/'
+                  },
+                  player: {
+                      enablePlayer: true,
+                      soundFont: '/soundfont/sonivox.sf2',
 
-            apiRef.current = new AlphaTabApi(tabContainerRef.current, settings);
-        };
+                  }
+              };
+               (settings as any).showPlayingBeat = true;
+               (settings.player as any).scrollViewportAheadOfPlayback = 3000;
+               (settings as any).beatCursorVisible = true;
+                (settings as any).beatShowCursor = true;
+
+               apiRef.current = new AlphaTabApi(tabContainerRef.current, settings);
+
+              // Set the scroll element after API is created (alphaTab creates the viewport in the DOM)
+              const viewport = tabContainerRef.current?.querySelector('.at-viewport');
+              if (viewport && apiRef.current) {
+                  (apiRef.current as any).settings.scrollElement = viewport;
+              }
+
+              // Hook into player position to render cursor line
+              if (apiRef.current) {
+                  apiRef.current.playerPositionChanged.on(() => {
+                      // alphaTab automatically renders the cursor at the current playback position
+                  });
+              }
+         };
 
         createApi();
 
@@ -102,13 +120,30 @@ export function TabWindow() {
             apiRef.current = null;
         }
 
-        tabContainerRef.current.setAttribute('data-file', objectUrl);
-        const settings: ConstructorParameters<typeof AlphaTabApi>[1] = {
-            core: { fontDirectory: '/font/' },
-            player: { enablePlayer: true, soundFont: '/soundfont/sonivox.sf2' }
-        };
-        apiRef.current = new AlphaTabApi(tabContainerRef.current, settings);
-    };
+         tabContainerRef.current.setAttribute('data-file', objectUrl);
+         const settings: ConstructorParameters<typeof AlphaTabApi>[1] = {
+             core: { fontDirectory: '/font/' },
+             player: { enablePlayer: true, soundFont: '/soundfont/sonivox.sf2' }
+         };
+         (settings as any).showPlayingBeat = true;
+         (settings.player as any).scrollViewportAheadOfPlayback = 3000;
+         (settings as any).beatCursorVisible = true;
+         (settings as any).beatShowCursor = true;
+         apiRef.current = new AlphaTabApi(tabContainerRef.current, settings);
+
+         // Set the scroll element after API is created (alphaTab creates the viewport in the DOM)
+         const viewport = tabContainerRef.current?.querySelector('.at-viewport');
+         if (viewport && apiRef.current) {
+             (apiRef.current as any).settings.scrollElement = viewport;
+         }
+
+         // Hook into player position to render cursor line
+         if (apiRef.current) {
+             apiRef.current.playerPositionChanged.on(() => {
+                 // alphaTab automatically renders the cursor at the current playback position
+             });
+         }
+     };
 
     return (
         <Box sx={{p: 3}}>
@@ -139,10 +174,10 @@ export function TabWindow() {
                 </Box>
             </Stack>
 
-            {/* Container element for alphaTab */}
-            <div
-                ref={tabContainerRef}
-            />
+             {/* Container element for alphaTab */}
+             <div
+                 ref={tabContainerRef}
+             />
         </Box>
     );
 }
