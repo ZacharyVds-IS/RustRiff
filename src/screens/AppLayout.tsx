@@ -15,13 +15,9 @@ export function AppLayout() {
     const channels = ampStore.channels;
     const currentChannelId = ampStore.current_channel;
     const currentChannel = ampStore.channels.find(c => c.id === currentChannelId) || {id: "", name: "No Channel"};
-
-    console.log("AppLayout - channels:", channels, "currentChannelName:", currentChannel.name);
-
     const channelOptions = channels.map((channel) => ({label: channel.name, value: channel.id}));
 
     const handleChannelChange = async (id: string) => {
-        console.log("Changing channel to id:", id);
         await ampStore.setChannelById(id);
     };
 
@@ -123,6 +119,7 @@ export function AppLayout() {
                         >
                             Tab
                         </Button>
+                        <Button color="inherit" onClick={() => navigate("/tuner")}>Tuner</Button>
                         <Button color="inherit" onClick={() => navigate("/settings")}>Settings</Button>
                     </Box>
                 </Toolbar>

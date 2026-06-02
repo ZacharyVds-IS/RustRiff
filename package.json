@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "vite",
     "lint": "eslint .",
-    "format-rust": "cd ./src-tauri && cargo fmt --all",
+    "format-rust": "cd ./src-tauri && cargo fmt --all --check",
     "clippy-rust": "cd ./src-tauri && cargo clippy --all-targets --all-features -- ",
     "generate-types": "cargo tauri-typegen generate --output-path ./src/domain && npm run generate-effect-types",
     "generate-effect-types": "node scripts/generate-effect-types.mjs",
@@ -15,7 +15,7 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "test": "npm run test:rust && npm run test:ui",
-    "test:rust": "cd ./src-tauri && cargo test",
+    "test:rust": "cd ./src-tauri && cargo test --no-default-features",
     "test:rust-mutation": "cd ./src-tauri && cargo mutants",
     "test:ui": "vitest run",
     "test:ui-ui": "vitest run --ui --watch",

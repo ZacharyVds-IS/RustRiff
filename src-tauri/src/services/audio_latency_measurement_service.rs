@@ -53,67 +53,32 @@ impl AudioLatencyMeasurementService {
     ///
     /// [`GainProcessor`]: crate::services::processors::gain::gain_processor::GainProcessor
     pub fn measure_gain_latency(audio_service: &AudioService, block_size: usize) -> f64 {
-        let channel = audio_service
-            .channels()
-            .iter()
-            .find(|c| c.id() == *audio_service.current_channel_id())
-            .unwrap();
-        let mut gain = GainProcessor::new(channel.gain().clone());
+        let gain_arc = {
+            let cm = audio_service.channel_manager().lock().unwrap();
+            cm.current_channel().unwrap().gain().clone()
+        };
+        let mut gain = GainProcessor::new(gain_arc);
         LatencyAnalyzer::measure_effect_added_execution_us(&mut gain, 256, block_size)
     }
 
-    /// Measures the CPU execution cost added by the [`ToneStackProcessor`] in the current channel.
-    ///
-    /// Uses the same baseline-subtraction methodology as [`measure_gain_latency`]: the result
-    /// is the net cost of the biquad filter chain, not the total wall-clock time per sample.
-    ///
-    /// # Arguments
-    ///
-    /// * `audio_service` — Service snapshot used to read the current channel's tone-stack arc.
-    /// * `block_size` — Number of samples per benchmark iteration.
-    ///
-    /// # Returns
-    ///
-    /// Added execution cost in **microseconds per sample** (µs/sample), clamped to `≥ 0`.
-    ///
-    /// [`ToneStackProcessor`]: crate::services::processors::tone_stack::tone_stack_processor::ToneStackProcessor
-    /// [`measure_gain_latency`]: AudioLatencyMeasurementService::measure_gain_latency
     pub fn measure_tone_stack_latency(audio_service: &AudioService, block_size: usize) -> f64 {
-        let channel = audio_service
-            .channels()
-            .iter()
-            .find(|c| c.id() == *audio_service.current_channel_id())
-            .unwrap();
-        let mut tone_stack = ToneStackProcessor::new(
-            channel.tone_stack().clone(),
-            audio_service.dsp_chain_sample_rate(),
-        );
+        let (tone_stack_arc, dsp_rate) = {
+            let cm = audio_service.channel_manager().lock().unwrap();
+            (
+                cm.current_channel().unwrap().tone_stack().clone(),
+                audio_service.dsp_chain_sample_rate(),
+            )
+        };
+        let mut tone_stack = ToneStackProcessor::new(tone_stack_arc, dsp_rate);
         LatencyAnalyzer::measure_effect_added_execution_us(&mut tone_stack, 256, block_size)
     }
 
-    /// Measures the CPU execution cost added by the per-channel volume [`GainProcessor`].
-    ///
-    /// The channel volume is a separate gain stage that sits after the tone stack and before
-    /// the master volume in the DSP chain.  Its cost is benchmarked the same way as the
-    /// input gain — baseline-subtracted and clamped to `≥ 0`.
-    ///
-    /// # Arguments
-    ///
-    /// * `audio_service` — Service snapshot used to read the current channel's volume arc.
-    /// * `block_size` — Number of samples per benchmark iteration.
-    ///
-    /// # Returns
-    ///
-    /// Added execution cost in **microseconds per sample** (µs/sample), clamped to `≥ 0`.
-    ///
-    /// [`GainProcessor`]: crate::services::processors::gain::gain_processor::GainProcessor
     pub fn measure_volume_latency(audio_service: &AudioService, block_size: usize) -> f64 {
-        let channel = audio_service
-            .channels()
-            .iter()
-            .find(|c| c.id() == *audio_service.current_channel_id())
-            .unwrap();
-        let mut volume = GainProcessor::new(channel.volume().clone());
+        let volume_arc = {
+            let cm = audio_service.channel_manager().lock().unwrap();
+            cm.current_channel().unwrap().volume().clone()
+        };
+        let mut volume = GainProcessor::new(volume_arc);
         LatencyAnalyzer::measure_effect_added_execution_us(&mut volume, 256, block_size)
     }
 
@@ -287,10 +252,11 @@ impl AudioLatencyMeasurementService {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::domain::channel_manager::ChannelManager;
     use crate::infrastructure::audio_handler::MockAudioHandlerTrait;
     use crate::services::audio_service::AudioService;
     use cpal::StreamConfig;
-    use std::sync::Arc;
+    use std::sync::{Arc, Mutex};
 
     fn build_service_with_buffer_config(
         input_rate: u32,
@@ -317,7 +283,7 @@ mod tests {
         mock.expect_input_config().return_const(input_config);
         mock.expect_output_config().return_const(output_config);
 
-        AudioService::new_with_handler(Arc::new(mock))
+        AudioService::new_with_handler(Arc::new(mock), Arc::new(Mutex::new(ChannelManager::new())))
     }
 
     fn assert_approx_eq(actual: f64, expected: f64, epsilon: f64) {

@@ -50,8 +50,9 @@ pub(crate) fn set_channel_id(
 /// [`AudioService`]: crate::services::audio_service::AudioService
 #[tauri::command]
 pub(crate) fn get_channel_id(audio_service: tauri::State<Mutex<AudioService>>) -> String {
-    let service = audio_service.inner().lock().unwrap();
-    service.current_channel_id().to_string()
+    let audio_service = audio_service.inner().lock().unwrap();
+    let cm = audio_service.channel_manager().lock().unwrap();
+    cm.current_channel_id().to_string()
 }
 
 /// Adds a new channel to the audio service.
@@ -87,12 +88,10 @@ pub(crate) fn add_channel(
     let mut audio_service = audio_service.inner().lock().unwrap();
     let device_service = device_service.inner().lock().unwrap();
     let channel_id = audio_service.add_channel(channel_name.clone());
-    let channel = audio_service
-        .channels()
-        .iter()
-        .find(|c| c.id() == channel_id)
-        .unwrap();
+    let cm = audio_service.channel_manager().lock().unwrap();
+    let channel = cm.channels().iter().find(|c| c.id() == channel_id).unwrap();
     let channel_dto = ChannelDto::from(channel);
+    drop(cm);
     persist_amp_config(&audio_service, &device_service, &persistence_service);
 
     info!(
@@ -129,8 +128,9 @@ pub(crate) fn add_channel(
 pub(crate) fn get_all_channels(
     audio_service: tauri::State<Mutex<AudioService>>,
 ) -> Vec<ChannelDto> {
-    let service = audio_service.inner().lock().unwrap();
-    service.channels().iter().map(ChannelDto::from).collect()
+    let audio_service = audio_service.inner().lock().unwrap();
+    let cm = audio_service.channel_manager().lock().unwrap();
+    cm.to_channel_dtos()
 }
 
 /// Removes a channel from the audio service.

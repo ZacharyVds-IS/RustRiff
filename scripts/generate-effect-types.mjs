@@ -23,7 +23,7 @@ mkdirSync(effectsDir, { recursive: true });
 
 // 2. Run ts-rs export tests
 console.log(`[effect-types] Exporting ts-rs bindings to ${effectsDir}`);
-execSync("cargo test export_bindings --quiet", {
+execSync("cargo test export_bindings --quiet --no-default-features", {
   cwd: resolve(projectRoot, "src-tauri"),
   env: { ...process.env, TS_RS_EXPORT_DIR: effectsDir },
   stdio: "inherit",

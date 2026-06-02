@@ -3,3 +3,4 @@ pub mod delay;
 pub mod effects;
 pub mod hc_distortion;
 pub mod sc_distortion;
+pub mod wah;

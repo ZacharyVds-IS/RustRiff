@@ -1,4 +1,5 @@
 use crate::domain::dto::amp_config_dto::AmpConfigDto;
+use crate::domain::dto::midi_mapping_dto::MidiMappingDto;
 use crate::infrastructure::persistence::amp_config_persistence_trait::AmpConfigPersistence;
 use crate::services::audio_service::AudioService;
 use crate::services::device_service::DeviceService;
@@ -14,6 +15,7 @@ use tracing::error;
 pub struct AmpConfigPersistenceService {
     repository: Arc<dyn AmpConfigPersistence>,
     pending_snapshot: Arc<(Mutex<Option<AmpConfigDto>>, Condvar)>,
+    latest_midi_bindings: Arc<Mutex<Vec<MidiMappingDto>>>,
 }
 
 impl AmpConfigPersistenceService {
@@ -21,6 +23,13 @@ impl AmpConfigPersistenceService {
     pub fn new(repository: Box<dyn AmpConfigPersistence>) -> Self {
         let repository: Arc<dyn AmpConfigPersistence> = Arc::from(repository);
         let pending_snapshot = Arc::new((Mutex::new(None), Condvar::new()));
+        let latest_midi_bindings = Arc::new(Mutex::new(
+            repository
+                .load()
+                .unwrap_or_default()
+                .unwrap_or_default()
+                .midi_bindings,
+        ));
         let worker_pending_snapshot = Arc::clone(&pending_snapshot);
         let worker_repository = Arc::clone(&repository);
 
@@ -50,6 +59,7 @@ impl AmpConfigPersistenceService {
         Self {
             repository,
             pending_snapshot,
+            latest_midi_bindings,
         }
     }
 
@@ -58,7 +68,12 @@ impl AmpConfigPersistenceService {
         self.repository.load()
     }
 
-    /// Captures a snapshot from the current [`AudioService`] state and enqueues it for persistence.
+    /// Captures a snapshot from the current [`AudioService`] state and
+    /// enqueues it for persistence.
+    ///
+    /// `midi_bindings` is read from the service's in-memory cache (updated on
+    /// every MIDI mutation) so amp-state saves never overwrite fresher bindings
+    /// that may not have reached disk yet.
     ///
     /// This is the primary method used by mutating Tauri commands after they
     /// successfully update amplifier state. Disk I/O is executed by a background
@@ -68,7 +83,12 @@ impl AmpConfigPersistenceService {
         audio_service: &AudioService,
         device_service: &DeviceService,
     ) -> Result<(), String> {
-        let snapshot = AmpConfigDto::from_service(audio_service, device_service);
+        let mut snapshot = AmpConfigDto::from_service(audio_service, device_service);
+        snapshot.midi_bindings = self
+            .latest_midi_bindings
+            .lock()
+            .map_err(|_| "Amp config persistence lock is unavailable".to_string())?
+            .clone();
         self.persist_snapshot(snapshot)
     }
 
@@ -82,12 +102,45 @@ impl AmpConfigPersistenceService {
         cv.notify_one();
         Ok(())
     }
+
+    /// Merges the supplied MIDI bindings into the latest on-disk snapshot and
+    /// enqueues the result for asynchronous persistence.
+    ///
+    /// This is the method `MidiService` calls after every `add_mapping` /
+    /// `remove_mapping` so that a single background worker owns all writes
+    /// and there is no risk of two concurrent saves racing on the file.
+    pub fn persist_midi_bindings(&self, bindings: Vec<MidiMappingDto>) -> Result<(), String> {
+        // Update in-memory cache first so concurrent amp-state persistence can
+        // always merge the latest MIDI snapshot without waiting for disk.
+        {
+            let mut latest_bindings = self
+                .latest_midi_bindings
+                .lock()
+                .map_err(|_| "Amp config persistence lock is unavailable".to_string())?;
+            *latest_bindings = bindings.clone();
+        }
+
+        // Read the current on-disk snapshot so we can splice in the new
+        // bindings without touching amp-config fields.
+        let mut snapshot = self
+            .repository
+            .load()
+            .unwrap_or_default()
+            .unwrap_or_default();
+
+        snapshot.midi_bindings = bindings;
+        self.persist_snapshot(snapshot)
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::domain::channel_manager::ChannelManager;
     use crate::domain::dto::audio_settings_dto::AudioSettingsDto;
+    use crate::domain::dto::midi_mapping_dto::MidiMappingDto;
+    use crate::domain::midi_target_parameter::MidiTargetParameter;
+    use crate::infrastructure::audio_handler::MockAudioHandlerTrait;
     use std::sync::{Arc, Condvar, Mutex};
     use std::time::Duration;
 
@@ -125,7 +178,6 @@ mod tests {
                 .saved_configs
                 .lock()
                 .expect("saved_configs should be lockable");
-
             let wait_result = self
                 .saved_configs_cv
                 .wait_timeout_while(saved, timeout, |configs| configs.len() < minimum_count)
@@ -139,7 +191,6 @@ mod tests {
                 .save_started_count
                 .lock()
                 .expect("save_started_count should be lockable");
-
             let _ = self
                 .save_started_cv
                 .wait_timeout_while(started, timeout, |count| *count < minimum_count)
@@ -214,24 +265,14 @@ mod tests {
     #[test]
     fn load_amp_config_returns_repository_value() {
         let state = Arc::new(SpyRepositoryState::new());
-
-        // Generate a valid UUID string for the current channel
         let expected_id = uuid::Uuid::new_v4().to_string();
-
         let expected = AmpConfigDto {
             master_volume: 0.72,
             is_active: false,
             channels: Vec::new(),
             current_channel: expected_id.clone(),
-            audio_settings: AudioSettingsDto {
-                input_device_name: "Test Input".to_string(),
-                output_device_name: "Test Output".to_string(),
-                input_sample_rate: 44100,
-                output_sample_rate: 44100,
-                input_channels: 2,
-                output_channels: 2,
-                audio_driver: "".to_string(),
-            },
+            audio_settings: AudioSettingsDto::default(),
+            midi_bindings: vec![],
         };
 
         *state
@@ -275,8 +316,11 @@ mod tests {
             state: Arc::clone(&state),
         }));
 
-        let mock = crate::tests::mock::make_mock_handler();
-        let audio_service = AudioService::new_with_handler(Arc::new(mock));
+        let mock = MockAudioHandlerTrait::new();
+        let audio_service = AudioService::new_with_handler(
+            Arc::new(mock),
+            Arc::new(Mutex::new(ChannelManager::new())),
+        );
         let device_service = DeviceService::new();
 
         service
@@ -286,9 +330,10 @@ mod tests {
         let saved = state.wait_for_saved_count(1, Duration::from_secs(1));
         assert_eq!(saved.len(), 1);
 
+        let cm = audio_service.channel_manager().lock().unwrap();
         assert_eq!(
             saved[0].current_channel,
-            audio_service.current_channel_id().to_string()
+            cm.current_channel_id().to_string()
         );
         assert!(!saved[0].is_active);
     }
@@ -304,8 +349,11 @@ mod tests {
         let service = AmpConfigPersistenceService::new(Box::new(SpyRepository {
             state: Arc::clone(&state),
         }));
-        let mock = crate::tests::mock::make_mock_handler();
-        let audio_service = AudioService::new_with_handler(Arc::new(mock));
+        let mock = MockAudioHandlerTrait::new();
+        let audio_service = AudioService::new_with_handler(
+            Arc::new(mock),
+            Arc::new(Mutex::new(ChannelManager::new())),
+        );
         let device_service = DeviceService::new();
 
         service
@@ -335,15 +383,8 @@ mod tests {
             is_active: false,
             channels: Vec::new(),
             current_channel,
-            audio_settings: AudioSettingsDto {
-                input_device_name: "Test Input".to_string(),
-                output_device_name: "Test Output".to_string(),
-                input_sample_rate: 44100,
-                output_sample_rate: 44100,
-                input_channels: 2,
-                output_channels: 2,
-                audio_driver: "".to_string(),
-            },
+            audio_settings: AudioSettingsDto::default(),
+            midi_bindings: vec![],
         };
 
         service
@@ -381,5 +422,62 @@ mod tests {
 
         assert!(saved.iter().any(|cfg| cfg.current_channel == id_3));
         assert!(!saved.iter().any(|cfg| cfg.current_channel == id_2));
+    }
+
+    #[test]
+    fn persist_from_audio_service_uses_in_memory_midi_bindings_cache() {
+        let state = Arc::new(SpyRepositoryState::new());
+
+        *state
+            .load_result
+            .lock()
+            .expect("load_result should be lockable") = Ok(Some(AmpConfigDto {
+            master_volume: 1.0,
+            is_active: false,
+            channels: Vec::new(),
+            current_channel: uuid::Uuid::new_v4().to_string(),
+            audio_settings: AudioSettingsDto::default(),
+            midi_bindings: vec![MidiMappingDto {
+                cc_number: 1,
+                channel: 1,
+                effect_id: uuid::Uuid::new_v4().to_string(),
+                parameter: MidiTargetParameter::ToggleBypass,
+            }],
+        }));
+
+        let service = AmpConfigPersistenceService::new(Box::new(SpyRepository {
+            state: Arc::clone(&state),
+        }));
+
+        let newest_binding = MidiMappingDto {
+            cc_number: 64,
+            channel: 2,
+            effect_id: uuid::Uuid::new_v4().to_string(),
+            parameter: MidiTargetParameter::DelayLevel,
+        };
+        service
+            .persist_midi_bindings(vec![newest_binding.clone()])
+            .expect("midi bindings enqueue should succeed");
+
+        let mock = MockAudioHandlerTrait::new();
+        let audio_service = AudioService::new_with_handler(
+            Arc::new(mock),
+            Arc::new(Mutex::new(ChannelManager::new())),
+        );
+        let device_service = DeviceService::new();
+
+        service
+            .persist_from_audio_service(&audio_service, &device_service)
+            .expect("persist should succeed");
+
+        let saved = state.wait_for_saved_count(1, Duration::from_secs(1));
+        assert!(!saved.is_empty());
+        assert_eq!(saved.last().unwrap().midi_bindings.len(), 1);
+        assert_eq!(saved.last().unwrap().midi_bindings[0].cc_number, 64);
+        assert_eq!(saved.last().unwrap().midi_bindings[0].channel, 2);
+        assert_eq!(
+            saved.last().unwrap().midi_bindings[0].parameter,
+            MidiTargetParameter::DelayLevel
+        );
     }
 }
