@@ -157,6 +157,14 @@ const ipcMocks: Record<string, (...args: unknown[]) => unknown> = {
   start_live_tuner_stream: () => null,
   stop_live_tuner_stream: () => null,
 
+  // MIDI settings/mapping screens rely on these commands; return safe defaults for browser-only runs.
+  get_midi_inputs: () => [],
+  connect_midi_device: () => null,
+  disconnect_midi_device: () => null,
+  get_midi_bindings: () => [],
+  register_midi_binding: () => null,
+  remove_midi_binding: () => null,
+
   set_gain: () => null,
   set_master_volume: () => null,
   set_bass: () => null,
