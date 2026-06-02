@@ -668,18 +668,16 @@ describe("AmpConfigStore", () => {
             errorSpy.mockRestore();
         });
 
-        it("applyChangesToChainOrder handles backend failure", async () => {
+        it("applyChangesToChainOrder re-throws after logging when backend fails", async () => {
             // Arrange
             const err = new Error("persist order failed");
             vi.mocked(domain.applyEffectOrderChange).mockRejectedValueOnce(err);
             const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
             const logSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
 
-            // Act
-            await useAmpStore.getState().applyChangesToChainOrder();
-
-            // Assert
-            expect(logSpy).toHaveBeenCalledWith("Changing effect order");
+            // Act & Assert – must reject so callers can roll back
+            await expect(useAmpStore.getState().applyChangesToChainOrder()).rejects.toThrow("persist order failed");
+            expect(logSpy).toHaveBeenCalledWith("Changing effect order",);
             expect(errorSpy).toHaveBeenCalledWith("Failed to change Effect order:", err);
             logSpy.mockRestore();
             errorSpy.mockRestore();

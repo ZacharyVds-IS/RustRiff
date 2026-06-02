@@ -461,6 +461,9 @@ describe("MainScreen keybind logic", () => {
             });
         });
 
+    });
+
+    describe("failure_path", () => {
         describe("toggle keys — rollback on backend rejection", () => {
             it("rolls back the optimistic active-state update when toggleEffect rejects", async () => {
                 toggleEffectMock.mockRejectedValueOnce(new Error("backend error"));
@@ -487,7 +490,7 @@ describe("MainScreen keybind logic", () => {
             });
         });
 
-        describe("movement keys — no-op when chain order persist rejects", () => {
+        describe("movement keys — rollback when chain order persist rejects", () => {
             it("reverses the optimistic move when applyChangesToChainOrder rejects", async () => {
                 storeState.applyChangesToChainOrder.mockRejectedValueOnce(new Error("persist error"));
 
