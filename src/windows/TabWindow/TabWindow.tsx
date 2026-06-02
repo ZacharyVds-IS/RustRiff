@@ -37,8 +37,6 @@ export function TabWindow() {
                 },
                 player: {
                     enablePlayer: true,
-                    soundFont: '/soundfont/sonivox.sf2',
-
                 }
             };
             apiRef.current = new AlphaTabApi(tabContainerRef.current, settings);
@@ -121,7 +119,7 @@ export function TabWindow() {
         tabContainerRef.current.setAttribute('data-file', objectUrl);
         const settings: ConstructorParameters<typeof AlphaTabApi>[1] = {
             core: {fontDirectory: '/font/'},
-            player: {enablePlayer: true, soundFont: '/soundfont/sonivox.sf2'}
+            player: {enablePlayer: true}
         };
         apiRef.current = new AlphaTabApi(tabContainerRef.current, settings);
 
@@ -171,16 +169,17 @@ export function TabWindow() {
                 </Stack>
                 :
                 <>
-                    <Button onClick={handlePlayPause} variant="contained" color="primary" sx={{width: 'fit-content', position: "absolute" }}>
+                    <Button onClick={handlePlayPause} variant="contained" color="primary" sx={{width: 'fit-content', position: "absolute", zIndex: 11 }}>
                         Play / Pause
                     </Button>
-                    {/* Container element for alphaTab */}
                 </>
             }
+
+            {/* Container element for alphaTab */}
             <div
                 ref={tabContainerRef}
                 className="alphatab-host"
-                style={{"--cursor-beat-bg": cursorBeatBackground} as React.CSSProperties}
+                style={{"--cursor-beat-bg": cursorBeatBackground, zIndex:10} as React.CSSProperties}
             />
         </Box>
     );
