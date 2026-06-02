@@ -49,6 +49,25 @@ export function MainScreen() {
         }
     }
 
+    function navigateSelection(direction: -1 | 1) {
+        if (effectChain.length === 0) {
+            setSelection("amp");
+            return;
+        }
+
+        const selectableItemCount = effectChain.length + 1;
+        const currentSelectableIndex = selection === "amp" ? 0 : selectedChainIndex + 1;
+        const nextSelectableIndex =
+            (currentSelectableIndex + direction + selectableItemCount) % selectableItemCount;
+
+        if (nextSelectableIndex === 0) {
+            setSelection("amp");
+            return;
+        }
+
+        selectByIndex(nextSelectableIndex - 1);
+    }
+
     const selectedChainIndex =
         selection === "amp"
             ? -1
@@ -92,11 +111,25 @@ export function MainScreen() {
     );
     useHotkeys(
         ["arrowleft", "arrowright"],
-        (_, handler) => {
-            if (selectedChainIndex === -1) return;
+        (event, handler) => {
+            if (event.shiftKey) return;
+
             const direction = handler.keys?.[0] === "arrowleft" ? -1 : 1;
+
+            navigateSelection(direction);
+        },
+        {preventDefault: true},
+        [selection, selectedChainIndex, effectChain.length],
+    );
+    useHotkeys(
+        ["shift+arrowleft", "shift+arrowright"],
+        (event) => {
+            if (selectedChainIndex === -1) return;
+
+            const direction = event.key === "ArrowLeft" ? -1 : 1;
             const newIndex = selectedChainIndex + direction;
             if (newIndex < 0 || newIndex >= effectChain.length) return;
+
             const fromIndex = selectedChainIndex;
             const toIndex = newIndex;
             void moveEffect(fromIndex, toIndex);

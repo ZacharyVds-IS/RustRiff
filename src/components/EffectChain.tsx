@@ -87,12 +87,12 @@ export function EffectChain({effects, selected, onSelectionChange, onOpenKeybind
                 {onOpenKeybinds && (
                 <Tooltip title="Show keyboard shortcuts">
                     <IconButton
-                        size="small"
+                        size="large"
                         color="primary"
                         onClick={onOpenKeybinds}
                         aria-label="Open keyboard shortcuts"
                     >
-                        <Keyboard fontSize="small"/>
+                        <Keyboard fontSize="medium"/>
                     </IconButton>
                 </Tooltip>
                 )}

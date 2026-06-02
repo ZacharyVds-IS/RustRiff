@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import React from "react";
-import {act, render, screen} from "@testing-library/react";
+import {act, cleanup, render, screen} from "@testing-library/react";
 import {beforeEach, describe, expect, it, vi} from "vitest";
 import {MainScreen} from "../../screens/MainScreen";
 
@@ -134,16 +134,24 @@ vi.mock("../../components/dialogs/KeybindsDialog.tsx", () => ({
     KeybindsDialog: ({open}: {open: boolean}) => <div>{open ? "keybinds-open" : "keybinds-closed"}</div>,
 }));
 
-function triggerHotkey(key: string) {
-    const binding = [...hotkeyBindings].reverse().find((entry) => entry.keys.includes(key));
+function triggerHotkey(key: string, options?: {shiftKey?: boolean}) {
+    const bindingKey = options?.shiftKey ? `shift+${key}` : key;
+    const binding = [...hotkeyBindings].reverse().find((entry) => entry.keys.includes(bindingKey));
     if (!binding) {
-        throw new Error(`No hotkey binding found for key: ${key}`);
+        throw new Error(`No hotkey binding found for key: ${bindingKey}`);
     }
-    binding.callback(undefined, {keys: [key]});
+    binding.callback(
+        {
+            shiftKey: options?.shiftKey ?? false,
+            key: key === "arrowleft" ? "ArrowLeft" : key === "arrowright" ? "ArrowRight" : key,
+        },
+        {keys: [bindingKey]},
+    );
 }
 
 describe("MainScreen keybind logic", () => {
     beforeEach(() => {
+        cleanup();
         vi.clearAllMocks();
         hotkeyBindings.length = 0;
         storeState.channels = [
@@ -229,8 +237,130 @@ describe("MainScreen keybind logic", () => {
             });
         });
 
+        describe("navigation keys", () => {
+            it("selects the first effect with ArrowRight when amp is selected", () => {
+                render(<MainScreen/>);
+
+                act(() => {
+                    triggerHotkey("arrowright");
+                });
+
+                expect(screen.getByText("effect-pedal-effect-a")).toBeTruthy();
+            });
+
+            it("selects the last effect with ArrowLeft when amp is selected", () => {
+                render(<MainScreen/>);
+
+                act(() => {
+                    triggerHotkey("arrowleft");
+                });
+
+                expect(screen.getByText("effect-pedal-effect-b")).toBeTruthy();
+            });
+
+            it("wraps from the first effect back to amp with ArrowLeft", () => {
+                render(<MainScreen/>);
+
+                act(() => {
+                    triggerHotkey("2");
+                });
+
+                act(() => {
+                    triggerHotkey("arrowleft");
+                });
+
+                expect(screen.getByText("amp-controls")).toBeTruthy();
+            });
+
+            it("wraps from the last effect back to amp with ArrowRight", () => {
+                render(<MainScreen/>);
+
+                act(() => {
+                    triggerHotkey("3");
+                });
+
+                act(() => {
+                    triggerHotkey("arrowright");
+                });
+
+                expect(screen.getByText("amp-controls")).toBeTruthy();
+            });
+
+            it("continues from amp to the last effect with ArrowLeft", () => {
+                render(<MainScreen/>);
+
+                act(() => {
+                    triggerHotkey("2");
+                });
+
+                act(() => {
+                    triggerHotkey("arrowleft");
+                });
+
+                act(() => {
+                    triggerHotkey("arrowleft");
+                });
+
+                expect(screen.getByText("effect-pedal-effect-b")).toBeTruthy();
+            });
+
+            it("continues from amp to the first effect with ArrowRight", () => {
+                render(<MainScreen/>);
+
+                act(() => {
+                    triggerHotkey("3");
+                });
+
+                act(() => {
+                    triggerHotkey("arrowright");
+                });
+
+                act(() => {
+                    triggerHotkey("arrowright");
+                });
+
+                expect(screen.getByText("effect-pedal-effect-a")).toBeTruthy();
+            });
+
+            it("wraps from the first effect to the last with ArrowLeft", () => {
+                render(<MainScreen/>);
+
+                act(() => {
+                    triggerHotkey("2");
+                });
+
+                act(() => {
+                    triggerHotkey("arrowleft");
+                });
+
+                act(() => {
+                    triggerHotkey("arrowleft");
+                });
+
+                expect(screen.getByText("effect-pedal-effect-b")).toBeTruthy();
+            });
+
+            it("wraps from the last effect to the first with ArrowRight", () => {
+                render(<MainScreen/>);
+
+                act(() => {
+                    triggerHotkey("3");
+                });
+
+                act(() => {
+                    triggerHotkey("arrowright");
+                });
+
+                act(() => {
+                    triggerHotkey("arrowright");
+                });
+
+                expect(screen.getByText("effect-pedal-effect-a")).toBeTruthy();
+            });
+        });
+
         describe("movement keys — reordering effect in chain", () => {
-            it("moves selected effect right with ArrowRight and persists the new order", async () => {
+            it("moves selected effect right with Shift+ArrowRight and persists the new order", async () => {
                 render(<MainScreen/>);
 
                 act(() => {
@@ -238,7 +368,7 @@ describe("MainScreen keybind logic", () => {
                 });
 
                 await act(async () => {
-                    triggerHotkey("arrowright");
+                    triggerHotkey("arrowright", {shiftKey: true});
                     await Promise.resolve();
                 });
 
@@ -247,14 +377,83 @@ describe("MainScreen keybind logic", () => {
                 // Backend persist was triggered
                 expect(storeState.applyChangesToChainOrder).toHaveBeenCalledTimes(1);
             });
-        });
-        describe("movement keys — no-op when amp is selected", () => {
-            it("does not move effects with arrows while amp is selected", () => {
+
+            it("moves the currently selected effect left by one slot with Shift+ArrowLeft", async () => {
+                storeState.channels = [
+                    {
+                        id: "channel-1",
+                        effect_chain: [
+                            createEffectA(),
+                            createEffectB(),
+                            {
+                                kind: "Delay",
+                                data: {
+                                    id: "effect-c",
+                                    name: "Effect C",
+                                    is_active: true,
+                                    delay_time: 300,
+                                    level: 0.7,
+                                    color: "#abcdef",
+                                },
+                            },
+                        ],
+                    },
+                ];
+
                 render(<MainScreen/>);
 
                 act(() => {
-                    triggerHotkey("arrowleft");
-                    triggerHotkey("arrowright");
+                    triggerHotkey("4");
+                });
+
+                await act(async () => {
+                    triggerHotkey("arrowleft", {shiftKey: true});
+                    await Promise.resolve();
+                });
+
+                expect(storeState.moveEffect).toHaveBeenCalledWith(2, 1);
+                expect(storeState.applyChangesToChainOrder).toHaveBeenCalledTimes(1);
+            });
+
+            it("does not move the selected effect left past the first slot", async () => {
+                render(<MainScreen/>);
+
+                act(() => {
+                    triggerHotkey("2");
+                });
+
+                await act(async () => {
+                    triggerHotkey("arrowleft", {shiftKey: true});
+                    await Promise.resolve();
+                });
+
+                expect(storeState.moveEffect).not.toHaveBeenCalled();
+                expect(storeState.applyChangesToChainOrder).not.toHaveBeenCalled();
+            });
+
+            it("does not move the selected effect right past the last slot", async () => {
+                render(<MainScreen/>);
+
+                act(() => {
+                    triggerHotkey("3");
+                });
+
+                await act(async () => {
+                    triggerHotkey("arrowright", {shiftKey: true});
+                    await Promise.resolve();
+                });
+
+                expect(storeState.moveEffect).not.toHaveBeenCalled();
+                expect(storeState.applyChangesToChainOrder).not.toHaveBeenCalled();
+            });
+        });
+        describe("movement keys — no-op when amp is selected", () => {
+            it("does not move effects with Shift+arrows while amp is selected", () => {
+                render(<MainScreen/>);
+
+                act(() => {
+                    triggerHotkey("arrowleft", {shiftKey: true});
+                    triggerHotkey("arrowright", {shiftKey: true});
                 });
 
                 expect(storeState.moveEffect).not.toHaveBeenCalled();
@@ -299,7 +498,7 @@ describe("MainScreen keybind logic", () => {
                 });
 
                 await act(async () => {
-                    triggerHotkey("arrowright");
+                    triggerHotkey("arrowright", {shiftKey: true});
                     await Promise.resolve();
                     await Promise.resolve();
                 });

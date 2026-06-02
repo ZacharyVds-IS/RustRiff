@@ -18,11 +18,10 @@ interface KeybindsDialogProps {
 
 export function KeybindsDialog({open, onClose}: KeybindsDialogProps) {
     const mappings = [
-        {keys: "1", action: "Select amp"},
-        {keys: "2-0", action: "Select effects 1-9"},
+        {keys: "Number keys", action: "Select amp/effects based on index."},
         {keys: "Space", action: "Toggle selected amp/effect on or off"},
-        {keys: "Arrow Left", action: "Move selected effect left"},
-        {keys: "Arrow Right", action: "Move selected effect right"},
+        {keys: "Arrow Left / Arrow Right", action: "Select the previous/next item in the chain, including the amp (wraps around)."},
+        {keys: "Shift + Arrow Left / Shift + Arrow Right", action: "Move selected effect left or right."},
     ];
 
     return (
