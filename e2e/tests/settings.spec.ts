@@ -15,7 +15,7 @@ test("settings screen shows the Settings heading", async ({tauriPage}) => {
 
   // Target the screen heading explicitly to avoid matching the nav button label.
   const settingsHeading = tauriPage.getByRole("heading", {name: "Settings"});
-  await settingsHeading.waitFor({timeout: 15_000});
+  await expect(settingsHeading).toBeVisible({timeout: 15_000});
 });
 test("settings screen shows the Latency section with buffer size and round-trip controls", async ({tauriPage}) => {
   await tauriPage.waitForSelector("#root", 20_000);
@@ -24,7 +24,7 @@ test("settings screen shows the Latency section with buffer size and round-trip 
 
   // LatencySection renders a "Latency" subtitle - use heading role to avoid strict mode
   const latencyHeading = tauriPage.getByRole("heading", {name: "Latency"});
-  await latencyHeading.waitFor({timeout: 15_000});
+  await expect(latencyHeading).toBeVisible({timeout: 15_000});
 
   await expect(tauriPage.getByText("Preferred Buffer Size")).toBeVisible({timeout: 5_000});
   await expect(tauriPage.getByRole("button", {name: "Measure Round-Trip"})).toBeVisible({timeout: 5_000});
