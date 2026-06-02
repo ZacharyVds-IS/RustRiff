@@ -2,6 +2,7 @@ import {Box} from "@mui/material";
 import {EffectChain} from "../components/EffectChain.tsx";
 import {DefaultAmpControls} from "../components/DefaultAmpControls.tsx";
 import {EffectPedal} from "../components/EffectPedal.tsx";
+import {WahPedal} from "../components/WahPedal.tsx";
 import {CabinetEffect} from "../components/CabinetEffect.tsx";
 import {KeybindsDialog} from "../components/dialogs/KeybindsDialog.tsx";
 import {useAmpStore} from "../state/AmpConfigStore.tsx";
@@ -176,6 +177,8 @@ export function MainScreen() {
                     ? <DefaultAmpControls/>
                     : resolvedSelection.kind === "Cabinet"
                     ? <CabinetEffect effect={resolvedSelection}/>
+                    : resolvedSelection.kind === "Wah"
+                    ? <WahPedal effect={resolvedSelection}/>
                     : <EffectPedal effect={resolvedSelection}/>
             }
             <KeybindsDialog open={isKeybindsOpen} onClose={() => setIsKeybindsOpen(false)}/>
