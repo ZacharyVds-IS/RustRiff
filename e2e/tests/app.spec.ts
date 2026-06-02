@@ -11,7 +11,7 @@ test("app shell renders header and primary navigation", async ({tauriPage}) => {
 
   await expect(tauriPage.getByText("Rust Riff")).toBeVisible();
   await expect(tauriPage.getByRole("button", {name: "Home"})).toBeVisible();
-  await expect(tauriPage.getByRole("button", {name: "Tuner"})).toBeVisible();
+  await expect(tauriPage.getByRole("button", {name: "Tuner"}).first()).toBeVisible();
   await expect(tauriPage.getByRole("button", {name: "Settings"})).toBeVisible();
 });
 

@@ -46,3 +46,4 @@ docs/backend/
 /playwright-report/*
 /e2e/tests/generated.spec.ts
 /playwright-report/
+/test-results/

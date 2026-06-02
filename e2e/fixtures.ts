@@ -156,6 +156,9 @@ const ipcMocks: Record<string, (...args: unknown[]) => unknown> = {
   get_tuner_contract: () => ({live_tuner_event: "tuner"}),
   start_live_tuner_stream: () => null,
   stop_live_tuner_stream: () => null,
+  get_midi_inputs: () => [],
+  connect_midi_device: () => null,
+  disconnect_midi_device: () => null,
 
   set_gain: () => null,
   set_master_volume: () => null,
