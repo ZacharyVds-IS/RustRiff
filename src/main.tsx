@@ -7,7 +7,12 @@ import {getCurrentWebviewWindow} from "@tauri-apps/api/webviewWindow";
 import {ChannelDto} from "./domain";
 import {ANALYZER_WINDOW_LABEL} from "./windows/AnalyzerWindow";
 
-const isAnalyzerWindow = getCurrentWebviewWindow().label === ANALYZER_WINDOW_LABEL;
+const isRunningWithTauri = "__TAURI__" in window;
+let isAnalyzerWindow = false;
+if (isRunningWithTauri) {
+    const win = getCurrentWebviewWindow();
+    isAnalyzerWindow = win.label === ANALYZER_WINDOW_LABEL;
+}
 
 async function configureListeners() {
     await useAmpStore.getState().init();
@@ -18,14 +23,14 @@ async function configureListeners() {
     });
 }
 
-if (!isAnalyzerWindow) {
+if (isRunningWithTauri && !isAnalyzerWindow) {
     configureListeners().catch((error) => {
         console.error("Failed to configure backend listeners", error);
     });
 }
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
+    <React.StrictMode>
+        <App />
+    </React.StrictMode>
 );
