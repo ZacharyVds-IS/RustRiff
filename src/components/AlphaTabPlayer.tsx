@@ -25,29 +25,18 @@ export function AlphaTabPlayer({ fileUrl, onClose }: AlphaTabPlayerProps) {
             },
             player: {
                 enablePlayer: true,
-            }
+            },
         };
 
         apiRef.current = new AlphaTabApi(tabContainerRef.current, settings);
 
-        // Set the scroll element after API is created (alphaTab creates the viewport in the DOM)
-        const viewport = tabContainerRef.current?.querySelector('.at-viewport');
-        if (viewport && apiRef.current) {
-            (apiRef.current as any).settings.scrollElement = viewport;
-        }
 
-        // Hook into player position to render cursor line
-        apiRef.current.playerPositionChanged.on(() => {
-            // alphaTab automatically renders the cursor at the current playback position
-        });
-
-        // Cleanup AlphaTab instance when component unmounts or file changes
         return () => {
             if (apiRef.current) {
                 try {
                     apiRef.current.destroy();
-                } catch (e) {
-                    // instances already destroyed or empty
+                } catch (error) {
+                    console.error("Error destroying AlphaTab instance:", error);
                 }
                 apiRef.current = null;
             }
