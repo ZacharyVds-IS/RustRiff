@@ -49,9 +49,12 @@ pub struct AudioService {
     audio_handler: Arc<dyn AudioHandlerTrait>,
     loopback_thread: Option<JoinHandle<()>>,
     is_active: bool,
+    tuner_active: bool,
     channel_manager: Arc<Mutex<ChannelManager>>,
     master_volume: Arc<AtomicF32>,
     spectrum_tap: Arc<SpectrumTap>,
+    shared_amp_enabled: Arc<AtomicBool>,
+    shared_tuner_enabled: Arc<AtomicBool>,
 }
 
 impl AudioService {
@@ -95,9 +98,12 @@ impl AudioService {
             audio_handler: handler,
             loopback_thread: None,
             is_active: false,
+            tuner_active: false,
             channel_manager,
             master_volume: Arc::new(AtomicF32::new(1.0)),
             spectrum_tap: Arc::new(SpectrumTap::new(DEFAULT_ANALYZER_SAMPLE_RATE_HZ)),
+            shared_amp_enabled: Arc::new(AtomicBool::new(false)),
+            shared_tuner_enabled: Arc::new(AtomicBool::new(false)),
         }
     }
 
@@ -121,6 +127,15 @@ impl AudioService {
 
     pub fn spectrum_tap(&self) -> &Arc<SpectrumTap> {
         &self.spectrum_tap
+    }
+
+    pub fn set_tuner_active(&mut self, active: bool) {
+        self.tuner_active = active;
+        self.update_stream_state();
+    }
+
+    pub fn is_tuner_active(&self) -> bool {
+        self.tuner_active
     }
 
     // ── Private helpers ──────────────────────────────────────────────────────
@@ -150,6 +165,8 @@ impl AudioService {
         mut i_consumer: impl Consumer<Item = f32> + Send + 'static,
         mut o_producer: impl Producer<Item = f32> + Send + 'static,
         shutdown: Arc<AtomicBool>,
+        amp_enabled: Arc<AtomicBool>,
+        tuner_enabled: Arc<AtomicBool>,
     ) -> JoinHandle<()> {
         thread::spawn(move || {
             let mut gain = GainProcessor::new(arcs.gain);
@@ -166,9 +183,7 @@ impl AudioService {
                     }
                 }
                 let sample = volume.process(sample);
-                let sample = master_volume.process(sample);
-                spectrum_tap.push_sample(sample);
-                sample
+                master_volume.process(sample)
             };
 
             loop {
@@ -177,15 +192,31 @@ impl AudioService {
                 }
 
                 if let Some(sample) = i_consumer.try_pop() {
-                    for processed in policy.process(sample, &mut |s| run_dsp(s)) {
-                        let _ = o_producer.try_push(processed);
+                    if tuner_enabled.load(Ordering::Relaxed) {
+                        spectrum_tap.push_sample(sample);
+                    }
+
+                    if amp_enabled.load(Ordering::Relaxed) {
+                        for processed in policy.process(sample, &mut |s| run_dsp(s)) {
+                            let _ = o_producer.try_push(processed);
+                        }
+                    } else {
+                        for processed in policy.process(0.0, &mut |s| s) {
+                            let _ = o_producer.try_push(processed);
+                        }
                     }
                 } else {
                     thread::sleep(Duration::from_millis(1));
                 }
             }
 
-            for processed in policy.flush(&mut |s| run_dsp(s)) {
+            for processed in policy.flush(&mut |s| {
+                if amp_enabled.load(Ordering::Relaxed) {
+                    run_dsp(s)
+                } else {
+                    0.0
+                }
+            }) {
                 let _ = o_producer.try_push(processed);
             }
         })
@@ -209,25 +240,13 @@ impl AudioService {
         master_volume_arc: Arc<AtomicF32>,
         spectrum_tap: Arc<SpectrumTap>,
         dsp_sample_rate: u32,
+        amp_enabled: Arc<AtomicBool>,
+        tuner_enabled: Arc<AtomicBool>,
     ) -> JoinHandle<()> {
         thread::spawn(move || {
-            // How many input samples to batch before the resampler produces output.
-            // Larger = better quality, more latency. Smaller = lower latency, cheaper.
             const RESAMPLER_CHUNK_SIZE: usize = 256;
+            let ringbuffer_size = handler.input_sample_rate().max(handler.output_sample_rate()) as usize;
 
-            let ringbuffer_size = handler
-                .input_sample_rate()
-                .max(handler.output_sample_rate()) as usize;
-
-            // ── Resampling decision ──────────────────────────────────────────
-            // `ResamplePolicy::from_rates` compares input and output sample rates
-            // and picks one of three strategies (logged at startup):
-            //
-            //   input == output  →  Bypass   – no resampler created at all
-            //   input  > output  →  PreDsp   – downsample BEFORE the DSP chain
-            //                                  (DSP runs at the lower output rate → cheaper)
-            //   input  < output  →  PostDsp  – upsample AFTER the DSP chain
-            //                                  (DSP runs at the lower input rate → cheaper)
             let policy = ResamplePolicy::from_rates(
                 handler.input_sample_rate(),
                 handler.output_sample_rate(),
@@ -251,12 +270,13 @@ impl AudioService {
                 i_consumer,
                 o_producer,
                 shutdown.clone(),
+                amp_enabled,
+                tuner_enabled,
             );
 
             input_stream.play();
             output_stream.play();
 
-            // Park here until `stop_loopback` calls `unpark`.
             thread::park();
 
             shutdown.store(true, Ordering::SeqCst);
@@ -283,19 +303,9 @@ impl AudioService {
         if self.is_active {
             return;
         }
-        info!("Starting audio loopback");
+        info!("Enabling audio amp rig");
         self.is_active = true;
-        let dsp_sample_rate = self.dsp_chain_sample_rate();
-        self.spectrum_tap.set_sample_rate_hz(dsp_sample_rate);
-        let arcs = self.resolve_channel_arcs();
-        let thread = Self::spawn_io_thread(
-            self.audio_handler.clone(),
-            arcs,
-            self.master_volume.clone(),
-            self.spectrum_tap.clone(),
-            dsp_sample_rate,
-        );
-        self.loopback_thread = Some(thread);
+        self.update_stream_state();
     }
 
     /// Stops the audio loopback and joins the background thread.
@@ -307,15 +317,43 @@ impl AudioService {
         if !self.is_active {
             return;
         }
-
-        info!("Stopping audio loopback");
-
-        if let Some(handle) = self.loopback_thread.take() {
-            handle.thread().unpark();
-            let _ = handle.join();
-        }
-
+        info!("Disabling audio amp rig");
         self.is_active = false;
+        self.update_stream_state();
+    }
+
+    fn update_stream_state(&mut self) {
+        let should_run = self.is_active || self.tuner_active;
+        let is_running = self.loopback_thread.is_some();
+
+        if should_run && !is_running {
+            let dsp_sample_rate = self.dsp_chain_sample_rate();
+            self.spectrum_tap.set_sample_rate_hz(dsp_sample_rate);
+            let arcs = self.resolve_channel_arcs();
+
+            self.shared_amp_enabled.store(self.is_active, Ordering::SeqCst);
+            self.shared_tuner_enabled.store(self.tuner_active, Ordering::SeqCst);
+
+            let thread = Self::spawn_io_thread(
+                self.audio_handler.clone(),
+                arcs,
+                self.master_volume.clone(),
+                self.spectrum_tap.clone(),
+                dsp_sample_rate,
+                self.shared_amp_enabled.clone(),
+                self.shared_tuner_enabled.clone(),
+            );
+            self.loopback_thread = Some(thread);
+        } else if !should_run && is_running {
+            if let Some(handle) = self.loopback_thread.take() {
+                handle.thread().unpark();
+                let _ = handle.join();
+            }
+        } else if is_running {
+            // The thread is already running; hot-swap the internal feature states instantly
+            self.shared_amp_enabled.store(self.is_active, Ordering::SeqCst);
+            self.shared_tuner_enabled.store(self.tuner_active, Ordering::SeqCst);
+        }
     }
 
     /// Sets the master volume value.
@@ -348,17 +386,33 @@ impl AudioService {
     ///
     /// * `new_handler` - The replacement [`AudioHandlerTrait`] implementation.
     pub(crate) fn set_audio_handler(&mut self, new_handler: Arc<dyn AudioHandlerTrait>) {
-        let was_active = self.is_active;
-        if was_active {
-            self.stop_loopback();
+        let was_running = self.loopback_thread.is_some(); // <-- Check thread presence, not amp state
+        if was_running {
+            if let Some(handle) = self.loopback_thread.take() {
+                handle.thread().unpark();
+                let _ = handle.join();
+            }
         }
 
         self.audio_handler = new_handler;
-        self.spectrum_tap
-            .set_sample_rate_hz(self.dsp_chain_sample_rate());
+        self.spectrum_tap.set_sample_rate_hz(self.dsp_chain_sample_rate());
 
-        if was_active {
-            self.start_loopback();
+        if was_running {
+            let dsp_sample_rate = self.dsp_chain_sample_rate();
+            let arcs = self.resolve_channel_arcs();
+            self.shared_amp_enabled.store(self.is_active, Ordering::SeqCst);
+            self.shared_tuner_enabled.store(self.tuner_active, Ordering::SeqCst);
+
+            let thread = Self::spawn_io_thread(
+                self.audio_handler.clone(),
+                arcs,
+                self.master_volume.clone(),
+                self.spectrum_tap.clone(),
+                dsp_sample_rate,
+                self.shared_amp_enabled.clone(),
+                self.shared_tuner_enabled.clone(),
+            );
+            self.loopback_thread = Some(thread);
         }
     }
 
