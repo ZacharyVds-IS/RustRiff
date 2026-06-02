@@ -31,36 +31,31 @@ export function TabWindow() {
                 tabContainerRef.current.removeAttribute('data-file');
             }
 
-              const settings: ConstructorParameters<typeof AlphaTabApi>[1] = {
-                  core: {
-                      fontDirectory: '/font/'
-                  },
-                  player: {
-                      enablePlayer: true,
-                      soundFont: '/soundfont/sonivox.sf2',
+            const settings: ConstructorParameters<typeof AlphaTabApi>[1] = {
+                core: {
+                    fontDirectory: '/font/'
+                },
+                player: {
+                    enablePlayer: true,
+                    soundFont: '/soundfont/sonivox.sf2',
 
-                  }
-              };
-               (settings as any).showPlayingBeat = true;
-               (settings.player as any).scrollViewportAheadOfPlayback = 3000;
-               (settings as any).beatCursorVisible = true;
-                (settings as any).beatShowCursor = true;
+                }
+            };
+            apiRef.current = new AlphaTabApi(tabContainerRef.current, settings);
 
-               apiRef.current = new AlphaTabApi(tabContainerRef.current, settings);
+            // Set the scroll element after API is created (alphaTab creates the viewport in the DOM)
+            const viewport = tabContainerRef.current?.querySelector('.at-viewport');
+            if (viewport && apiRef.current) {
+                (apiRef.current as any).settings.scrollElement = viewport;
+            }
 
-              // Set the scroll element after API is created (alphaTab creates the viewport in the DOM)
-              const viewport = tabContainerRef.current?.querySelector('.at-viewport');
-              if (viewport && apiRef.current) {
-                  (apiRef.current as any).settings.scrollElement = viewport;
-              }
-
-              // Hook into player position to render cursor line
-              if (apiRef.current) {
-                  apiRef.current.playerPositionChanged.on(() => {
-                      // alphaTab automatically renders the cursor at the current playback position
-                  });
-              }
-         };
+            // Hook into player position to render cursor line
+            if (apiRef.current) {
+                apiRef.current.playerPositionChanged.on(() => {
+                    // alphaTab automatically renders the cursor at the current playback position
+                });
+            }
+        };
 
         createApi();
 
@@ -123,66 +118,70 @@ export function TabWindow() {
             apiRef.current = null;
         }
 
-         tabContainerRef.current.setAttribute('data-file', objectUrl);
-         const settings: ConstructorParameters<typeof AlphaTabApi>[1] = {
-             core: { fontDirectory: '/font/' },
-             player: { enablePlayer: true, soundFont: '/soundfont/sonivox.sf2' }
-         };
-         (settings as any).showPlayingBeat = true;
-         (settings.player as any).scrollViewportAheadOfPlayback = 3000;
-         (settings as any).beatCursorVisible = true;
-         (settings as any).beatShowCursor = true;
-         apiRef.current = new AlphaTabApi(tabContainerRef.current, settings);
+        tabContainerRef.current.setAttribute('data-file', objectUrl);
+        const settings: ConstructorParameters<typeof AlphaTabApi>[1] = {
+            core: {fontDirectory: '/font/'},
+            player: {enablePlayer: true, soundFont: '/soundfont/sonivox.sf2'}
+        };
+        apiRef.current = new AlphaTabApi(tabContainerRef.current, settings);
 
-         // Set the scroll element after API is created (alphaTab creates the viewport in the DOM)
-         const viewport = tabContainerRef.current?.querySelector('.at-viewport');
-         if (viewport && apiRef.current) {
-             (apiRef.current as any).settings.scrollElement = viewport;
-         }
+        // Set the scroll element after API is created (alphaTab creates the viewport in the DOM)
+        const viewport = tabContainerRef.current?.querySelector('.at-viewport');
+        if (viewport && apiRef.current) {
+            (apiRef.current as any).settings.scrollElement = viewport;
+        }
 
-         // Hook into player position to render cursor line
-         if (apiRef.current) {
-             apiRef.current.playerPositionChanged.on(() => {
-                 // alphaTab automatically renders the cursor at the current playback position
-             });
-         }
-     };
+        // Hook into player position to render cursor line
+        if (apiRef.current) {
+            apiRef.current.playerPositionChanged.on(() => {
+                // alphaTab automatically renders the cursor at the current playback position
+            });
+        }
+    };
 
     return (
         <Box sx={{p: 3}}>
-            <Stack spacing={2} sx={{mb: 3}}>
-                <Box sx={{display: 'flex', alignItems: 'center', justifyContent:"center", gap: 2, flexDirection: selectedFileName == null ? "column" : "row", height: selectedFileName == null? "100vh" : 50 }}>
-                    {selectedFileName &&
-                        <Button onClick={handlePlayPause} variant="contained" color="primary" sx={{width: 'fit-content'}}>
-                            Play / Pause
-                        </Button>
-                    }
+            {selectedFileName == null ?
+                <Stack spacing={2} sx={{mb: 3}}>
+                    <Box sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: "center",
+                        gap: 2,
+                        flexDirection: "column",
+                        height: "85vh"
+                    }}>
 
-                    {selectedFileName == null &&
+
                         <Typography variant={"h4"} color="textSecondary">
                             No tab loaded
                         </Typography>
-                    }
 
 
-                    <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept=".gp"
-                        style={{display: 'none'}}
-                        onChange={handleFileChange}
-                    />
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept=".gp"
+                            style={{display: 'none'}}
+                            onChange={handleFileChange}
+                        />
 
-                    <Button onClick={handleChooseFile} variant="outlined">Choose .gp file</Button>
-                </Box>
-            </Stack>
-
-             {/* Container element for alphaTab */}
-             <div
-                 ref={tabContainerRef}
-                 className="alphatab-host"
-                 style={{"--cursor-beat-bg": cursorBeatBackground} as React.CSSProperties}
-             />
+                        <Button onClick={handleChooseFile} variant="outlined">Choose .gp file</Button>
+                    </Box>
+                </Stack>
+                :
+                <>
+                    <Button onClick={handlePlayPause} variant="contained" color="primary" sx={{width: 'fit-content', position: "absolute" }}>
+                        Play / Pause
+                    </Button>
+                    {/* Container element for alphaTab */}
+                </>
+            }
+            <div
+                ref={tabContainerRef}
+                className="alphatab-host"
+                style={{"--cursor-beat-bg": cursorBeatBackground} as React.CSSProperties}
+            />
         </Box>
     );
 }
