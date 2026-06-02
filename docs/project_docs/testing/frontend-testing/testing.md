@@ -9,7 +9,8 @@ For the current frontend test setup, we use:
 - `User Event` (`@testing-library/user-event`) for realistic user interaction simulation
 - `Vitest Coverage (V8)` (`@vitest/coverage-v8`) for coverage reports
 - `Stryker` (`@stryker-mutator/core` + `@stryker-mutator/vitest-runner`) for mutation testing
-- `Playwright` (`@playwright/test`) for end-to-end (E2E) browser tests
+- [`Playwright`](https://playwright.dev/docs/intro) (`@playwright/test`) for end-to-end (E2E) browser tests
+- [`tauri-playwright`](https://github.com/srsholmes/tauri-playwright) (`@srsholmes/tauri-playwright`) to run the same tests in browser-only mode and against the native Tauri app
 
 # Types of tests
 At the moment, the frontend test scope includes:
@@ -60,156 +61,32 @@ Our main branch has a mutation score of
 
 [![Mutation testing badge](https://img.shields.io/endpoint?style=flat&url=https%3A%2F%2Fbadge-api.stryker-mutator.io%2Fgithub.com%2FZacharyVds-IS%2FGuitar-Amplifier%2Fmain)](https://dashboard.stryker-mutator.io/reports/github.com/ZacharyVds-IS/Guitar-Amplifier/main)
 
----
-
 ## End-to-End (E2E) tests
+E2E tests verify complete user flows through the app (clicking buttons, opening dialogs, navigating between screens).
+They give confidence that frontend state, routing, and Tauri command calls work correctly together.
 
-E2E tests drive the full app through a real browser (or the Tauri WebView) and verify complete user flows from click to IPC response. They complement unit tests by catching integration bugs that only appear when all layers are wired together.
+A couple guidelines for E2E test writing:
+ - Test important user journeys first (Home, Settings, Tuner, effect/channel flows).
+ - Assert visible behavior and user-facing outcomes, not implementation details.
+ - Keep tests deterministic by using mocks where needed and avoiding timing-sensitive selectors.
 
-### Tooling
+Examples of things that are good candidates for E2E tests:
+- app shell and navigation (Home -> Settings -> Tuner)
+- creating/removing effects and channels through dialogs
+- settings interactions such as toggles and latency controls
 
-| Tool | Role |
-|------|------|
-| [Playwright](https://playwright.dev/) (`@playwright/test`) | Test runner, browser automation, assertions |
-| [`@srsholmes/tauri-playwright`](https://github.com/srsholmes/tauri-playwright) | Tauri WebView socket bridge + IPC mock layer |
-| Vite dev server | Serves the frontend for browser-only mode |
+### E2E modes we use
+We run E2E tests in two modes:
+- **Browser-only mode**: runs fast in Chromium with mocked Tauri IPC. Use this as the default mode in CI and local development.
+- **Tauri mode**: runs against the real native Tauri app/binary. Use this mode to validate full frontend/backend integration.
 
-### Two test modes
+In short: use browser-only mode for speed, and Tauri mode for full integration confidence.
 
-RustRiff E2E tests run in **two Playwright projects**:
+### Running E2E tests
+Use these commands to run E2E tests:
+- `npm run test:e2e:browser` for the fast browser-only suite
+- `npm run test:e2e` for the full suite (including Tauri build path)
 
-| Mode | When | Tauri binary needed? |
-|------|------|----------------------|
-| `browser-only` | Every CI run, fast local feedback | ❌ No — Tauri IPC is intercepted by JavaScript mocks |
-| `tauri` | Integration / release gate | ✅ Yes — requires the binary built with `--features e2e-testing` |
-
-In **browser-only** mode, Playwright launches headless Chromium against the Vite dev server (`http://127.0.0.1:1420`). All `window.__TAURI_INTERNALS__` calls are intercepted by the IPC mock bridge, so no Rust code runs.
-
-In **tauri** mode, the fixture spawns the pre-built native binary and connects to it via a socket bridge. The real Rust backend handles all IPC commands.
-
-### Fixtures and IPC mocking (`e2e/fixtures.ts`)
-
-The shared test fixture (`e2e/fixtures.ts`) exports `test` and `expect` from `createTauriTest`. It does two things:
-
-1. **Provides `tauriPage`** — a Playwright `Page` handle that works identically in both modes.
-2. **Registers IPC mocks** — an `ipcMocks` record maps every Tauri command name to a JavaScript stub. In browser-only mode these stubs replace real IPC calls:
-   - `get_amp_config` → returns a predictable mock `AmpConfig` (one channel named "Clean").
-   - `add_effect` → records the invocation and mutates the in-memory mock config so subsequent `get_amp_config` calls return the updated chain.
-   - All other commands → return sensible no-op values (empty arrays, `null`, mock latency readings, etc.).
-
-Mock state can be reset between tests using the exported `resetIpcMockState()` helper. Call it in `test.beforeEach` when a test cares about a clean slate.
-
-#### Asserting IPC calls in browser-only mode
-
-The mock bridge exposes two globals in the page context:
-
-```ts
-// Clear the recorded call log
-await tauriPage.evaluate("globalThis.__TAURI_CLEAR_MOCK_CALLS__()");
-
-// Read all recorded calls
-const calls = await tauriPage.evaluate(`globalThis.__TAURI_GET_MOCK_CALLS__()`);
-// → [{ cmd: "add_effect", args: { effectDto: { ... } } }, ...]
-```
-
-Use `expect.poll(...)` to wait for async IPC calls that happen after a user interaction:
-
-```ts
-await expect.poll(async () =>
-  tauriPage.evaluate(`
-    globalThis.__TAURI_GET_MOCK_CALLS__()
-      .filter(c => c.cmd === "add_channel").length
-  `)
-).toBe(1);
-```
-
-Tests that use these globals should skip the `tauri` project (because there the real backend handles commands and the mock bridge is not active):
-
-```ts
-test("...", async ({tauriPage}, testInfo) => {
-  test.skip(testInfo.project.name.includes("tauri"), "IPC mock assertions run in browser-only mode.");
-  // ...
-});
-```
-
-### Test file organisation
-
-```
-e2e/
-  fixtures.ts            # shared test fixture, IPC mocks, mock amp config
-  browser-mock-bridge.js # (reserved for future custom bridge helpers)
-  tests/
-    app.spec.ts          # smoke tests — app shell, header, amp controls
-    navigation.spec.ts   # route transitions between Home / Tuner / Settings
-    channels.spec.ts     # channel selector, Add Channel dialog, IPC dispatch
-    effects.spec.ts      # Add Effect dialog, IPC dispatch, chain rendering
-    settings.spec.ts     # Settings screen sections and Developer Mode toggle
-    generated.spec.ts    # sanity baseline — app mounts without error
-```
-
-### Running E2E tests locally
-
-```bash
-# Browser-only (fast — no Tauri binary needed)
-npm run test:e2e:browser
-
-# Both projects (requires a pre-built Tauri binary)
-npm run tauri build -- --no-bundle --features e2e-testing
-npm run test:e2e
-```
-
-### Writing new E2E tests
-
-- **Prefer `browser-only` tests** for dialog flows and IPC dispatch checks — they are fast and CI-friendly.
-- **Use `tauriPage.waitForSelector("#root", 20_000)`** at the start of every test to ensure the app has fully hydrated before interacting.
-- **Reset mock state** with `resetIpcMockState()` in `test.beforeEach` whenever a test depends on a clean amp config.
-- **Do not assert on pixel positions or colours** — assert on accessible roles, visible text, and IPC call arguments.
-- Tests that use `__TAURI_GET_MOCK_CALLS__` must be guarded with `test.skip` for the `tauri` project (see above).
-
-# Types of tests
-At the moment, the frontend test scope includes:
-- **Unit tests**
-
-## Unit tests
-Unit tests verify one small piece of behavior in isolation. In this codebase our focus lies on testing functionality rather than UI details.
-A couple guidelines for UI test writing:
- - Test logic rather than visuals.
- - If external calls are required ex. API's use mocks to isolate the pure logic of the code.
- - Follow the AAA (Arrange-Act-Assert) pattern to structure tests clearly.
-
-Examples of things that are good candidates for unit tests:
-- a single hook (for example, state sync or event handling)
-- a single component's logic path (selection, conditional rendering decisions, callback wiring)
-- small pure utility logic
-
-### Coverage
-Code coverage (which can be generated by using the ```npm run test:ui-coverage``` command) is a usefull metric which identifies which lines of code are executed during tests.
-Code coverage is a good indicator to wheter or not specific pieces of code actual execute during tests.
-
-### The limits of code coverage
-As explained, it indicates wheter code is executed. But its does **not** indicate wether the tests are actually checking the behavior of that code.
-You can have 100% coverage but still have weak tests that don't fail when the code is broken. 
-
-Simple example, if you have a line that returns a value but your test doesn't assert on that value, you might have coverage but not confidence.
-
-### Solving this issue with mutation testing
-Mutation testing measures how effective tests are, not just how much code they execute.
-
-A mutation tool makes small changes ("mutations") to real code, such as:
-- flipping conditionals (`>` to `>=`)
-- changing boolean results (`true` to `false`)
-- removing or altering return values
-
-Then it runs the test suite:
-- if tests fail, the mutation is **killed** (good: tests detected incorrect behavior)
-- if tests still pass, the mutation **survives** (warning: tests likely missed a behavior check)
-
-Mutation testing in our project is mainly used to identify gaps in our business logic, hooks and state flows. Striving for a high score (or killing all mutations) helps ensure our tests are robust and catch regressions effectively.
-While aiming for a high score is great, fighting to eliminate every single surviving mutation often reaches a point of diminishing returns.
-
-Ex. equivalent Mutations: Sometimes Stryker changes a line of code in a way that modifies the syntax but preserves the exact same logic behaviour. Because the program's output does not change, no test can possibly fail, leaving the mutation permanently "alive";
-
-### Our project uses [Stryker](https://stryker-mutator.io/) for mutation testing.
-Our main branch has a mutation score of 
-
-[![Mutation testing badge](https://img.shields.io/endpoint?style=flat&url=https%3A%2F%2Fbadge-api.stryker-mutator.io%2Fgithub.com%2FZacharyVds-IS%2FGuitar-Amplifier%2Fmain)](https://dashboard.stryker-mutator.io/reports/github.com/ZacharyVds-IS/Guitar-Amplifier/main)
+References:
+- Playwright docs: https://playwright.dev/docs/intro
+- tauri-playwright docs: https://github.com/srsholmes/tauri-playwright
