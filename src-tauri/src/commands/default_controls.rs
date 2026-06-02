@@ -73,13 +73,11 @@ pub(crate) fn set_gain(
 ) {
     let audio_service = audio_service.inner().lock().unwrap();
     let device_service = device_service.inner().lock().unwrap();
-
-    audio_service
-        .channels()
-        .iter()
-        .find(|c| c.id() == *audio_service.current_channel_id())
-        .unwrap()
+    let cm = audio_service.channel_manager().lock().unwrap();
+    cm.current_channel()
+        .expect("current channel must exist")
         .set_gain(gain);
+    drop(cm);
     persist_amp_config(&audio_service, &device_service, &persistence_service);
 }
 
@@ -102,7 +100,6 @@ pub(crate) fn set_master_volume(
 ) {
     let audio_service = audio_service.inner().lock().unwrap();
     let device_service = device_service.inner().lock().unwrap();
-
     audio_service.set_master_volume(master_volume);
     persist_amp_config(&audio_service, &device_service, &persistence_service);
 }
@@ -128,13 +125,12 @@ pub(crate) fn set_tone_stack(
 ) {
     let audio_service = audio_service.inner().lock().unwrap();
     let device_service = device_service.inner().lock().unwrap();
-
-    audio_service
-        .channels()
-        .iter()
-        .find(|c| c.id() == *audio_service.current_channel_id())
-        .unwrap()
+    let cm = audio_service.channel_manager().lock().unwrap();
+    cm.current_channel()
+        .expect("current channel must exist")
         .set_tone_stack(tone_stack);
+    drop(cm);
+
     persist_amp_config(&audio_service, &device_service, &persistence_service);
 }
 
@@ -159,13 +155,11 @@ pub(crate) fn set_bass(
 ) {
     let audio_service = audio_service.inner().lock().unwrap();
     let device_service = device_service.inner().lock().unwrap();
-
-    audio_service
-        .channels()
-        .iter()
-        .find(|c| c.id() == *audio_service.current_channel_id())
-        .unwrap()
+    let cm = audio_service.channel_manager().lock().unwrap();
+    cm.current_channel()
+        .expect("current channel must exist")
         .set_bass(bass);
+    drop(cm);
     persist_amp_config(&audio_service, &device_service, &persistence_service);
 }
 
@@ -190,13 +184,11 @@ pub(crate) fn set_middle(
 ) {
     let audio_service = audio_service.inner().lock().unwrap();
     let device_service = device_service.inner().lock().unwrap();
-
-    audio_service
-        .channels()
-        .iter()
-        .find(|c| c.id() == *audio_service.current_channel_id())
-        .unwrap()
+    let cm = audio_service.channel_manager().lock().unwrap();
+    cm.current_channel()
+        .expect("current channel must exist")
         .set_middle(middle);
+    drop(cm);
     persist_amp_config(&audio_service, &device_service, &persistence_service);
 }
 
@@ -221,13 +213,11 @@ pub(crate) fn set_treble(
 ) {
     let audio_service = audio_service.inner().lock().unwrap();
     let device_service = device_service.inner().lock().unwrap();
-
-    audio_service
-        .channels()
-        .iter()
-        .find(|c| c.id() == *audio_service.current_channel_id())
-        .unwrap()
+    let cm = audio_service.channel_manager().lock().unwrap();
+    cm.current_channel()
+        .expect("current channel must exist")
         .set_treble(treble);
+    drop(cm);
     persist_amp_config(&audio_service, &device_service, &persistence_service);
 }
 
@@ -252,12 +242,10 @@ pub(crate) fn set_volume(
 ) {
     let audio_service = audio_service.inner().lock().unwrap();
     let device_service = device_service.inner().lock().unwrap();
-
-    audio_service
-        .channels()
-        .iter()
-        .find(|c| c.id() == *audio_service.current_channel_id())
-        .unwrap()
+    let cm = audio_service.channel_manager().lock().unwrap();
+    cm.current_channel()
+        .expect("current channel must exist")
         .set_volume(volume);
+    drop(cm);
     persist_amp_config(&audio_service, &device_service, &persistence_service);
 }

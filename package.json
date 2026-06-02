@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "vite",
     "lint": "eslint .",
-    "format-rust": "cd ./src-tauri && cargo fmt --all",
+    "format-rust": "cd ./src-tauri && cargo fmt --all --check",
     "clippy-rust": "cd ./src-tauri && cargo clippy --all-targets --all-features -- ",
     "generate-types": "cargo tauri-typegen generate --output-path ./src/domain && npm run generate-effect-types",
     "generate-effect-types": "node scripts/generate-effect-types.mjs",
@@ -15,7 +15,7 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "test": "npm run test:rust && npm run test:ui",
-    "test:rust": "cd ./src-tauri && cargo test",
+    "test:rust": "cd ./src-tauri && cargo test --no-default-features",
     "test:rust-mutation": "cd ./src-tauri && cargo mutants",
     "test:ui": "vitest run",
     "test:ui-ui": "vitest run --ui --watch",
@@ -33,6 +33,8 @@
     "docs:preview": "vitepress preview docs"
   },
   "dependencies": {
+    "@coderline/alphatab": "^1.8.3",
+    "@coderline/alphatab-vite": "^1.8.3",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@hello-pangea/dnd": "^18.0.1",
@@ -48,6 +50,7 @@
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-hook-form": "^7.53.0",
+    "react-hotkeys-hook": "^5.3.2",
     "react-router-dom": "^7.14.2",
     "zod": "^3.23.8",
     "zustand": "^5.0.12"

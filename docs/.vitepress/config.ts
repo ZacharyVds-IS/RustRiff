@@ -27,6 +27,8 @@ export default defineConfig({
                 items: [
                     {text: 'Relation to real amp', link: '/project_docs/amp_design/structure'},
                     {text: 'Audio Drivers', link: '/project_docs/amp_design/driver_support.md'},
+                    {text: 'Hotkeys', link: '/project_docs/amp_design/keybinds.md'},
+                    {text: 'MIDI support', link: '/project_docs/amp_design/midi-support.md'},
                     {text: 'Resampling', link: '/project_docs/amp_design/resampling.md'},
                     {text: 'Visual analysis', link: '/project_docs/amp_design/spectrum-analyzer.md'},
                     {text: 'Tuner', link: '/project_docs/amp_design/tuner.md'},
@@ -49,6 +51,7 @@ export default defineConfig({
                     {text: 'Distortion', link: '/project_docs/effects/distortion'},
                     {text: 'Cabinet Simulation (IR)', link: '/project_docs/effects/cabinet_simulation_ir'},
                     {text: 'Recording an impulse response', link: '/project_docs/effects/custom_ir_recording'},
+                    {text: 'Wah', link: '/project_docs/effects/wah'},
                 ]
             },
             {

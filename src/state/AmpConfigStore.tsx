@@ -18,7 +18,8 @@ import {
     setMiddle,
     setTreble,
     setVolume,
-    toggleOnOff
+    toggleOnOff,
+    WahDto
 } from "../domain";
 import {create} from "zustand/react";
 import {emit} from "@tauri-apps/api/event";
@@ -59,6 +60,7 @@ interface AmpState extends AmpConfigDto {
     startEditingChainOrder: () => void;
     cancelEditingChainOrder: () => void;
     applyChangesToChainOrder: () => Promise<void>;
+    updateWahParams: (effectId: string, patch: Partial<Pick<WahDto, "pedal_position">>) => void;
 }
 
 export const useAmpStore = create<AmpState>((set, get) => ({
@@ -86,6 +88,7 @@ export const useAmpStore = create<AmpState>((set, get) => ({
             effect_chain: [],
         }],
         current_channel: "0",
+        midi_bindings: [],
         chain_snapshot: null,
 
         init: async () => {
@@ -266,13 +269,13 @@ export const useAmpStore = create<AmpState>((set, get) => ({
                 channels: state.channels.map((c) =>
                     c.id === state.current_channel
                         ? {
-                            ...c,
-                            effect_chain: c.effect_chain.map((effect) =>
-                                effect.data.id === effectId
-                                    ? withUpdatedEffectActiveState(effect, isActive)
-                                    : effect
-                            ) as EffectDto[],
-                        }
+                              ...c,
+                              effect_chain: c.effect_chain.map((effect) =>
+                                  effect.data.id === effectId
+                                      ? withUpdatedEffectActiveState(effect, isActive)
+                                      : effect
+                              ) as EffectDto[],
+                          }
                         : c
                 ),
             }));
@@ -442,9 +445,33 @@ export const useAmpStore = create<AmpState>((set, get) => ({
                 set({chain_snapshot: null});
             } catch (error) {
                 console.error("Failed to change Effect order:", error);
+                throw error;
             }
 
         },
+        updateWahParams: (effectId, patch) => {
+            set((state) => ({
+                channels: state.channels.map((c) =>
+                    c.id === state.current_channel
+                        ? {
+                            ...c,
+                            effect_chain: c.effect_chain.map((effect) =>
+                                effect.kind === "Wah" && effect.data.id === effectId
+                                    ? {
+                                        ...effect,
+                                        data: {
+                                            ...effect.data,
+                                            ...patch,
+                                        },
+                                    }
+                                    : effect
+                            ),
+                        }
+                        : c
+                ),
+            }));
+        },
+
     }))
 ;
 
