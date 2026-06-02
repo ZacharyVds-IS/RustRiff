@@ -1,9 +1,14 @@
 use crate::domain::dto::audio_settings_dto::AudioSettingsDto;
 use crate::domain::dto::channel_dto::ChannelDto;
+use crate::domain::dto::midi_mapping_dto::MidiMappingDto;
+#[cfg(feature = "audio-backend")]
 use crate::services::audio_service::AudioService;
+#[cfg(feature = "audio-backend")]
 use crate::services::device_service::DeviceService;
+#[cfg(feature = "audio-backend")]
 use cpal::traits::DeviceTrait;
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "audio-backend")]
 use std::sync::atomic::Ordering;
 
 /// Represents the complete amplifier configuration state.
@@ -20,8 +25,14 @@ pub struct AmpConfigDto {
     pub channels: Vec<ChannelDto>,
     /// The current channel id
     pub current_channel: String,
-    /// Hardware Configuration
+    /// Hardware Configuration. Absent from files written before this field
+    /// was introduced is tolerated via `#[serde(default)]`.
+    #[serde(default)]
     pub audio_settings: AudioSettingsDto,
+    /// MIDI CC → effect bindings. Persisted across restarts; absent from
+    /// files written before this field was introduced is tolerated via
+    /// `#[serde(default)]` on the persistence-layer struct.
+    pub midi_bindings: Vec<MidiMappingDto>,
 }
 
 impl AmpConfigDto {
@@ -32,21 +43,14 @@ impl AmpConfigDto {
     /// # Arguments
     ///
     /// * `service` - The [`AudioService`] to snapshot.
+    #[cfg(feature = "audio-backend")]
     pub fn from_service(audio_service: &AudioService, device_service: &DeviceService) -> Self {
-        let channel = audio_service
-            .channels()
-            .iter()
-            .find(|c| c.id() == *audio_service.current_channel_id())
-            .unwrap();
+        let cm = audio_service.channel_manager().lock().unwrap();
         Self {
             master_volume: audio_service.master_volume().load(Ordering::Relaxed),
             is_active: *audio_service.is_active(),
-            channels: audio_service
-                .channels()
-                .iter()
-                .map(ChannelDto::from)
-                .collect(),
-            current_channel: channel.id().to_string(),
+            channels: cm.to_channel_dtos(),
+            current_channel: cm.current_channel_id().to_string(),
             audio_settings: {
                 let input_id = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                     audio_service
@@ -78,6 +82,7 @@ impl AmpConfigDto {
                     audio_driver: device_service.selected_audio_driver().to_string(),
                 }
             },
+            midi_bindings: Vec::new(),
         }
     }
 }

@@ -12,8 +12,8 @@ use uuid::Uuid;
 /// Atomic handles retained by `Channel` after the effect chain is moved to the
 /// audio worker thread.  Commands write through these Arcs; the audio thread
 /// reads from the same Arcs on every sample — completely lock-free.
-struct EffectHandles {
-    is_active: Arc<AtomicBool>,
+pub(crate) struct EffectHandles {
+    pub(crate) is_active: Arc<AtomicBool>,
     /// Named f32 parameters (e.g. `"threshold"`). The Effect trait's
     /// `f32_params()` method populates this, so no downcasting is needed.
     params: HashMap<&'static str, ParamValue>,
@@ -50,7 +50,7 @@ pub struct Channel {
     effect_chain: Arc<Mutex<Vec<Box<dyn Effect>>>>,
     /// Retained per-effect Arc handles indexed by effect id.
     /// Stays populated even after `take_effect_chain` moves the effects to the audio thread.
-    effect_handles: HashMap<Uuid, EffectHandles>,
+    pub(crate) effect_handles: HashMap<Uuid, EffectHandles>,
 }
 
 impl Channel {
@@ -335,6 +335,24 @@ impl Channel {
             .collect()
     }
 
+    // ── Public MIDI Service Integration Helpers ───────────────────────────────
+
+    /// Checks if this channel handles a specific effect ID without leaking private layout maps.
+    pub fn has_effect(&self, effect_id: Uuid) -> bool {
+        self.effect_handles.contains_key(&effect_id)
+    }
+
+    /// Allows external services to explicitly mutate the activation/bypass flag safely.
+    pub fn set_effect_active(&self, effect_id: Uuid, active: bool) -> Result<(), String> {
+        let handle = self
+            .effect_handles
+            .get(&effect_id)
+            .ok_or_else(|| format!("Effect {effect_id} not found in this channel"))?;
+
+        handle.is_active.store(active, Ordering::Relaxed);
+        Ok(())
+    }
+
     // ── Effect controls (written from command handlers) ───────────────────────
 
     /// Toggles the active state of an effect.
@@ -416,6 +434,7 @@ impl Channel {
         Ok(())
     }
 }
+
 #[derive(Debug)]
 pub enum ParamInput {
     F32(f32),

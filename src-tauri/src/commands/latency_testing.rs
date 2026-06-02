@@ -24,10 +24,11 @@ use crate::domain::dto::algorithmic_latency_dto::AlgorithmicLatencyDto;
 use crate::domain::dto::buffer_latency_dto::BufferLatencyDto;
 use crate::domain::dto::execution_timing_dto::ExecutionTimingDto;
 use crate::domain::dto::round_trip_latency_dto::RoundTripLatencyDto;
+use crate::infrastructure::audio_handler::AudioHandlerTrait;
 use crate::services::audio_latency_measurement_service::AudioLatencyMeasurementService;
 use crate::services::audio_service::AudioService;
 use crate::services::device_service::DeviceService;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use tracing::info;
 
 /// Measures the CPU execution impact of the [`GainProcessor`] and logs the result.
@@ -49,11 +50,12 @@ use tracing::info;
 pub fn test_gain_latency(
     audio_service: tauri::State<'_, Mutex<AudioService>>,
 ) -> Result<(), String> {
-    let service = audio_service
+    let audio_service = audio_service
         .lock()
         .map_err(|_| "Failed to lock audio service".to_string())?;
 
-    let added_us_per_sample = AudioLatencyMeasurementService::measure_gain_latency(&service, 2048);
+    let added_us_per_sample =
+        AudioLatencyMeasurementService::measure_gain_latency(&audio_service, 2048);
 
     info!(
         "Gain processor execution impact: {:.6} µs/sample",
@@ -91,11 +93,11 @@ pub fn test_gain_latency(
 pub fn measure_all_dsp_cpu_timings(
     audio_service: tauri::State<'_, Mutex<AudioService>>,
 ) -> Result<Vec<ExecutionTimingDto>, String> {
-    let service = audio_service
+    let audio_service = audio_service
         .lock()
         .map_err(|_| "Failed to lock audio service".to_string())?;
 
-    let timings = AudioLatencyMeasurementService::measure_all_dsp_timings(&service, 2048);
+    let timings = AudioLatencyMeasurementService::measure_all_dsp_timings(&audio_service, 2048);
 
     for timing in &timings {
         info!(
@@ -135,11 +137,12 @@ pub fn measure_all_dsp_cpu_timings(
 pub fn measure_all_dsp_algorithmic_latency(
     audio_service: tauri::State<'_, Mutex<AudioService>>,
 ) -> Result<Vec<AlgorithmicLatencyDto>, String> {
-    let service = audio_service
+    let audio_service = audio_service
         .lock()
         .map_err(|_| "Failed to lock audio service".to_string())?;
 
-    let latency = AudioLatencyMeasurementService::measure_all_dsp_algorithmic_latency(&service);
+    let latency =
+        AudioLatencyMeasurementService::measure_all_dsp_algorithmic_latency(&audio_service);
 
     for item in &latency {
         info!(
@@ -177,11 +180,11 @@ pub fn measure_all_dsp_algorithmic_latency(
 pub fn measure_buffer_latency(
     audio_service: tauri::State<'_, Mutex<AudioService>>,
 ) -> Result<BufferLatencyDto, String> {
-    let service = audio_service
+    let audio_service = audio_service
         .lock()
         .map_err(|_| "Failed to lock audio service".to_string())?;
 
-    let latency = AudioLatencyMeasurementService::measure_buffer_latency(&service);
+    let latency = AudioLatencyMeasurementService::measure_buffer_latency(&audio_service);
 
     info!(
         input_buffer_latency_ms = latency.input_buffer_latency_ms,
@@ -239,18 +242,19 @@ pub fn measure_round_trip_latency(
     let is_asio = device_service.is_asio_selected();
 
     let (handler, was_active) = {
-        let mut service = audio_service
+        let mut audio_service = audio_service
             .lock()
             .map_err(|_| "Failed to lock audio service".to_string())?;
 
-        let was_active = *service.is_active();
+        let was_active = *audio_service.is_active();
 
         if is_asio && was_active {
             info!("ASIO is exclusive: stopping loopback before round-trip measurement");
-            service.stop_loopback();
+            audio_service.stop_loopback();
         }
 
-        (service.audio_handler().clone(), was_active)
+        let handler: Arc<dyn AudioHandlerTrait> = audio_service.audio_handler().clone();
+        (handler, was_active)
     };
 
     if is_asio && was_active {
@@ -265,10 +269,10 @@ pub fn measure_round_trip_latency(
 
     // Restore the loopback for ASIO after measurement streams have been dropped.
     if is_asio && was_active {
-        if let Ok(mut service) = audio_service.lock() {
+        if let Ok(mut audio_service) = audio_service.lock() {
             info!("Restarting loopback after ASIO round-trip measurement");
             std::thread::sleep(std::time::Duration::from_millis(150));
-            service.start_loopback();
+            audio_service.start_loopback();
         }
     }
 

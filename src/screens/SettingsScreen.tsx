@@ -7,7 +7,7 @@ import * as commands from "../domain/commands.ts";
 import * as types from "../domain/types.ts";
 import {DeviceRoutingSection} from "../components/DeviceroutingSection.tsx";
 import {LatencySection} from "../components/LatencySection.tsx";
-import {SampleRateWarning} from "../components/SampleRateWarning.tsx";
+import {MidiSection} from "../components/MidiSection.tsx";
 
 export function SettingsScreen() {
     const theme = useTheme();
@@ -21,8 +21,8 @@ export function SettingsScreen() {
     const developerMode = useUIStore((state) => state.developerMode);
     const setDeveloperMode = useUIStore((state) => state.setDeveloperMode);
 
-    const [inputSampleRate, setInputSampleRate] = useState<number | null>(null);
-    const [outputSampleRate, setOutputSampleRate] = useState<number | null>(null);
+    const [, setInputSampleRate] = useState<number | null>(null);
+    const [, setOutputSampleRate] = useState<number | null>(null);
     const [roundTripLatency, setRoundTripLatency] = useState<number | null>(null);
     const [roundTripLoading, setRoundTripLoading] = useState(false);
     const [roundTripError, setRoundTripError] = useState<string | null>(null);
@@ -350,10 +350,6 @@ export function SettingsScreen() {
                                              onChange={(e) => setDeveloperMode(e.target.checked)}/>}
                             label="Developer Mode"
                         />
-                        <SampleRateWarning
-                            inputSampleRate={inputSampleRate}
-                            outputSampleRate={outputSampleRate}
-                        />
                         <LatencySection
                             bufferSizeOptions={bufferSizeOptions}
                             bufferSizeFrames={bufferSizeFrames}
@@ -366,6 +362,7 @@ export function SettingsScreen() {
                             roundTripError={roundTripError}
                             roundTripLatency={roundTripLatency}
                         />
+                        <MidiSection/>
                     </Box>
                     <Divider orientation="vertical" flexItem/>
                     <DeviceRoutingSection
