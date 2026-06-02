@@ -245,7 +245,9 @@ impl AudioService {
     ) -> JoinHandle<()> {
         thread::spawn(move || {
             const RESAMPLER_CHUNK_SIZE: usize = 256;
-            let ringbuffer_size = handler.input_sample_rate().max(handler.output_sample_rate()) as usize;
+            let ringbuffer_size = handler
+                .input_sample_rate()
+                .max(handler.output_sample_rate()) as usize;
 
             let policy = ResamplePolicy::from_rates(
                 handler.input_sample_rate(),
@@ -331,8 +333,10 @@ impl AudioService {
             self.spectrum_tap.set_sample_rate_hz(dsp_sample_rate);
             let arcs = self.resolve_channel_arcs();
 
-            self.shared_amp_enabled.store(self.is_active, Ordering::SeqCst);
-            self.shared_tuner_enabled.store(self.tuner_active, Ordering::SeqCst);
+            self.shared_amp_enabled
+                .store(self.is_active, Ordering::SeqCst);
+            self.shared_tuner_enabled
+                .store(self.tuner_active, Ordering::SeqCst);
 
             let thread = Self::spawn_io_thread(
                 self.audio_handler.clone(),
@@ -351,8 +355,10 @@ impl AudioService {
             }
         } else if is_running {
             // The thread is already running; hot-swap the internal feature states instantly
-            self.shared_amp_enabled.store(self.is_active, Ordering::SeqCst);
-            self.shared_tuner_enabled.store(self.tuner_active, Ordering::SeqCst);
+            self.shared_amp_enabled
+                .store(self.is_active, Ordering::SeqCst);
+            self.shared_tuner_enabled
+                .store(self.tuner_active, Ordering::SeqCst);
         }
     }
 
@@ -395,13 +401,16 @@ impl AudioService {
         }
 
         self.audio_handler = new_handler;
-        self.spectrum_tap.set_sample_rate_hz(self.dsp_chain_sample_rate());
+        self.spectrum_tap
+            .set_sample_rate_hz(self.dsp_chain_sample_rate());
 
         if was_running {
             let dsp_sample_rate = self.dsp_chain_sample_rate();
             let arcs = self.resolve_channel_arcs();
-            self.shared_amp_enabled.store(self.is_active, Ordering::SeqCst);
-            self.shared_tuner_enabled.store(self.tuner_active, Ordering::SeqCst);
+            self.shared_amp_enabled
+                .store(self.is_active, Ordering::SeqCst);
+            self.shared_tuner_enabled
+                .store(self.tuner_active, Ordering::SeqCst);
 
             let thread = Self::spawn_io_thread(
                 self.audio_handler.clone(),
