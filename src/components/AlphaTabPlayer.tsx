@@ -4,11 +4,10 @@ import {Box, Button, useTheme} from "@mui/material";
 
 interface AlphaTabPlayerProps {
     fileUrl: string;
-    fileName: string | null;
     onClose: () => void;
 }
 
-export function AlphaTabPlayer({ fileUrl, fileName, onClose }: AlphaTabPlayerProps) {
+export function AlphaTabPlayer({ fileUrl, onClose }: AlphaTabPlayerProps) {
     const theme = useTheme();
     const tabContainerRef = useRef<HTMLDivElement | null>(null);
     const apiRef = useRef<AlphaTabApi | null>(null);

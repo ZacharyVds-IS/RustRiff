@@ -5,7 +5,6 @@ import {AlphaTabPlayer} from "../../components/AlphaTabPlayer.tsx";
 
 export function TabWindow() {
     const fileInputRef = useRef<HTMLInputElement | null>(null);
-    const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
     const [fileUrl, setFileUrl] = useState<string | null>(null);
 
     // Automatically clean up object URLs to prevent memory leaks when fileUrl changes or unmounts
@@ -30,14 +29,14 @@ export function TabWindow() {
             URL.revokeObjectURL(fileUrl);
         }
 
-        setSelectedFileName(file.name);
         setFileUrl(URL.createObjectURL(file));
     };
 
     const handleCloseTab = () => {
-        setSelectedFileName(null);
         setFileUrl(null);
     };
+
+    const acceptedExtensions = ".gp,.gp3,.gp4,.gp5,.gpx,.xml,.cap,.alphaTex";
 
     return (
         <Box>
@@ -59,7 +58,7 @@ export function TabWindow() {
                             <input
                                 ref={fileInputRef}
                                 type="file"
-                                accept=".gp"
+                                accept= {acceptedExtensions}
                                 style={{ display: 'none' }}
                                 onChange={handleFileChange}
                             />
@@ -73,7 +72,6 @@ export function TabWindow() {
             ) : (
                 <AlphaTabPlayer
                     fileUrl={fileUrl}
-                    fileName={selectedFileName}
                     onClose={handleCloseTab}
                 />
             )}
