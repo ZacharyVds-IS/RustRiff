@@ -45,23 +45,20 @@ pub fn set_sc_distortion_threshold(
 
     let safe_threshold = threshold.clamp(0.001, 1.0);
 
-    let service = audio_service
+    let audio_service = audio_service
         .lock()
         .map_err(|_| "Failed to lock audio service".to_string())?;
-    let channel = service
-        .channels()
-        .iter()
-        .find(|c| c.id() == *service.current_channel_id())
-        .ok_or("No active channel")?;
-    channel.set_effect_param(
+    let cm = audio_service.channel_manager().lock().unwrap();
+    cm.set_effect_parameter(
         Uuid::parse_str(&effect_id).expect("failed to parse id"),
         "threshold",
         safe_threshold,
     )?;
+    drop(cm);
     let device_service = device_service
         .lock()
         .map_err(|_| "Failed to lock device service".to_string())?;
-    persist_amp_config(&service, &device_service, &persistence_service);
+    persist_amp_config(&audio_service, &device_service, &persistence_service);
     Ok(())
 }
 
@@ -98,7 +95,6 @@ pub fn set_sc_distortion_level(
     effect_id: String,
     level: f32,
 ) -> Result<(), String> {
-    // Validate level before forwarding to audio thread
     if !level.is_finite() {
         return Err(format!(
             "Invalid level: {} (must be finite, not NaN or infinite)",
@@ -106,28 +102,23 @@ pub fn set_sc_distortion_level(
         ));
     }
 
-    // Clamp to safe range [0.0, 1.0] then map to internal gain [1.0, 2.0]
     let safe_level = level.clamp(0.0, 1.0);
     let gain = 1.0 + safe_level;
 
-    let service = audio_service
+    let audio_service = audio_service
         .lock()
         .map_err(|_| "Failed to lock audio service".to_string())?;
-    let channel = service
-        .channels()
-        .iter()
-        .find(|c| c.id() == *service.current_channel_id())
-        .ok_or("No active channel")?;
-    channel.set_effect_param(
+    let cm = audio_service.channel_manager().lock().unwrap();
+    cm.set_effect_parameter(
         Uuid::parse_str(&effect_id).expect("failed to parse id"),
         "level",
         gain,
     )?;
-
+    drop(cm);
     let device_service = device_service
         .lock()
         .map_err(|_| "Failed to lock device service".to_string())?;
-    persist_amp_config(&service, &device_service, &persistence_service);
+    persist_amp_config(&audio_service, &device_service, &persistence_service);
     Ok(())
 }
 
@@ -171,22 +162,19 @@ pub fn set_sc_distortion_smoothing(
 
     let safe_smoothing = smoothing.clamp(1.0, 10.0);
 
-    let service = audio_service
+    let audio_service = audio_service
         .lock()
         .map_err(|_| "Failed to lock audio service".to_string())?;
-    let channel = service
-        .channels()
-        .iter()
-        .find(|c| c.id() == *service.current_channel_id())
-        .ok_or("No active channel")?;
-    channel.set_effect_param(
+    let cm = audio_service.channel_manager().lock().unwrap();
+    cm.set_effect_parameter(
         Uuid::parse_str(&effect_id).expect("failed to parse id"),
         "smoothing",
         safe_smoothing,
     )?;
+    drop(cm);
     let device_service = device_service
         .lock()
         .map_err(|_| "Failed to lock device service".to_string())?;
-    persist_amp_config(&service, &device_service, &persistence_service);
+    persist_amp_config(&audio_service, &device_service, &persistence_service);
     Ok(())
 }

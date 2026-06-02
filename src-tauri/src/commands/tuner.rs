@@ -40,10 +40,10 @@ pub fn start_live_tuner_stream(
     stream_state: tauri::State<'_, TunerStreamState>,
 ) -> Result<(), String> {
     let tap = {
-        let service = audio_service
+        let audio_service = audio_service
             .lock()
             .map_err(|_| "Failed to lock audio service".to_string())?;
-        service.spectrum_tap().clone()
+        audio_service.spectrum_tap().clone()
     };
 
     let shutdown = Arc::new(AtomicBool::new(false));

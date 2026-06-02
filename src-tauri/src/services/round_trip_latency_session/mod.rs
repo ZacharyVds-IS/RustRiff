@@ -58,6 +58,7 @@
 
 pub mod constants;
 pub mod measurement_state;
+#[cfg(feature = "audio-backend")]
 pub mod session;
 
 // Re-export the public surface so callers can use the old import paths unchanged.
@@ -65,4 +66,5 @@ pub use constants::IMPULSE_AMPLITUDE;
 pub use measurement_state::{
     RoundTripMeasurementPhase, RoundTripMeasurementState, RoundTripTickOutcome,
 };
+#[cfg(feature = "audio-backend")]
 pub use session::RoundTripLatencySession;

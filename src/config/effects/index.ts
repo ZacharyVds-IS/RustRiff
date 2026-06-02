@@ -1,4 +1,12 @@
-import {CabinetDto, DelayDto, type EffectDto, getDefaultIrFile, HcDistortionDto, ScDistortionDto} from "../../domain";
+import {
+    CabinetDto,
+    DelayDto,
+    type EffectDto,
+    getDefaultIrFile,
+    HcDistortionDto,
+    ScDistortionDto,
+    WahDto
+} from "../../domain";
 
 export type EffectKind = EffectDto["kind"];
 
@@ -39,7 +47,8 @@ export const EFFECT_METADATA: Record<EffectKind, { label: string }> = {
     HCDistortion: {label: "Hard-Clipping Distortion"},
     SCDistortion: {label: "Soft-Clipping Distortion"},
     Cabinet: {label: "Cabinet Simulation"},
-    Delay: {label: "Delay"}
+    Delay: {label: "Delay"},
+    Wah: {label: "Wah"},
 };
 
 export const CABINET_CUSTOM_IR_VALUE = "__CUSTOM_FILE__";
@@ -71,11 +80,19 @@ export const EFFECT_FACTORIES: EffectFactoryMap = {
         ir_file_path: cabinetIrFilePath ?? DEFAULT_CABINET_IR_FILE,
     }),
     Delay: ({name, color}): DelayDto => ({
-        id: "0", // Is set to the correct value in the backend
+        id: "0",
         name,
         color,
         is_active: false,
         delay_time: 20,
         level: 0.95,
-    })
+    }),
+    Wah: ({name, color}): WahDto => ({
+        id: "0",
+        name,
+        color,
+        is_active: false,
+        // Aligned with the Rust backend schema changes
+        pedal_position: 0.0,
+    }),
 };
