@@ -445,6 +445,7 @@ export const useAmpStore = create<AmpState>((set, get) => ({
                 set({chain_snapshot: null});
             } catch (error) {
                 console.error("Failed to change Effect order:", error);
+                throw error;
             }
 
         },
