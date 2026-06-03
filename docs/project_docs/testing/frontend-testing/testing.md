@@ -9,10 +9,13 @@ For the current frontend test setup, we use:
 - `User Event` (`@testing-library/user-event`) for realistic user interaction simulation
 - `Vitest Coverage (V8)` (`@vitest/coverage-v8`) for coverage reports
 - `Stryker` (`@stryker-mutator/core` + `@stryker-mutator/vitest-runner`) for mutation testing
+- [`Playwright`](https://playwright.dev/docs/intro) (`@playwright/test`) for end-to-end (E2E) browser tests
+- [`tauri-playwright`](https://github.com/srsholmes/tauri-playwright) (`@srsholmes/tauri-playwright`) to run the same tests in browser-only mode and against the native Tauri app
 
 # Types of tests
 At the moment, the frontend test scope includes:
 - **Unit tests**
+- **End-to-End (E2E) tests**
 
 ## Unit tests
 Unit tests verify one small piece of behavior in isolation. In this codebase our focus lies on testing functionality rather than UI details.
@@ -57,3 +60,33 @@ Ex. equivalent Mutations: Sometimes Stryker changes a line of code in a way that
 Our main branch has a mutation score of 
 
 [![Mutation testing badge](https://img.shields.io/endpoint?style=flat&url=https%3A%2F%2Fbadge-api.stryker-mutator.io%2Fgithub.com%2FZacharyVds-IS%2FGuitar-Amplifier%2Fmain)](https://dashboard.stryker-mutator.io/reports/github.com/ZacharyVds-IS/Guitar-Amplifier/main)
+
+## End-to-End (E2E) tests
+E2E tests verify complete user flows through the app (clicking buttons, opening dialogs, navigating between screens).
+They give confidence that frontend state, routing, and Tauri command calls work correctly together.
+
+A couple guidelines for E2E test writing:
+ - Test important user journeys first (Home, Settings, Tuner, effect/channel flows).
+ - Assert visible behavior and user-facing outcomes, not implementation details.
+ - Keep tests deterministic by using mocks where needed and avoiding timing-sensitive selectors.
+
+Examples of things that are good candidates for E2E tests:
+- app shell and navigation (Home -> Settings -> Tuner)
+- creating/removing effects and channels through dialogs
+- settings interactions such as toggles and latency controls
+
+### E2E modes we use
+We run E2E tests in two modes:
+- **Browser-only mode**: runs fast in Chromium with mocked Tauri IPC. Use this as the default mode in CI and local development.
+- **Tauri mode**: runs against the real native Tauri app/binary. Use this mode to validate full frontend/backend integration.
+
+In short: use browser-only mode for speed, and Tauri mode for full integration confidence.
+
+### Running E2E tests
+Use these commands to run E2E tests:
+- `npm run test:e2e:browser` for the fast browser-only suite
+- `npm run test:e2e` for the full suite (including Tauri build path)
+
+References:
+- Playwright docs: https://playwright.dev/docs/intro
+- tauri-playwright docs: https://github.com/srsholmes/tauri-playwright

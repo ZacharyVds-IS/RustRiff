@@ -67,6 +67,12 @@ jobs:
       - name: Run React/Vitest tests
         run: npm run test -- --run
 
+      - name: Install Playwright browser (Chromium)
+        run: npx playwright install --with-deps chromium
+
+      - name: Run E2E tests (browser-only)
+        run: npm run test:e2e:browser
+
       - name: Run mutation tests (Stryker)
         run: npm run test:mutation
 
