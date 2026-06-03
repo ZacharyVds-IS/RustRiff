@@ -1,11 +1,14 @@
 import {WahDto} from "../../domain";
 import {Stack} from "@mui/material";
 import {Knob} from "../selection/Knob.tsx";
-import {EffectHandlers} from "../EffectPedal.tsx";
+
+interface WahHandlers {
+    onPedalPositionChange: (effectId: string, pedalPosition: number, previousPedalPosition: number) => void;
+}
 
 interface WahControlsProps {
     data: WahDto;
-    handlers: EffectHandlers;
+    handlers: WahHandlers;
 }
 
 export const WahControls = ({ data, handlers }: WahControlsProps) => {
