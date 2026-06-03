@@ -52,7 +52,8 @@ pub struct AudioService {
     tuner_active: bool,
     channel_manager: Arc<Mutex<ChannelManager>>,
     master_volume: Arc<AtomicF32>,
-    spectrum_tap: Arc<SpectrumTap>,
+    analyzer_tap: Arc<SpectrumTap>,
+    tuner_tap: Arc<SpectrumTap>,
     shared_amp_enabled: Arc<AtomicBool>,
     shared_tuner_enabled: Arc<AtomicBool>,
 }
@@ -101,7 +102,8 @@ impl AudioService {
             tuner_active: false,
             channel_manager,
             master_volume: Arc::new(AtomicF32::new(1.0)),
-            spectrum_tap: Arc::new(SpectrumTap::new(DEFAULT_ANALYZER_SAMPLE_RATE_HZ)),
+            tuner_tap: Arc::new(SpectrumTap::new(DEFAULT_ANALYZER_SAMPLE_RATE_HZ)),
+            analyzer_tap: Arc::new(SpectrumTap::new(DEFAULT_ANALYZER_SAMPLE_RATE_HZ)),
             shared_amp_enabled: Arc::new(AtomicBool::new(false)),
             shared_tuner_enabled: Arc::new(AtomicBool::new(false)),
         }
@@ -125,8 +127,12 @@ impl AudioService {
         &self.audio_handler
     }
 
-    pub fn spectrum_tap(&self) -> &Arc<SpectrumTap> {
-        &self.spectrum_tap
+    pub fn analyzer_tap(&self) -> Arc<SpectrumTap> {
+        self.analyzer_tap.clone()
+    }
+
+    pub fn tuner_tap(&self) -> Arc<SpectrumTap> {
+        self.tuner_tap.clone()
     }
 
     pub fn set_tuner_active(&mut self, active: bool) {
@@ -159,7 +165,8 @@ impl AudioService {
     fn spawn_dsp_worker(
         arcs: ChannelArcs,
         master_volume_arc: Arc<AtomicF32>,
-        spectrum_tap: Arc<SpectrumTap>,
+        analyzer_tap: Arc<SpectrumTap>,
+        tuner_tap: Arc<SpectrumTap>,
         dsp_sample_rate: u32,
         mut policy: ResamplePolicy,
         mut i_consumer: impl Consumer<Item = f32> + Send + 'static,
@@ -193,15 +200,17 @@ impl AudioService {
 
                 if let Some(sample) = i_consumer.try_pop() {
                     if tuner_enabled.load(Ordering::Relaxed) {
-                        spectrum_tap.push_sample(sample);
+                        tuner_tap.push_sample(sample);
                     }
 
                     if amp_enabled.load(Ordering::Relaxed) {
                         for processed in policy.process(sample, &mut |s| run_dsp(s)) {
+                            analyzer_tap.push_sample(processed);
                             let _ = o_producer.try_push(processed);
                         }
                     } else {
                         for processed in policy.process(0.0, &mut |s| s) {
+                            analyzer_tap.push_sample(processed);
                             let _ = o_producer.try_push(processed);
                         }
                     }
@@ -238,7 +247,8 @@ impl AudioService {
         handler: Arc<dyn AudioHandlerTrait>,
         arcs: ChannelArcs,
         master_volume_arc: Arc<AtomicF32>,
-        spectrum_tap: Arc<SpectrumTap>,
+        analyzer_tap: Arc<SpectrumTap>,
+        tuner_tap: Arc<SpectrumTap>,
         dsp_sample_rate: u32,
         amp_enabled: Arc<AtomicBool>,
         tuner_enabled: Arc<AtomicBool>,
@@ -266,7 +276,8 @@ impl AudioService {
             let worker = Self::spawn_dsp_worker(
                 arcs,
                 master_volume_arc,
-                spectrum_tap,
+                analyzer_tap,
+                tuner_tap,
                 dsp_sample_rate,
                 policy,
                 i_consumer,
@@ -330,7 +341,8 @@ impl AudioService {
 
         if should_run && !is_running {
             let dsp_sample_rate = self.dsp_chain_sample_rate();
-            self.spectrum_tap.set_sample_rate_hz(dsp_sample_rate);
+            self.analyzer_tap.set_sample_rate_hz(dsp_sample_rate);
+            self.tuner_tap.set_sample_rate_hz(dsp_sample_rate);
             let arcs = self.resolve_channel_arcs();
 
             self.shared_amp_enabled
@@ -342,7 +354,8 @@ impl AudioService {
                 self.audio_handler.clone(),
                 arcs,
                 self.master_volume.clone(),
-                self.spectrum_tap.clone(),
+                self.analyzer_tap.clone(),
+                self.tuner_tap.clone(),
                 dsp_sample_rate,
                 self.shared_amp_enabled.clone(),
                 self.shared_tuner_enabled.clone(),
@@ -401,7 +414,9 @@ impl AudioService {
         }
 
         self.audio_handler = new_handler;
-        self.spectrum_tap
+        self.analyzer_tap
+            .set_sample_rate_hz(self.dsp_chain_sample_rate());
+        self.tuner_tap()
             .set_sample_rate_hz(self.dsp_chain_sample_rate());
 
         if was_running {
@@ -416,7 +431,8 @@ impl AudioService {
                 self.audio_handler.clone(),
                 arcs,
                 self.master_volume.clone(),
-                self.spectrum_tap.clone(),
+                self.analyzer_tap().clone(),
+                self.tuner_tap().clone(),
                 dsp_sample_rate,
                 self.shared_amp_enabled.clone(),
                 self.shared_tuner_enabled.clone(),

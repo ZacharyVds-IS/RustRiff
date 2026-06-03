@@ -44,7 +44,7 @@ pub fn start_live_tuner_stream(
             .lock()
             .map_err(|_| "Failed to lock audio service".to_string())?;
         audio_service.set_tuner_active(true);
-        audio_service.spectrum_tap().clone()
+        audio_service.tuner_tap().clone()
     };
 
     let shutdown = Arc::new(AtomicBool::new(false));
