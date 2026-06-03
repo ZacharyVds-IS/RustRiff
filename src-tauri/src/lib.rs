@@ -203,7 +203,7 @@ pub fn run() {
     );
     let device_service = DeviceService::new();
 
-    tauri::Builder::default()
+    let mut builder = tauri::Builder::default()
         .manage(Mutex::new(audio_service))
         .manage(SpectrumStreamState::default())
         .manage(TunerStreamState::default())
@@ -342,7 +342,14 @@ pub fn run() {
             get_tuner_contract,
             start_live_tuner_stream,
             stop_live_tuner_stream
-        ])
+        ]);
+
+    #[cfg(feature = "e2e-testing")]
+    {
+        builder = builder.plugin(tauri_plugin_playwright::init());
+    }
+
+    builder
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

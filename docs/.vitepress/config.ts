@@ -57,7 +57,7 @@ export default defineConfig({
             {
                 text: 'Testing',
                 items: [
-                    {text: 'Frontend testing', link: '/guide/testing/frontend-testing/testing.md'},
+                    {text: 'Frontend testing', link: '/project_docs/testing/frontend-testing/testing.md'},
                 ]
             },
             {
