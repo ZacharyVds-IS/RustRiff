@@ -39,14 +39,11 @@ test("Create button in Add Channel dialog is disabled when name is empty", async
   await expect(dialog.getByRole("button", {name: "Create"})).toBeDisabled();
 });
 
-test("adding a channel fires the add_channel IPC command with the typed name", async ({tauriPage}, testInfo) => {
+test("adding a channel fires the add_channel IPC command with the typed name", async ({tauriPage}) => {
   await tauriPage.waitForSelector("#root", 20_000);
 
-  const hasMockCalls = await tauriPage.evaluate(() =>
-    typeof (globalThis as typeof globalThis & {
-      __TAURI_CLEAR_MOCK_CALLS__?: () => void;
-      __TAURI_GET_MOCK_CALLS__?: () => Array<{cmd: string; args: unknown}>;
-    }).__TAURI_GET_MOCK_CALLS__ === "function",
+  const hasMockCalls = await tauriPage.evaluate(
+    'typeof globalThis.__TAURI_GET_MOCK_CALLS__ === "function"',
   );
 
   if (hasMockCalls) {
