@@ -3,7 +3,7 @@ import {katex} from "@mdit/plugin-katex";
 
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
-    base: '/Guitar-Amplifier/',
+    base: '/RustRiff/',
     title: "RustRiff documentation",
     description: "Documentation combining both frontend and backend docs for RustRiff",
     themeConfig: {
