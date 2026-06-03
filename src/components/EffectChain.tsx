@@ -1,6 +1,7 @@
 import {Box, IconButton, Stack, Tooltip, Typography} from "@mui/material";
 import {EffectPedalPreview} from "./EffectPedalPreview.tsx";
 import {CabinetPreview} from "./CabinetPreview.tsx";
+import {WahPedalPreview} from "./WahPedalPreview.tsx";
 import {EffectDto} from "../domain";
 import {AddCircle, Delete, Keyboard, KeyboardArrowLeft, KeyboardArrowRight} from "@mui/icons-material";
 import {ConfirmationDialog} from "./dialogs/ConfirmationDialog.tsx";
@@ -214,18 +215,22 @@ export function EffectChain({effects, selected, onSelectionChange, onOpenKeybind
                                                     }}>
                                                         <Box sx={{display: 'flex', alignItems: 'center', height: 75}}>
                                                             <Box sx={{
-                                                                borderRadius: 2,
-                                                                transition: 'border 0.15s, box-shadow 0.15s',
-                                                                ...(isEffectSelected(item) && selectedBorder),
-                                                            }}>
-                                                                {item.kind === "Cabinet"
-                                                                    ? <CabinetPreview mainColor={item.data.color}
-                                                                                      isActive={item.data.is_active}/>
-                                                                    :
-                                                                    <EffectPedalPreview mainColor={item.data.color}
-                                                                                        isActive={item.data.is_active}/>
-                                                                }
-                                                            </Box>
+                                                                 borderRadius: 2,
+                                                                 transition: 'border 0.15s, box-shadow 0.15s',
+                                                                 ...(isEffectSelected(item) && selectedBorder),
+                                                             }}>
+                                                                 {item.kind === "Cabinet"
+                                                                     ? <CabinetPreview mainColor={item.data.color}
+                                                                                       isActive={item.data.is_active}/>
+                                                                     : item.kind === "Wah"
+                                                                     ? <WahPedalPreview mainColor={item.data.color}
+                                                                                         isActive={item.data.is_active}
+                                                                                         pedalPosition={item.data.pedal_position}/>
+                                                                     :
+                                                                     <EffectPedalPreview mainColor={item.data.color}
+                                                                                         isActive={item.data.is_active}/>
+                                                                 }
+                                                             </Box>
                                                         </Box>
                                                         <Typography
                                                             variant="caption"
