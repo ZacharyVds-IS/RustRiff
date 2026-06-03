@@ -187,7 +187,7 @@ export function WahPedal({ effect, onToggle }: WahPedalProps) {
                             direction: 'rtl',
                             cursor: 'ns-resize',
                         }}
-                        title="Drag up or down to adjust wah sweep"
+                        title="Drag up or down to adjust wah"
                     />
                     </Box>
                 </Tooltip>
