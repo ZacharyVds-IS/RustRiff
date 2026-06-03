@@ -1,4 +1,4 @@
-import {expect, resetIpcMockState, test,} from "../fixtures";
+import {expect, resetIpcMockState, test} from "../fixtures";
 
 /**
  * Effect chain tests — verify the effect creation dialog, IPC dispatch,
@@ -14,41 +14,56 @@ test.beforeEach(() => {
   resetIpcMockState();
 });
 
-test("creating an effect executes add_effect command", async ({tauriPage}, testInfo) => {
-    test.skip(testInfo.project.name.includes("tauri"), "IPC mock assertions run in browser-only mode.");
+test("creating an effect executes add_effect command", async ({tauriPage}) => {
+  await tauriPage.waitForSelector("#root", 20_000);
 
-    await tauriPage.waitForSelector("#root", 20_000);
+  const hasMockCalls = await tauriPage.evaluate(() =>
+    typeof (globalThis as typeof globalThis & {
+      __TAURI_CLEAR_MOCK_CALLS__?: () => void;
+      __TAURI_GET_MOCK_CALLS__?: () => Array<{cmd: string; args: unknown}>;
+    }).__TAURI_GET_MOCK_CALLS__ === "function",
+  );
+
+  if (hasMockCalls) {
     await tauriPage.evaluate("globalThis.__TAURI_CLEAR_MOCK_CALLS__()");
+  }
 
-    await tauriPage
-      .locator('button:has(svg[data-testid="AddCircleIcon"])')
-      .click();
+  await tauriPage
+    .locator('button:has(svg[data-testid="AddCircleIcon"])')
+    .click();
 
-    const addEffectDialog = tauriPage.getByRole("dialog", {name: "New Effect"});
-    await expect(addEffectDialog).toBeVisible();
+  const addEffectDialog = tauriPage.getByRole("dialog", {name: "New Effect"});
+  await expect(addEffectDialog).toBeVisible();
 
-    await addEffectDialog.getByRole("combobox", {name: "Effect Type"}).click();
-    await tauriPage.getByRole("option", {name: "Hard-Clipping Distortion"}).click();
-    await addEffectDialog.getByRole("textbox", {name: "Name"}).fill("TestEffect");
-    await addEffectDialog.locator('input[type="color"]').fill("#ff0000");
+  await addEffectDialog.getByRole("combobox", {name: "Effect Type"}).click();
+  await tauriPage.getByRole("option", {name: "Hard-Clipping Distortion"}).click();
+  await addEffectDialog.getByRole("textbox", {name: "Name"}).fill("TestEffect");
+  await addEffectDialog.locator('input[type="color"]').fill("#ff0000");
 
-    const createButton = addEffectDialog.getByRole("button", {name: "Create"});
-    await expect(createButton).toBeEnabled({timeout: 5_000});
-    await createButton.click();
+  const createButton = addEffectDialog.getByRole("button", {name: "Create"});
+  await expect(createButton).toBeEnabled({timeout: 5_000});
+  await createButton.click();
 
-    await expect.poll(async () => tauriPage.evaluate(`
+  await expect(addEffectDialog).toBeHidden({timeout: 10_000});
+
+  if (hasMockCalls) {
+    await expect.poll(
+      async () =>
+        tauriPage.evaluate(`
       (() => {
         const calls = globalThis.__TAURI_GET_MOCK_CALLS__();
         return calls.filter((invocation) => invocation.cmd === "add_effect").length;
       })()
-    `), {timeout: 10_000}).toBe(1);
+    `),
+      {timeout: 10_000},
+    ).toBe(1);
 
-    const addEffectInvocations = await tauriPage.evaluate(`
+    const addEffectInvocations = (await tauriPage.evaluate(`
       (() => {
         const calls = globalThis.__TAURI_GET_MOCK_CALLS__();
         return calls.filter((invocation) => invocation.cmd === "add_effect");
       })()
-    `) as MockInvocation[];
+    `)) as MockInvocation[];
 
     const addEffectInvocation = addEffectInvocations[0];
 
@@ -66,6 +81,7 @@ test("creating an effect executes add_effect command", async ({tauriPage}, testI
         },
       },
     });
+  }
 });
 test("Create button in Add Effect dialog is disabled until a name is provided", async ({tauriPage}) => {
   await tauriPage.waitForSelector("#root", 20_000);
