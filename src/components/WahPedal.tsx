@@ -1,8 +1,10 @@
-import {Box, Stack, Switch, Tooltip} from "@mui/material";
+import {Box, IconButton, Stack, Switch, Tooltip} from "@mui/material";
 import chroma from "chroma-js";
 import {setWahPedalPosition, toggleEffect, WahDto} from "../domain";
 import {useEffect, useRef, useState} from "react";
 import {useAmpStore} from "../state/AmpConfigStore.tsx";
+import SettingsInputHdmiIcon from "@mui/icons-material/SettingsInputHdmi";
+import {MidiBindingDialog} from "./dialogs/MidiBindingDialog/MidiBindingDialog.tsx";
 
 interface WahPedalProps {
     effect: {
@@ -15,6 +17,7 @@ interface WahPedalProps {
 export function WahPedal({ effect, onToggle }: WahPedalProps) {
     const sliderRef = useRef<HTMLInputElement>(null);
     const [isActive, setIsActive] = useState(effect.data.is_active);
+    const [midiModalOpen, setMidiModalOpen] = useState(false);
 
     const updateEffectActiveState = useAmpStore((state) => state.updateEffectActiveState);
     const updateWahParams = useAmpStore((state) => state.updateWahParams);
@@ -49,35 +52,46 @@ export function WahPedal({ effect, onToggle }: WahPedalProps) {
         handlePedalPositionChange(effect.data.id, newValue, previousPosition);
     };
 
-    // Map pedal_position (0 to 1) to a realistic tilt angle in degrees.
     const currentRotationX = -12 + effect.data.pedal_position * 24;
 
     return (
-        <Stack direction={"column"} sx={{ alignItems: "center" }}>
-            <Tooltip title="Drag up/down to adjust wah">
-                <Box
-                    sx={{
-                        width: 160,
-                        height: 270,
-                        background: `linear-gradient(180deg, 
-                            ${chroma(chassisColor).darken(0.4)} 0%,
-                            ${chroma(chassisColor).brighten(0.2)} 15%,
-                            ${chroma(chassisColor).darken(0.8)} 100%)`,
-                        borderRadius: '12px',
-                        border: '2px solid rgba(0,0,0,0.6)',
-                        boxShadow: '0 8px 16px rgba(0,0,0,0.4), inset 0 2px 4px rgba(255,255,255,0.2)',
-                        cursor: 'ns-resize', // Changes cursor to up/down arrows to signal drag direction
-                        padding: '12px',
-                        paddingTop:"28px",
-                        boxSizing: 'border-box',
-                        position: 'relative',
-                        filter: (theme) => theme.palette.mode === 'dark'
-                            ? 'drop-shadow(0 8px 16px rgba(255, 255, 255, 0.1))'
-                            : 'drop-shadow(0 4px 8px rgba(0,0,0,0.3))',
-                        perspective: '600px',
-                        transformStyle: 'preserve-3d',
-                    }}
-                >
+        <>
+            <Stack direction={"column"} sx={{ alignItems: "center" }}>
+                <Tooltip title="MIDI Mapping" arrow placement="top">
+                    <IconButton
+                        aria-label="midi config"
+                        size="small"
+                        sx={{ mb: 0.5 }}
+                        onClick={() => setMidiModalOpen(true)}
+                    >
+                        <SettingsInputHdmiIcon />
+                    </IconButton>
+                </Tooltip>
+
+                <Tooltip title="Drag up/down to adjust wah">
+                    <Box
+                        sx={{
+                            width: 160,
+                            height: 270,
+                            background: `linear-gradient(180deg, 
+                                ${chroma(chassisColor).darken(0.4)} 0%,
+                                ${chroma(chassisColor).brighten(0.2)} 15%,
+                                ${chroma(chassisColor).darken(0.8)} 100%)`,
+                            borderRadius: '12px',
+                            border: '2px solid rgba(0,0,0,0.6)',
+                            boxShadow: '0 8px 16px rgba(0,0,0,0.4), inset 0 2px 4px rgba(255,255,255,0.2)',
+                            cursor: 'ns-resize', // Changes cursor to up/down arrows to signal drag direction
+                            padding: '12px',
+                            paddingTop:"28px",
+                            boxSizing: 'border-box',
+                            position: 'relative',
+                            filter: (theme) => theme.palette.mode === 'dark'
+                                ? 'drop-shadow(0 8px 16px rgba(255, 255, 255, 0.1))'
+                                : 'drop-shadow(0 4px 8px rgba(0,0,0,0.3))',
+                            perspective: '600px',
+                            transformStyle: 'preserve-3d',
+                        }}
+                    >
                     {/* Inner Texture Foot Pad */}
                     <Box
                         sx={{
@@ -168,16 +182,24 @@ export function WahPedal({ effect, onToggle }: WahPedalProps) {
                             padding: 0,
                             borderRadius: '12px',
 
-                            // FORCE VERTICAL DRAGGING LAYOUT
-                            WebkitAppearance: 'slider-vertical', // Support for older WebKit behaviors
-                            writingMode: 'vertical-lr',          // Standard modern vertical layout
-                            direction: 'rtl',                     // Ensures dragging UP increases value (0 at bottom, 1 at top)
+                            WebkitAppearance: 'slider-vertical',
+                            writingMode: 'vertical-lr',
+                            direction: 'rtl',
                             cursor: 'ns-resize',
                         }}
                         title="Drag up or down to adjust wah sweep"
                     />
-                </Box>
-            </Tooltip>
-        </Stack>
+                    </Box>
+                </Tooltip>
+            </Stack>
+
+            <MidiBindingDialog
+                open={midiModalOpen}
+                onClose={() => setMidiModalOpen(false)}
+                effectId={effect.data.id}
+                effectName={effect.data.name}
+                effectKind={effect.kind}
+            />
+        </>
     );
 }

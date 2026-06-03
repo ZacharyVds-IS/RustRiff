@@ -43,3 +43,4 @@ docs/backend/
 # stryker temp files
 .stryker-tmp
 /reports/
+/playwright-report/
