@@ -243,6 +243,7 @@ impl AudioService {
     ///
     /// [`spawn_dsp_worker`]: AudioService::spawn_dsp_worker
     /// [`stop_loopback`]: AudioService::stop_loopback
+    #[allow(clippy::too_many_arguments)]
     fn spawn_io_thread(
         handler: Arc<dyn AudioHandlerTrait>,
         arcs: ChannelArcs,
