@@ -96,8 +96,11 @@ vi.mock("../../components/LatencySection.tsx", () => ({
 }));
 
 vi.mock("../../components/DeviceroutingSection.tsx", () => ({
-    DeviceRoutingSection: ({handleInputChange, handleOutputChange}: any) => (
+    DeviceRoutingSection: ({handleInputChange, handleOutputChange, handleDriverChange}: any) => (
         <div>
+            <button onClick={() => handleDriverChange("ASIO")} aria-label="Audio Driver-select-asio">
+                Audio Driver-select-asio
+            </button>
             <button onClick={() => handleInputChange("in-2")} aria-label="Input Device-select-last">
                 Input Device-select-last
             </button>
@@ -123,6 +126,7 @@ vi.mock("../../domain/commands.ts", () => ({
     measureRoundTripLatency: vi.fn(),
     getAvailableAudioDrivers: vi.fn().mockResolvedValue(["Default"]),
     getSelectedAudioDriver: vi.fn().mockResolvedValue("Default"),
+    setAudioDriver: vi.fn(),
 }));
 
 describe("SettingsScreen command interactions", () => {
@@ -166,6 +170,7 @@ describe("SettingsScreen command interactions", () => {
             latency_ms: 7.5,
             error: null,
         } as any);
+        vi.mocked(commands.setAudioDriver).mockResolvedValue(undefined);
     });
 
     afterEach(() => {
@@ -291,6 +296,27 @@ describe("SettingsScreen command interactions", () => {
         // Assert
         await waitFor(() => {
             expect(screen.getByText("loopback missing")).toBeTruthy();
+        });
+    });
+
+    it("shows actionable guidance when ASIO switch fails because no ASIO device is connected", async () => {
+        // Arrange
+        vi.mocked(commands.setAudioDriver).mockRejectedValueOnce(
+            "No ASIO device with both input and output support was found"
+        );
+        const user = userEvent.setup();
+        render(<SettingsScreen />);
+
+        // Act
+        await user.click(screen.getByRole("button", {name: "Audio Driver-select-asio"}));
+
+        // Assert
+        await waitFor(() => {
+            expect(
+                screen.getByText(
+                    "No ASIO device found. Connect and power on an ASIO-capable interface, then try again."
+                )
+            ).toBeTruthy();
         });
     });
 });
