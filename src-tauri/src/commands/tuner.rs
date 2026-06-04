@@ -40,10 +40,11 @@ pub fn start_live_tuner_stream(
     stream_state: tauri::State<'_, TunerStreamState>,
 ) -> Result<(), String> {
     let tap = {
-        let audio_service = audio_service
+        let mut audio_service = audio_service
             .lock()
             .map_err(|_| "Failed to lock audio service".to_string())?;
-        audio_service.spectrum_tap().clone()
+        audio_service.set_tuner_active(true);
+        audio_service.tuner_tap().clone()
     };
 
     let shutdown = Arc::new(AtomicBool::new(false));
@@ -97,8 +98,13 @@ pub fn start_live_tuner_stream(
 /// Discontinues the audio evaluation background stream for the tuner.
 #[tauri::command]
 pub fn stop_live_tuner_stream(
+    audio_service: tauri::State<'_, Mutex<AudioService>>,
     stream_state: tauri::State<'_, TunerStreamState>,
 ) -> Result<(), String> {
+    let mut audio_service = audio_service
+        .lock()
+        .map_err(|_| "Failed to lock audio service".to_string())?;
+    audio_service.set_tuner_active(false);
     if let Some(task) = stream_state
         .task
         .lock()
