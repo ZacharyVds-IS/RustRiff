@@ -15,6 +15,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 [features]
 default = ["audio-backend"]
 audio-backend = ["dep:cpal", "dep:midir"]
+e2e-testing = ["tauri-plugin-playwright"]
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
@@ -23,13 +24,13 @@ tauri-build = { version = "2", features = [] }
 tauri = { version = "^2", features = [] }
 tokio = { version = "1", features = ["time", "sync"] }
 tauri-plugin-opener = "2"
-cpal =  { version = "0.17.3", features = ["asio"], optional = true }
+cpal = { version = "0.17.3", features = ["asio"], optional = true }
 ringbuf = "0.4.8"
 derive-getters = "0.5.0"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.145"
 tracing = "0.1.44"
-tracing-subscriber = { version="0.3.23", features = ["env-filter"] }
+tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 mockall = "0.14.0"
 atomic_float = "1.1.0"
 aquamarine = "0.6.0"
@@ -42,3 +43,4 @@ uuid = { version = "1.23.1", features = ["v4"] }
 midir = { version = "0.11.0", optional = true }
 pitch-detection = "0.3.0"
 log = "0.4.29"
+tauri-plugin-playwright = { version = "0.2.2", optional = true }

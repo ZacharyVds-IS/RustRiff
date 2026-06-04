@@ -12,16 +12,13 @@ import {
     setScDistortionLevel,
     setScDistortionSmoothing,
     setScDistortionThreshold,
-    setWahPedalPosition,
     toggleEffect,
-    WahDto
 } from "../domain";
 import {useEffect, useState} from "react";
 import {useAmpStore} from "../state/AmpConfigStore.tsx";
 import {HCDistortionControls} from "./pedals/HCDistortionControls.tsx";
 import {SCDistortionControls} from "./pedals/SCDistortionControls.tsx";
 import {DelayControls} from "./pedals/DelayControls.tsx";
-import {WahControls} from "./pedals/WahControls.tsx";
 import SettingsInputHdmiIcon from '@mui/icons-material/SettingsInputHdmi';
 import {MidiBindingDialog} from "./dialogs/MidiBindingDialog/MidiBindingDialog.tsx";
 
@@ -35,7 +32,6 @@ export interface EffectHandlers {
     onLevelChange: (effectId: string, level: number, previousLevel: number) => void;
     onDelayTimeChange: (effectId: string, delayTime: number, previousDelayTime: number) => void;
     onSmoothingChange: (effectId: string, smoothing: number, previousSmoothing: number) => void;
-    onPedalPositionChange: (effectId: string, pedalPosition: number, previousPedalPosition: number) => void
 }
 
 function knobsForEffect(
@@ -51,8 +47,6 @@ function knobsForEffect(
 
         case "Delay":
             return <DelayControls data={effect.data as DelayDto} handlers={handlers}/>;
-        case "Wah":
-            return <WahControls data={effect.data as WahDto} handlers={handlers}/>;
 
         default:
             return null;
@@ -67,7 +61,6 @@ export function EffectPedal({effect, onToggle}: EffectPedalProps) {
     const updateHcDistortionParams = useAmpStore((state) => state.updateHcDistortionParams);
     const updateScDistortionParams = useAmpStore((state) => state.updateScDistortionParams);
     const updateDelayParams = useAmpStore((state) => state.updateDelayParams);
-    const updateWahParams = useAmpStore((state) => state.updateWahParams);
     const chassisColor = chroma(effect.data.color).hex();
 
     useEffect(() => {
@@ -142,13 +135,6 @@ export function EffectPedal({effect, onToggle}: EffectPedalProps) {
         });
     }
 
-    function handlePedalPositionChange(effectId: string, pedalPosition: number, previousPedalPosition: number) {
-        updateWahParams(effectId, {pedal_position: pedalPosition});
-        void setWahPedalPosition({effectId, pedalPosition}).catch((error) => {
-            console.error("Failed to update Wah pedal position:", error);
-            updateWahParams(effectId, {pedal_position: previousPedalPosition});
-        });
-    }
 
     return (
         <>
@@ -211,7 +197,6 @@ export function EffectPedal({effect, onToggle}: EffectPedalProps) {
                                 onLevelChange: effect.kind == "Delay" ? handleDelayLevelChange : effect.kind == "HCDistortion" ? handleHCDLevelChange : handleSCLevelChange,
                                 onDelayTimeChange: handleDelayTimeChange,
                                 onSmoothingChange: handleSmoothingChange,
-                                onPedalPositionChange: handlePedalPositionChange
                             })}
                         </Stack>
 
