@@ -119,7 +119,6 @@ export function AppLayout() {
                         >
                             Tab
                         </Button>
-                        <Button color="inherit" onClick={() => navigate("/tuner")}>Tuner</Button>
                         <Button color="inherit" onClick={() => navigate("/settings")}>Settings</Button>
                     </Box>
                 </Toolbar>
