@@ -19,13 +19,13 @@ Use the desmos graph below to visualy see how the peak movement functions. (by c
   [ Raw Audio Input ] 
            │
            ▼
-     [ Split Audio ] ──► (Mute/discard deep bass & piercing highs)
+    [ Split Audio ]     ──► (Mute/discard deep bass & piercing highs)
            │
            ▼
  [ Isolate the Middle ] ──► Focus only on the frequency chosen by the pedal (350Hz - 2200Hz)
            │
            ▼
-   [ Multiply by 2.5 ] ──► Boost the sweet spot to get that vocal character
+   [ Multiply by 2.5 ]  ──► Boost the sweet spot to get that vocal character
            │
            ▼
   [ Processed Output ]
