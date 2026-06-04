@@ -32,10 +32,10 @@ simple user percentage settings into decibel gains and maps them to the appropri
 shape the audio stream sample by sample.
 
 The IIR algorithm used by `biquad.rs` comes from [The Audio Cookbook](https://webaudio.github.io/Audio-EQ-Cookbook/audio-eq-cookbook.html). We use the Direct 1 form of the biquad equation.
-$$$
+$$
 y[n] = \left(\frac{b_0}{a_0}\right)x[n] + \left(\frac{b_1}{a_0}\right)x[n-1] + \left(\frac{b_2}{a_0}\right)x[n-2] - \left(\frac{a_1}{a_0}\right)y[n-1] - \left(\frac{a_2}{a_0}\right)y[n-2]
-$$$
-We use the following filter types for each frequency range:
+$$
+The following filter types were used for each frequency range:
 - `Bass`: Low Shelf
 - `Mid`: Peaking
 - `Treble`: High Shelf
