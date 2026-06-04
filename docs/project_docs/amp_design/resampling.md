@@ -23,18 +23,18 @@ one of which is Rubato. The crate we will be using.
 
 # Where would it live in our flow?
 
-`Guitar -> Resampling ->  Input stage (gain) -> Preamp tone shaping -> Power amp (master volume) -> Speaker/cab`
+The resampling placement in the audio pipeline is **automatically determined** based on rate comparison via `ResamplePolicy::from_rates()`:
 
-Or
+## Automatic Placement Rules
 
-`Guitar -> Input stage (gain) -> Preamp tone shaping -> Power amp (master volume) -> Resampling ->  Speaker/cab`
+- **Rates are equal**: No resampling needed (zero overhead)
+- **Input > Output (downsampling)**: Resampling happens **before DSP**
+  - `Guitar -> Resampling -> Input stage (gain) -> Preamp tone shaping -> Power amp (master volume) -> Speaker/cab`
+  - Avoids unnecessary calculations on the higher input sample rate
+  
+- **Input < Output (upsampling)**: Resampling happens **after DSP**
+  - `Guitar -> Input stage (gain) -> Preamp tone shaping -> Power amp (master volume) -> Resampling -> Speaker/cab`
+  - Performs calculations at the faster input rate, then interpolates up to output rate
 
-Well this is something we have discussed about. We landed on the following:
+Both strategies run the DSP chain at the *lower* of the two rates, minimizing CPU cost for gain, EQ, and effects while maintaining audio quality.
 
-Why not both?
-
-If the input sample rate is higher than the output sample rate. We place our resampling in the start so that our full flow doesn't perform unnecessary calculations on the higher sample rate.
-
-If the input sample rate is lower than the output sample rate. We place our resampling at the end so that we still perform calculations as fast as possible and use interpolation to then take them up to the higher output sample rate.
-
-And of course don't perform any resampling if the input and output sample rates are the same.
