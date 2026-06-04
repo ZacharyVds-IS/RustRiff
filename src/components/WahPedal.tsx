@@ -1,4 +1,4 @@
-import {Box, IconButton, Stack, Switch, Tooltip} from "@mui/material";
+import {Box, IconButton, Stack, Switch, Tooltip, Typography} from "@mui/material";
 import chroma from "chroma-js";
 import {setWahPedalPosition, toggleEffect, WahDto} from "../domain";
 import {useEffect, useRef, useState} from "react";
@@ -22,6 +22,12 @@ export function WahPedal({ effect, onToggle }: WahPedalProps) {
     const updateEffectActiveState = useAmpStore((state) => state.updateEffectActiveState);
     const updateWahParams = useAmpStore((state) => state.updateWahParams);
     const chassisColor = chroma(effect.data.color).hex();
+    const textColor = chroma.contrast(chassisColor, "#111111") >= 4.5
+        ? "rgba(0, 0, 0, 0.84)"
+        : "rgba(255, 255, 255, 0.94)";
+    const textShadow = chroma(textColor).luminance() > 0.5
+        ? "0 1px 2px rgba(0,0,0,0.45)"
+        : "0 1px 2px rgba(255,255,255,0.2)";
 
     useEffect(() => {
         setIsActive(effect.data.is_active);
@@ -90,6 +96,7 @@ export function WahPedal({ effect, onToggle }: WahPedalProps) {
                                 : 'drop-shadow(0 4px 8px rgba(0,0,0,0.3))',
                             perspective: '600px',
                             transformStyle: 'preserve-3d',
+                            color: textColor,
                         }}
                     >
                     {/* Inner Texture Foot Pad */}
@@ -137,11 +144,27 @@ export function WahPedal({ effect, onToggle }: WahPedalProps) {
                             right: 0,
                             bottom: 2,
                             display: 'flex',
+                            flexDirection: 'column',
                             justifyContent: 'center',
                             alignItems: 'center',
                             zIndex: 20,
                         }}
                     >
+                        <Typography
+                            sx={{
+                                mb: 0.25,
+                                fontWeight: 900,
+                                fontSize: '0.8rem',
+                                letterSpacing: 0.5,
+                                textTransform: 'uppercase',
+                                color: 'inherit',
+                                textShadow,
+                                maxWidth: '90%',
+                            }}
+                            noWrap
+                        >
+                            {effect.data.name}
+                        </Typography>
                         <Switch
                             size="small"
                             checked={isActive}

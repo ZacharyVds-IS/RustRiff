@@ -76,7 +76,7 @@ export function Knob({
 
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: size + 20, userSelect: 'none' }}>
-            <Typography variant="caption" sx={{ color: 'text.primary', mb: 1, fontWeight: 600, fontSize: '0.65rem', textTransform: 'uppercase' }}>
+            <Typography variant="caption" sx={{ color: 'inherit', mb: 1, fontWeight: 600, fontSize: '0.65rem', textTransform: 'uppercase' }}>
                 {label}
             </Typography>
 
@@ -103,7 +103,7 @@ export function Knob({
             </Box>
 
             {!disabled && (
-                <Typography sx={{ fontSize: '0.6rem', mt: 0.5, color: 'text.secondary', fontFamily: 'monospace' }}>
+                <Typography sx={{ fontSize: '0.6rem', mt: 0.5, color: 'inherit', opacity: 0.85, fontFamily: 'monospace' }}>
                     {valueDisplay === "min-max"
                         ? (minMaxLabel ?? "·")
                         : (step < 1 ? localValue.toFixed(1) : Math.round(localValue))

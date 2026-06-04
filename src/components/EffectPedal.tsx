@@ -62,6 +62,12 @@ export function EffectPedal({effect, onToggle}: EffectPedalProps) {
     const updateScDistortionParams = useAmpStore((state) => state.updateScDistortionParams);
     const updateDelayParams = useAmpStore((state) => state.updateDelayParams);
     const chassisColor = chroma(effect.data.color).hex();
+    const textColor = chroma.contrast(chassisColor, "#111111") >= 4.5
+        ? "rgba(0, 0, 0, 0.84)"
+        : "rgba(255, 255, 255, 0.94)";
+    const textShadow = chroma(textColor).luminance() > 0.5
+        ? "0 1px 2px rgba(0,0,0,0.45)"
+        : "0 1px 2px rgba(255,255,255,0.2)";
 
     useEffect(() => {
         setIsActive(effect.data.is_active);
@@ -191,14 +197,16 @@ export function EffectPedal({effect, onToggle}: EffectPedalProps) {
                             }}
                         />
 
-                        <Stack direction="row" spacing={1} sx={{justifyContent: 'center'}}>
-                            {knobsForEffect(effect, {
-                                onThresholdChange: effect.kind == "HCDistortion" ? handleHCThresholdChange : handleSCThresholdChange,
-                                onLevelChange: effect.kind == "Delay" ? handleDelayLevelChange : effect.kind == "HCDistortion" ? handleHCDLevelChange : handleSCLevelChange,
-                                onDelayTimeChange: handleDelayTimeChange,
-                                onSmoothingChange: handleSmoothingChange,
-                            })}
-                        </Stack>
+                        <Box sx={{color: textColor, textShadow}}>
+                            <Stack direction="row" spacing={1} sx={{justifyContent: 'center'}}>
+                                {knobsForEffect(effect, {
+                                    onThresholdChange: effect.kind == "HCDistortion" ? handleHCThresholdChange : handleSCThresholdChange,
+                                    onLevelChange: effect.kind == "Delay" ? handleDelayLevelChange : effect.kind == "HCDistortion" ? handleHCDLevelChange : handleSCLevelChange,
+                                    onDelayTimeChange: handleDelayTimeChange,
+                                    onSmoothingChange: handleSmoothingChange,
+                                })}
+                            </Stack>
+                        </Box>
 
                         <Typography
                             sx={{
@@ -206,7 +214,8 @@ export function EffectPedal({effect, onToggle}: EffectPedalProps) {
                                 mb: 2,
                                 fontWeight: 900,
                                 fontSize: '1.2rem',
-                                color: 'rgba(0,0,0,0.7)',
+                                color: textColor,
+                                textShadow,
                                 textTransform: 'uppercase',
                                 fontStyle: 'italic'
                             }}
