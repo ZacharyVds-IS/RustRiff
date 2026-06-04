@@ -1,5 +1,5 @@
 # Distortion
-The distortion effect lowers the clipping roof of the signal. This causes the tone to sound more "fuzzy" of "gritty".
+The distortion effect lowers the clipping roof of the signal. This causes the tone to sound more "fuzzy" or "gritty".
 There are 2 main ways of handling this process: **Hard Clipping** and **Soft Clipping**
 
 ## Hard Clipping

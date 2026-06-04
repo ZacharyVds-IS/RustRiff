@@ -12,14 +12,14 @@ Resampling provides the solution to such issue by changing the sample rate from 
 This combines interpolation (increasing the rate) and decimation (decreasing the rate) to achieve the desired sample rate.
 
 ### Interpolation
-when going from a lower sample rate to a higher one, interpolation is executed by inserting zero's between samples and applying a low-pass filter to fill in the new values.
+when going from a lower sample rate to a higher one, interpolation is executed by inserting zeros between samples and applying a low-pass filter to fill in the new values.
 
 ### Decimation
 when going from a higher sample rate to a lower one, decimation is executed by removing samples, usually after applying a low-pass filter to avoid aliasing.
 
 ## How to implement?
 Let's not re-invent the wheel. In rust there are several crates that provide this behaviour for you.
-one of which is Rubato. The care we will be using.
+one of which is Rubato. The crate we will be using.
 
 # Where would it live in our flow?
 
@@ -37,4 +37,4 @@ If the input sample rate is higher than the output sample rate. We place our res
 
 If the input sample rate is lower than the output sample rate. We place our resampling at the end so that we still perform calculations as fast as possible and use interpolation to then take them up to the higher output sample rate.
 
-And ofcourse don't perform any resampling if the input and output sample rates are the same.
+And of course don't perform any resampling if the input and output sample rates are the same.

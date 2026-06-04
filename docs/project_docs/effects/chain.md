@@ -10,4 +10,4 @@ will sound different then
 ```
 Distortion -> Equalizer
 ```
-The first sample the distortion will be applied to a pre equalized sample. While the second example will distory the original input audio after which it gets equalized.
+The first sample the distortion will be applied to a pre equalized sample. While the second example will distort the original input audio after which it gets equalized.

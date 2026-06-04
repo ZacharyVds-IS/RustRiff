@@ -1,6 +1,6 @@
 # Tone Stack
 
-Our amp's tone stack consits of the following components:
+Our amp's tone stack consists of the following components:
 
 - `Bass`: Controls the low frequencies of the sound.
 - `Mid`: Controls the mid frequencies of the sound.
@@ -15,7 +15,7 @@ Which in turn means that when set to its maximum value you end up with the same 
 
 ## Selected Frequencies
 
-Bass for example doesn't have a verry strict frequency. This means we can configure the tone stack as desired ourselves.
+Bass for example doesn't have a very strict frequency. This means we can configure the tone stack as desired ourselves.
 Our frequency range's are :
 
 - `Bass`: 0 - 180 Hz
