@@ -38,6 +38,7 @@ export function AddEffectDialog({open, onClose, onCreate}: AddEffectDialogProps)
         reset,
         setValue,
         watch,
+        trigger,
         formState: {errors, isValid},
     } = useForm<AddEffectFormValues>({
         resolver: zodResolver(addEffectSchema),
@@ -59,8 +60,11 @@ export function AddEffectDialog({open, onClose, onCreate}: AddEffectDialogProps)
         if (!open) {
             reset(DEFAULT_ADD_EFFECT_FORM_VALUES);
             setCabinetIrActionError("");
+        } else {
+            // Trigger validation of default color value when dialog opens
+            void trigger("color");
         }
-    }, [open, reset]);
+    }, [open, reset, trigger]);
 
     useEffect(() => {
         if (!open) {
@@ -74,7 +78,7 @@ export function AddEffectDialog({open, onClose, onCreate}: AddEffectDialogProps)
     useEffect(() => {
         if (selectedEffect && isEffectKind(selectedEffect)) {
             const defaultName = EFFECT_SHORT_NAMES[selectedEffect];
-            setValue("name", defaultName);
+            setValue("name", defaultName, {shouldValidate: true});
         }
     }, [selectedEffect, setValue]);
 
