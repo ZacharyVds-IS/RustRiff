@@ -11,6 +11,42 @@ import {useAudioDriver} from "../hooks/useAudioDriver.ts";
 import {useAsioChannels} from "../hooks/useAsioChannels.ts";
 import {useAudioLatency} from "../hooks/useAudioLatency.ts";
 
+function extractErrorMessage(error: unknown): string | null {
+    if (error instanceof Error) {
+        return error.message;
+    }
+
+    if (typeof error === "string") {
+        return error;
+    }
+
+    if (typeof error === "object" && error && "message" in error) {
+        const maybeMessage = (error as {message?: unknown}).message;
+        if (typeof maybeMessage === "string") {
+            return maybeMessage;
+        }
+    }
+
+    return null;
+}
+
+function formatDriverSwitchError(driver: string, error: unknown): string {
+    const message = extractErrorMessage(error);
+    if (!message) {
+        return "Failed to switch audio driver";
+    }
+
+    const normalized = message.toLowerCase();
+    if (
+        driver.toLowerCase() === "asio"
+        && (normalized.includes("no asio device") || normalized.includes("failed to enumerate asio"))
+    ) {
+        return "No ASIO device found. Connect and power on an ASIO-capable interface, then try again.";
+    }
+
+    return message;
+}
+
 export function SettingsScreen() {
     const theme = useTheme();
     const {inputs, outputs, isLoading, error, refresh: refreshDevices} = useAudioDevices();
@@ -93,7 +129,8 @@ export function SettingsScreen() {
             await refreshDevices();
             await loadBufferLatency();
         } catch (err) {
-            setDriverError(err instanceof Error ? err.message : "Failed to switch audio driver");
+            console.error("Failed to switch audio driver:", err);
+            setDriverError(formatDriverSwitchError(driver, err));
         }
     }
 
