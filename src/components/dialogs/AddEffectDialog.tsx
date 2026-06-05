@@ -5,6 +5,7 @@ import {
     CABINET_CUSTOM_IR_VALUE,
     DEFAULT_CABINET_IR_FILE,
     EFFECT_FACTORIES,
+    EFFECT_SHORT_NAMES,
     type EffectKind,
     resolveDefaultCabinetIrFile,
 } from "../../config/effects";
@@ -45,6 +46,7 @@ export function AddEffectDialog({open, onClose, onCreate}: AddEffectDialogProps)
     });
 
     const selectedCabinetIrChoice = watch("cabinetIrChoice");
+    const selectedEffect = watch("selectedEffect");
     const selectedCabinetProfile = cabinetIrProfiles.find(
         (profile) => profile.file_name === selectedCabinetIrChoice,
     );
@@ -67,6 +69,14 @@ export function AddEffectDialog({open, onClose, onCreate}: AddEffectDialogProps)
 
         void refreshIrProfiles();
     }, [open]);
+
+    // Auto-populate name field when effect type is selected
+    useEffect(() => {
+        if (selectedEffect && isEffectKind(selectedEffect)) {
+            const defaultName = EFFECT_SHORT_NAMES[selectedEffect];
+            setValue("name", defaultName);
+        }
+    }, [selectedEffect, setValue]);
 
     const refreshIrProfiles = async () => {
         try {
