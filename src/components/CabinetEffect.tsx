@@ -1,58 +1,34 @@
-import {Box, IconButton, Stack, Tooltip, Typography} from "@mui/material";
+import {Box, IconButton, Stack, Tooltip} from "@mui/material";
 import chroma from "chroma-js";
-import {useEffect, useState} from "react";
-import {EffectDto, toggleEffect} from "../domain";
-import {useAmpStore} from "../state/AmpConfigStore.tsx";
+import {EffectDto} from "../domain";
 import {OnOffSwitch} from "./selection/OnOffSwitch.tsx";
 import SettingsInputHdmiIcon from '@mui/icons-material/SettingsInputHdmi';
 import {MidiBindingDialog} from "./dialogs/MidiBindingDialog/MidiBindingDialog.tsx";
+import {SpeakerGrille} from "./SpeakerGrille.tsx";
+import {useEffectToggle} from "../hooks/useEffectToggle.ts";
+import {useMidiModal} from "../hooks/useMidiModal.ts";
 
 interface CabinetEffectProps {
     effect: EffectDto;
     onToggle?: (effectId: string, isActive: boolean) => void;
 }
 
-export function CabinetEffect({ effect, onToggle }: CabinetEffectProps) {
+export function CabinetEffect({effect, onToggle}: CabinetEffectProps) {
     const isCabinet = effect.kind === "Cabinet";
-    const [isActive, setIsActive] = useState(effect.data.is_active);
-    const [midiModalOpen, setMidiModalOpen] = useState(false);
-    const updateEffectActiveState = useAmpStore((state) => state.updateEffectActiveState);
-
-    useEffect(() => {
-        if (!isCabinet) {
-            return;
-        }
-        setIsActive(effect.data.is_active);
-    }, [isCabinet, effect.data.id, effect.data.is_active]);
+    const {isActive, handleToggle} = useEffectToggle(effect.data.id, effect.data.is_active, onToggle);
+    const {midiModalOpen, openMidiModal, closeMidiModal} = useMidiModal();
 
     if (!isCabinet) return null;
 
     const cabBlackColor = "#1E1E1D";
     const baseColor = chroma(effect.data.color).desaturate(0.4).hex();
 
-    async function handlePowerToggle() {
-        try {
-            const newActive = await toggleEffect({ effectId: effect.data.id });
-            setIsActive(newActive);
-            updateEffectActiveState(effect.data.id, newActive);
-            onToggle?.(effect.data.id, newActive);
-        } catch (error) {
-            console.error(`Failed to toggle cabinet ${effect.data.id}:`, error);
-        }
-    }
-
     return (
         <>
-            <Stack direction={"column"} sx={{ alignItems: "center" }}>
-                {/* MIDI Configuration Trigger Action */}
+            <Stack direction="column" sx={{alignItems: "center"}}>
                 <Tooltip title="MIDI Mapping" arrow placement="top">
-                    <IconButton
-                        aria-label="midi config"
-                        size="small"
-                        sx={{ mb: 0.5 }}
-                        onClick={() => setMidiModalOpen(true)}
-                    >
-                        <SettingsInputHdmiIcon />
+                    <IconButton aria-label="midi config" size="small" sx={{mb: 0.5}} onClick={openMidiModal}>
+                        <SettingsInputHdmiIcon/>
                     </IconButton>
                 </Tooltip>
 
@@ -69,7 +45,6 @@ export function CabinetEffect({ effect, onToggle }: CabinetEffectProps) {
                             : 'drop-shadow(0 6px 12px rgba(0,0,0,0.4))',
                     }}
                 >
-                    {/* Cabinet body with gradient slope - Marshall inspired */}
                     <Box
                         sx={{
                             width: "100%",
@@ -96,52 +71,17 @@ export function CabinetEffect({ effect, onToggle }: CabinetEffectProps) {
                                 justifyContent: "flex-end",
                             }}
                         >
-                            <OnOffSwitch isActive={isActive} onClick={handlePowerToggle} />
+                            <OnOffSwitch isActive={isActive} onClick={handleToggle}/>
                         </Box>
 
-                        {/* Speaker grille area */}
-                        <Box
-                            sx={{
-                                flex: 1,
-                                mx: 2,
-                                my: 2,
-                                borderRadius: 1,
-                                display:"flex",
-                                justifyContent:"center",
-                                alignItems:"center",
-                                border: `5px solid ${baseColor}`,
-                                background: `repeating-linear-gradient(
-                                    90deg,
-                                    rgba(0,0,0,0.15) 0px,
-                                    rgba(0,0,0,0.15) 3px,
-                                    rgba(0,0,0,0.08) 3px,
-                                    rgba(0,0,0,0.08) 6px
-                                )`,
-                                boxShadow: "inset 0 1px 3px rgba(0,0,0,0.2)",
-                            }}
-                        >
-                            <Typography
-                                sx={{
-                                    fontWeight: 900,
-                                    fontSize: "0.9rem",
-                                    textTransform: "uppercase",
-                                    letterSpacing: 0.5,
-                                    color: "white",
-                                    fontStyle: "italic",
-                                }}
-                                noWrap
-                            >
-                                {effect.data.name}
-                            </Typography>
-                        </Box>
+                        <SpeakerGrille baseColor={baseColor} name={effect.data.name}/>
                     </Box>
                 </Box>
             </Stack>
 
-            {/* Configured Modal Interface */}
             <MidiBindingDialog
                 open={midiModalOpen}
-                onClose={() => setMidiModalOpen(false)}
+                onClose={closeMidiModal}
                 effectId={effect.data.id}
                 effectName={effect.data.name}
                 effectKind={effect.kind}
