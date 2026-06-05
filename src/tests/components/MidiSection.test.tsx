@@ -73,8 +73,8 @@ describe("MidiSection", () => {
             expect(container.textContent).toContain("Expression Pedal");
         });
 
-        it("renders connect buttons for each device", async () => {
-            const {getMidiInputs} = await import("../../domain");
+        it("auto-connects to discovered devices", async () => {
+            const {getMidiInputs, connectMidiDevice} = await import("../../domain");
             vi.mocked(getMidiInputs).mockResolvedValue([
                 {id: "0", name: "MIDI Device"},
             ]);
@@ -84,11 +84,8 @@ describe("MidiSection", () => {
             });
             await flush();
 
-            const connectButtons = container.querySelectorAll("button");
-            const hasConnect = Array.from(connectButtons).some(
-                (b) => b.textContent?.includes("Connect")
-            );
-            expect(hasConnect).toBe(true);
+            expect(connectMidiDevice).toHaveBeenCalledWith({id: "0"});
+            expect(container.textContent).toContain("Connected");
         });
 
         it("shows configure advanced mappings button", async () => {
