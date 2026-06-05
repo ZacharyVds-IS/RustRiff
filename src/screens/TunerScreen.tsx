@@ -1,67 +1,12 @@
 import {Box, CircularProgress, Paper, Typography} from "@mui/material";
-import {useLiveTuner} from "../hooks/useLiveTuner.ts";
 import {FallbackText} from "../components/FallbackText.tsx";
-import {useEffect, useRef, useState} from "react";
 import {PitchScale} from "../components/PitchScale.tsx";
+import {useTunerPitch} from "../hooks/useTunerPitch.ts";
+import {useTunerNeedle} from "../hooks/useTunerNeedle.ts";
 
 export function TunerScreen() {
-    const {pitch, loadError} = useLiveTuner();
-    // Cache memory for preserving the last valid tracking snapshot
-    const [lastValidPitch, setLastValidPitch] = useState<typeof pitch>(null);
-
-    // 1. Smooth Needle State using a mutable ref for real-time frame interpolation
-    const [renderCents, setRenderCents] = useState(0);
-    const centsRef = useRef(0);
-
-    // 2. Hysteresis State for stabilizing note flicker
-    const [stableNote, setStableNote] = useState("—");
-    const noteCounter = useRef({name: "", count: 0});
-
-    // Determine if a string is currently ringing right now
-    const isSignalActive = pitch !== null && pitch.frequency_hz > 20 && pitch.note_name !== "---";
-
-    // --- EFFECT 1: Handle Caching and Hysteresis (Note Debouncing) ---
-    useEffect(() => {
-        if (isSignalActive) {
-            setLastValidPitch(pitch);
-
-            // Requires the backend to register the exact same note for 3 consecutive
-            // hook updates before swapping the text. Prevents flickering on borders.
-            if (pitch.note_name === noteCounter.current.name) {
-                noteCounter.current.count += 1;
-                if (noteCounter.current.count >= 3) {
-                    setStableNote(pitch.note_name);
-                }
-            } else {
-                noteCounter.current.name = pitch.note_name;
-                noteCounter.current.count = 1;
-            }
-        }
-    }, [pitch, isSignalActive]);
-
-    // --- EFFECT 2: The Shock Absorber Animation Loop (Lerp / EMA) ---
-    useEffect(() => {
-        let animationFrameId: number;
-
-        const updateNeedle = () => {
-            // Target destination based on live pitch or where the cached pitch left off
-            const targetCents = isSignalActive && pitch ? pitch.cents_deviation : centsRef.current;
-
-            // SMOOTHING COEFFICIENT: Lower = smoother/heavier, Higher = snappier/more responsive
-            const alpha = 0.16;
-
-            // Calculate new position
-            const nextCents = centsRef.current + alpha * (targetCents - centsRef.current);
-
-            centsRef.current = nextCents;
-            setRenderCents(nextCents);
-
-            animationFrameId = requestAnimationFrame(updateNeedle);
-        };
-
-        animationFrameId = requestAnimationFrame(updateNeedle);
-        return () => cancelAnimationFrame(animationFrameId);
-    }, [pitch, isSignalActive]);
+    const {pitch, loadError, lastValidPitch, stableNote, isSignalActive} = useTunerPitch();
+    const renderCents = useTunerNeedle(pitch, isSignalActive);
 
     if (loadError) {
         return (
@@ -73,10 +18,7 @@ export function TunerScreen() {
         );
     }
 
-    // Read from live input if active; otherwise, drop back to the cached note history
     const displayPitch = isSignalActive ? pitch : lastValidPitch;
-
-    // Show a clean idle interface if the user hasn't played a single note since startup
     if (!displayPitch) {
         return (
             <Box
@@ -99,8 +41,7 @@ export function TunerScreen() {
     }
 
     const {frequency_hz} = displayPitch;
-
-    const is_in_tune = Math.abs(renderCents) <= 5;
+    const isInTune = Math.abs(renderCents) <= 5;
 
     return (
         <Box
@@ -114,11 +55,10 @@ export function TunerScreen() {
                 gap: 1,
                 bgcolor: "background.default",
                 width: "100%",
-                maxWidth: 600, // Widened container to allow a broader tracking layout
+                maxWidth: 600,
                 mx: "auto"
             }}
         >
-            {/* Top Card: Main Note Display */}
             <Paper
                 elevation={3}
                 sx={{
@@ -127,26 +67,24 @@ export function TunerScreen() {
                     textAlign: "center",
                     width: "100%",
                     border: 2,
-                    borderColor: is_in_tune ? "success.main" : "transparent",
+                    borderColor: isInTune ? "success.main" : "transparent",
                     transition: "opacity 0.2s ease-in-out, border-color 0.15s ease",
                 }}
             >
-                {/* Big Note Indicator (Uses the stabilized state when active) */}
                 <Typography
                     variant="h1"
-                    color={is_in_tune ? "success.main" : "text.primary"}
+                    color={isInTune ? "success.main" : "text.primary"}
                     sx={{fontWeight: "bold"}}
                 >
                     {isSignalActive ? stableNote : displayPitch.note_name}
                 </Typography>
 
-                {/* Live Frequency Readout */}
                 <Typography variant="h6" color="text.secondary" sx={{mt: 1}}>
                     {`${frequency_hz.toFixed(1)} Hz`}
                 </Typography>
             </Paper>
 
-            <PitchScale isSignalActive={isSignalActive} renderCents={renderCents} is_in_tune={is_in_tune}/>
+            <PitchScale isSignalActive={isSignalActive} renderCents={renderCents} is_in_tune={isInTune}/>
         </Box>
     );
 }

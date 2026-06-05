@@ -1,4 +1,3 @@
-import {useCallback, useEffect, useState} from "react";
 import {
     Alert,
     Box,
@@ -18,105 +17,29 @@ import {
 } from "@mui/material";
 import RefreshIcon from '@mui/icons-material/Refresh';
 import DeleteIcon from '@mui/icons-material/Delete';
-import {listen} from "@tauri-apps/api/event";
-import {getAmpConfig, getMidiBindings, MidiTargetParameter, removeMidiBinding} from "../domain";
 import {useNavigate} from "react-router-dom";
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-
-interface EffectEntry {
-    kind: string;
-    data?: { id?: string; name?: string };
-}
-
-interface ActiveBinding {
-    channel: number;
-    cc_number: number;
-    effect_id: string;
-    parameter: MidiTargetParameter;
-}
+import {formatParameterName, useMidiBindings} from "../hooks/useMidiBindings.ts";
+import {useMidiLearning} from "../hooks/useMidiLearning.ts";
 
 export function MidiConfigScreen() {
     const navigate = useNavigate();
-    const [bindings, setBindings] = useState<ActiveBinding[]>([]);
-    const [activeEffects, setActiveEffects] = useState<{ id: string; name: string; kind: string }[]>([]);
-    const [loading, setLoading] = useState<boolean>(false);
-    const [error, setError] = useState<string | null>(null);
-    const [successMessage, setSuccessMessage] = useState<string | null>(null);
+    const {
+        bindings,
+        activeEffects,
+        loading,
+        error,
+        successMessage,
+        setError,
+        setSuccessMessage,
+        handleRemoveBinding,
+        refresh: fetchMidiMatrixData,
+    } = useMidiBindings();
 
-    // Track state of the hardware recognition module
-    const [isLearning, setIsLearning] = useState<boolean>(false);
-
-    const [, setMidiChannel] = useState<number>(1);
-    const [, setCcNumber] = useState<number>(11);
-    const [selectedEffectId, setSelectedEffectId] = useState<string>("");
-
-    const fetchMidiMatrixData = useCallback(async () => {
-        setLoading(true);
-        setError(null);
-        try {
-            const ampConfig = await getAmpConfig();
-            const incomingEffects: EffectEntry[] = (ampConfig as { effects?: EffectEntry[] })?.effects || [];
-
-            const parsedEffects = incomingEffects.map((eff) => ({
-                id: eff.data?.id || "",
-                name: eff.data?.name || `${eff.kind || 'DSP'} Module`,
-                kind: eff.kind || "Unknown"
-            }));
-            setActiveEffects(parsedEffects);
-
-            const activeBindings = await getMidiBindings();
-            setBindings(activeBindings);
-
-            if (parsedEffects.length > 0 && !selectedEffectId) {
-                setSelectedEffectId(parsedEffects[0].id);
-            }
-        } catch (err) {
-            console.error("Failed to sync system matrices:", err);
-            setError(typeof err === "string" ? err : "Failed to sync system operational state.");
-        } finally {
-            setLoading(false);
-        }
-    }, [selectedEffectId]);
-
-    // Background listener hooks into the Rust backend's raw traffic broadcaster
-    useEffect(() => {
-        fetchMidiMatrixData();
-
-        const unlistenPromise = listen<[number, number]>("midi-raw-sniff", (event) => {
-            if (isLearning) {
-                const [payloadChannel, payloadCc] = event.payload;
-                setMidiChannel(payloadChannel);
-                setCcNumber(payloadCc);
-                setIsLearning(false); // Disengage learn mode instantly once captured
-                setSuccessMessage(`Recognized Input! Set Port Line to CH ${payloadChannel}, CC Event ID to #${payloadCc}.`);
-            }
-        });
-
-        return () => {
-            unlistenPromise.then((cleanup) => cleanup());
-        };
-    }, [isLearning, fetchMidiMatrixData]);
-
-    const handleRemoveBinding = async (channel: number, ccNumber: number) => {
-        setError(null);
-        setSuccessMessage(null);
-        try {
-            await removeMidiBinding({ channel, ccNumber });
-            setSuccessMessage(`Mapping for Channel ${channel}, CC #${ccNumber} removed.`);
-            await fetchMidiMatrixData();
-        } catch (err) {
-            console.error("Failed to delete map entry:", err);
-            setError(typeof err === "string" ? err : "Failed to remove mapping.");
-        }
-    };
-
-    const formatParameterName = (param: string) => {
-        return param.replace(/([A-Z])/g, ' $1').trim();
-    };
+    useMidiLearning();
 
     return (
         <Box sx={{ p: 4, maxWidth: 900, margin: "0 auto" }}>
-            {/* Header Area */}
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
                 <Box>
                     <Typography variant="h4" sx={{ display: 'flex', alignItems: 'center', gap: 1.5, fontWeight: 'bold' }}>
@@ -124,7 +47,6 @@ export function MidiConfigScreen() {
                     </Typography>
                 </Box>
                 <Stack direction="row" spacing={1.5}>
-                    {/* Back Button added to actions area */}
                     <Button
                         variant="outlined"
                         color="inherit"
