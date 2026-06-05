@@ -9,7 +9,7 @@ export function FootswitchButton({onClick}: FootswitchButtonProps) {
         <Box
             onClick={onClick}
             sx={{
-                width: 'calc(100% + 8px)',
+                width: 'calc(100%)',
                 height: 110,
                 flexShrink: 0,
                 bgcolor: '#1a1a1a',

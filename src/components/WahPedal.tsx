@@ -1,4 +1,4 @@
-import {Box, IconButton, Stack, Tooltip, Typography} from "@mui/material";
+import {Box, IconButton, Stack, Switch, Tooltip, Typography} from "@mui/material";
 import chroma from "chroma-js";
 import {setWahPedalPosition, WahDto} from "../domain";
 import {useRef} from "react";
@@ -18,7 +18,7 @@ interface WahPedalProps {
 
 export function WahPedal({effect, onToggle}: WahPedalProps) {
     const sliderRef = useRef<HTMLInputElement>(null);
-    const {isActive} = useEffectToggle(effect.data.id, effect.data.is_active, onToggle);
+    const {isActive, handleToggle} = useEffectToggle(effect.data.id, effect.data.is_active, onToggle);
     const {midiModalOpen, openMidiModal, closeMidiModal} = useMidiModal();
 
     const updateWahParams = useAmpStore((state) => state.updateWahParams);
@@ -81,53 +81,37 @@ export function WahPedal({effect, onToggle}: WahPedalProps) {
                         <Box
                             sx={{
                                 width: "100%",
-                                height: "calc(100% - 34px)",
-                                borderRadius: "6px",
-                                border: '1px solid rgba(0,0,0,0.5)',
-                                background: `repeating-linear-gradient(
-                                    90deg,
-                                    ${chroma(chassisColor).brighten(0.4)} 0px,
-                                    ${chroma(chassisColor).brighten(0.4)} 4px,
-                                    ${chroma(chassisColor).darken(0.8)} 4px,
-                                    ${chroma(chassisColor).darken(0.8)} 8px
-                                )`,
-                                transform: `rotateX(${currentRotationX}deg)`,
-                                transition: 'transform 0.05s ease-out, filter 0.05s ease-out',
-                                transformOrigin: 'center bottom',
-                                filter: `drop-shadow(0px ${4 + (effect.data.pedal_position * 4)}px 5px rgba(0, 0, 0, 0.5))`,
-                            }}
-                        />
-
-                        <Box
-                            sx={{
-                                position: 'absolute',
-                                top: 4,
-                                left: '50%',
-                                transform: 'translateX(-50%)',
-                                width: 8,
-                                height: 8,
-                                borderRadius: '50%',
-                                border: '1px solid rgba(0,0,0,0.35)',
-                                bgcolor: isActive ? '#00ff00' : '#ff0000',
-                                boxShadow: isActive ? '0 0 6px #00ff00' : '0 0 6px #ff0000',
-                                zIndex: 15,
-                                transition: 'background-color 0.1s, box-shadow 0.1s',
-                            }}
-                        />
+                            height: "calc(100% - 70px)",
+                            borderRadius: "6px",
+                            border: '1px solid rgba(0,0,0,0.5)',
+                            background: `repeating-linear-gradient(
+                                90deg,
+                                ${chroma(chassisColor).brighten(0.4)} 0px,
+                                ${chroma(chassisColor).brighten(0.4)} 4px,
+                                ${chroma(chassisColor).darken(0.8)} 4px,
+                                ${chroma(chassisColor).darken(0.8)} 8px
+                            )`,
+                            transform: `rotateX(${currentRotationX}deg)`,
+                            transition: 'transform 0.05s ease-out, filter 0.05s ease-out',
+                            transformOrigin: 'center bottom',
+                            filter: `drop-shadow(0px ${4 + (effect.data.pedal_position * 4)}px 5px rgba(0, 0, 0, 0.5))`,
+                        }}
+                    />
 
                         <Box
                             sx={{
                                 position: 'absolute',
                                 left: 0,
                                 right: 0,
-                                bottom: 2,
+                                bottom: 4,
                                 display: 'flex',
                                 flexDirection: 'column',
-                                justifyContent: 'center',
                                 alignItems: 'center',
                                 zIndex: 20,
+                                gap: 0.5,
                             }}
                         >
+                            <Switch checked={isActive} onChange={handleToggle} size="small" />
                             <Typography
                                 sx={{
                                     mb: 0.25,
@@ -159,7 +143,7 @@ export function WahPedal({effect, onToggle}: WahPedalProps) {
                                 top: 0,
                                 left: 0,
                                 width: '100%',
-                                height: 'calc(100% - 34px)',
+                                height: 'calc(100% - 70px)',
                                 opacity: 0,
                                 zIndex: 10,
                                 margin: 0,

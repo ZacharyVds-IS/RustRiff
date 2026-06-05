@@ -160,7 +160,7 @@ export function EffectPedal({effect, onToggle}: EffectPedalProps) {
                     effectName={effect.data.name}
                     knobs={effectKnobs(effect)}
                 />
-                <Box sx={{mt: '-6px', zIndex: 3}}>
+                <Box sx={{mt: '-6px', zIndex: 3, width: 180}}>
                     <FootswitchButton onClick={handleToggle}/>
                 </Box>
             </Stack>
