@@ -77,13 +77,5 @@ npm run docs:dev
 npm run docs:build
 ```
 
-## How to Contribute
-
-1. Fork the repository and create a feature branch.
-2. Keep changes scoped and aligned with the project architecture (`src`, `src-tauri/src/commands`, `services`, `domain`, `infrastructure`).
-3. Add or update tests for success and failure paths when behavior changes.
-4. Run checks before opening a PR.
-5. Open a pull request with a short problem statement, solution summary, and testing notes.
-
 ## License
 See `LICENSE.md`.

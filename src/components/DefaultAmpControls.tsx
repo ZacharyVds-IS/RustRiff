@@ -3,16 +3,10 @@ import {Knob} from "./selection/Knob.tsx";
 import {useAmpStore} from "../state/AmpConfigStore.tsx";
 import {FlipSwitch} from "./selection/FlipSwitch.tsx";
 import {useUIStore} from "../state/UIStore.tsx";
-import {
-    type AlgorithmicLatencyDto,
-    type ExecutionTimingDto,
-    measureAllDspAlgorithmicLatency,
-    measureAllDspCpuTimings
-} from "../domain";
-import {useEffect, useState} from "react";
+import {useDspMetrics} from "../hooks/useDspMetrics.ts";
+import {AmpKnobControl} from "./AmpKnobControl.tsx";
 
 export function DefaultAmpControls() {
-
     const activeChannel = useAmpStore((state) =>
         state.channels.find((c) => c.id === state.current_channel)
     );
@@ -23,7 +17,6 @@ export function DefaultAmpControls() {
     const middle = activeChannel?.tone_stack.middle ?? 0;
     const treble = activeChannel?.tone_stack.treble ?? 0;
 
-    // Tone stack values are normalized 0.0..1.0 in state/backend. Convert only for UI display.
     const bassUi = bass * 100;
     const middleUi = middle * 100;
     const trebleUi = treble * 100;
@@ -35,46 +28,12 @@ export function DefaultAmpControls() {
     const setMasterVolume = useAmpStore((state) => state.setMasterVolume);
     const setGain = useAmpStore((state) => state.setGain);
     const setIsActive = useAmpStore((state) => state.setIsActive);
-
     const setBass = useAmpStore((state) => state.setBass);
     const setMiddle = useAmpStore((state) => state.setMiddle);
     const setTreble = useAmpStore((state) => state.setTreble);
 
     const developerMode = useUIStore((state) => state.developerMode);
-    const [latency, setLatency] = useState<AlgorithmicLatencyDto[]>([]);
-    const [cpuTimings, setCpuTimings] = useState<ExecutionTimingDto[]>([]);
-
-    useEffect(() => {
-        if (developerMode) {
-            const fetchTimings = async () => {
-                try {
-                    const [latencyResults, cpuTimingResults] = await Promise.all([
-                        measureAllDspAlgorithmicLatency(),
-                        measureAllDspCpuTimings(),
-                    ] as const);
-
-                    setLatency(latencyResults || []);
-                    setCpuTimings(cpuTimingResults || []);
-                } catch (error) {
-                    console.error("Failed to fetch latency metrics:", error);
-                }
-            };
-            fetchTimings();
-        } else {
-            setLatency([]);
-            setCpuTimings([]);
-        }
-    }, [developerMode]);
-
-    const getTimingValue = (processorName: string): string => {
-        const timing = latency.find(t => t.processor_name === processorName);
-        return timing ? `${timing.latency_ms.toFixed(3)} ms (${timing.latency_samples} samples)` : "-";
-    };
-
-    const getCpuTimeValue = (processorName: string): string => {
-        const timing = cpuTimings.find(t => t.processor_name === processorName);
-        return timing ? `${timing.execution_us_per_sample.toFixed(3)} µs/sample` : "-";
-    };
+    const {getTimingValue, getCpuTimeValue} = useDspMetrics(developerMode);
 
     return (
         <Box
@@ -85,51 +44,24 @@ export function DefaultAmpControls() {
                 border: '1px solid',
                 borderColor: 'divider',
                 boxShadow: 8,
-                width: 'fit-content' // Keeps the panel tight around controls
+                width: 'fit-content'
             }}
         >
             <Stack direction="row" spacing={4} sx={{alignItems: 'center'}}>
-                <FlipSwitch label={"On/Off"} value={isActive} onChange={setIsActive}/>
-                <Stack>
-                    <Knob
-                        label="Volume"
-                        value={volume}
-                        min={0}
-                        max={11}
-                        step={1}
-                        onChange={setVolume}
-                    />
-                    {developerMode && (
-                        <Stack spacing={0}>
-                            <Typography variant="caption" sx={{fontSize: "0.62rem", color: "text.secondary"}}>
-                                latency: {getTimingValue("Volume")}
-                            </Typography>
-                            <Typography variant="caption" sx={{fontSize: "0.62rem", color: "text.secondary"}}>
-                                cpu: {getCpuTimeValue("Volume")}
-                            </Typography>
-                        </Stack>
-                    )}
-                </Stack>
-                <Stack>
-                    <Knob
-                        label="Gain"
-                        min={0}
-                        max={11}
-                        step={0.1}
-                        value={gain}
-                        onChange={setGain}
-                    />
-                    {developerMode && (
-                        <Stack spacing={0}>
-                            <Typography variant="caption" sx={{fontSize: "0.62rem", color: "text.secondary"}}>
-                                latency: {getTimingValue("Gain")}
-                            </Typography>
-                            <Typography variant="caption" sx={{fontSize: "0.62rem", color: "text.secondary"}}>
-                                cpu: {getCpuTimeValue("Gain")}
-                            </Typography>
-                        </Stack>
-                    )}
-                </Stack>
+                <FlipSwitch label="On/Off" value={isActive} onChange={setIsActive}/>
+
+                <AmpKnobControl
+                    label="Volume" value={volume} max={11} step={1} onChange={setVolume}
+                    devLatency={developerMode ? getTimingValue("Volume") : undefined}
+                    devCpu={developerMode ? getCpuTimeValue("Volume") : undefined}
+                />
+
+                <AmpKnobControl
+                    label="Gain" min={0} max={11} step={0.1} value={gain} onChange={setGain}
+                    devLatency={developerMode ? getTimingValue("Gain") : undefined}
+                    devCpu={developerMode ? getCpuTimeValue("Gain") : undefined}
+                />
+
                 <Stack>
                     <Box
                         sx={{
@@ -158,67 +90,37 @@ export function DefaultAmpControls() {
                         </Typography>
 
                         <Stack direction="row" spacing={2}>
-                            <Knob
-                                label="Bass"
-                                min={0}
-                                max={100}
-                                value={bassUi}
-                                size={50}
-                                onChange={(val) => setBass(val / 100)}
-                            />
-                            <Knob
-                                label="Middle"
-                                min={0}
-                                max={100}
-                                value={middleUi}
-                                size={50}
-                                onChange={(val) => setMiddle(val / 100)}
-                            />
-                            <Knob
-                                label="Treble"
-                                min={0}
-                                max={100}
-                                value={trebleUi}
-                                size={50}
-                                onChange={(val) => setTreble(val / 100)}
-                            />
+                            <Knob label="Bass" min={0} max={100} value={bassUi} size={50}
+                                  onChange={(val) => setBass(val / 100)}/>
+                            <Knob label="Middle" min={0} max={100} value={middleUi} size={50}
+                                  onChange={(val) => setMiddle(val / 100)}/>
+                            <Knob label="Treble" min={0} max={100} value={trebleUi} size={50}
+                                  onChange={(val) => setTreble(val / 100)}/>
                         </Stack>
                     </Box>
                     {developerMode && (
                         <Stack spacing={0}>
                             <Typography variant="caption" sx={{
-                                fontSize: "0.62rem",
-                                color: "text.secondary",
-                                mt: 1,
-                                display: "block",
-                                textAlign: "center"
+                                fontSize: "0.62rem", color: "text.secondary", mt: 1,
+                                display: "block", textAlign: "center"
                             }}>
                                 latency: {getTimingValue("Tone Stack")}
                             </Typography>
                             <Typography variant="caption" sx={{
-                                fontSize: "0.62rem",
-                                color: "text.secondary",
-                                display: "block",
-                                textAlign: "center"
+                                fontSize: "0.62rem", color: "text.secondary",
+                                display: "block", textAlign: "center"
                             }}>
                                 cpu: {getCpuTimeValue("Tone Stack")}
                             </Typography>
                         </Stack>
                     )}
                 </Stack>
-                <Stack>
-                    <Knob label={"Master"} min={0} max={11} step={1} value={masterVolume} onChange={setMasterVolume}/>
-                    {developerMode && (
-                        <Stack spacing={0}>
-                            <Typography variant="caption" sx={{fontSize: "0.62rem", color: "text.secondary"}}>
-                                latency: {getTimingValue("Master Volume")}
-                            </Typography>
-                            <Typography variant="caption" sx={{fontSize: "0.62rem", color: "text.secondary"}}>
-                                cpu: {getCpuTimeValue("Master Volume")}
-                            </Typography>
-                        </Stack>
-                    )}
-                </Stack>
+
+                <AmpKnobControl
+                    label="Master" min={0} max={11} step={1} value={masterVolume} onChange={setMasterVolume}
+                    devLatency={developerMode ? getTimingValue("Master Volume") : undefined}
+                    devCpu={developerMode ? getCpuTimeValue("Master Volume") : undefined}
+                />
             </Stack>
         </Box>
     );

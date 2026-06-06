@@ -5,15 +5,15 @@ RustRiff is a desktop guitar amplifier app built with:
 - Rust for backend logic and audio processing.
 
 ## What this project does
-RustRiff enables your computer as a virtual guitar amplifier. To ensure a good overall experience you should make use of an audio interface like a FocusRite Scarleet Solo or similar. 
+RustRiff enables your computer as a virtual guitar amplifier. To ensure a good overall experience you should make use of an audio interface like a Focusrite Scarlett Solo or similar. 
 
 
 ## Why Rust
 The most important part of a guitar amplifier isn't necessarily the sound. It's the feeling it gives the guitarist. 
 To achieve this feeling the amplifier needs to be responsive and have low latency.
 
-In the analysis phase of the project, we compared Rust to C++ and Go and found the follwing:
-- Rust and C++ have similar performance characteristics, while Go introduces a lot of latency due to an abstraction ontop of the audio device layer.
+In the analysis phase of the project, we compared Rust to C++ and Go and found the following:
+- Rust and C++ have similar performance characteristics, while Go introduces a lot of latency due to an abstraction on top of the audio device layer.
 - Rust has good package support in the form of so called "crates".
 
 This sounds like Rust and C++ would have a very similar experience. But since C++ is the industry standard for audio processing you end up quickly within the JUCE framework which takes away a lot of the actual coding.

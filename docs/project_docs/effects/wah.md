@@ -10,7 +10,7 @@ When you rock the pedal back and forth, you aren't changing *how much* boost the
 * **Pedal All the Way Forward (Toe Down / `1.0`):** The boost slides up to around **2200 Hz**. This emphasizes the treble frequencies, giving you a bright, piercing, sharp tone ('wah' sound).
 
 ## Moving the peak visualized 
-Use the desmos graph below to visualy see how the peak movement functions. (by changing the value of 'c').
+Use the desmos graph below to visually see how the peak movement functions. (by changing the value of 'c').
 <iframe src="https://www.desmos.com/calculator/ltft9ouqlt" width="1000" height="500" style="border: 1px solid #ccc" frameborder=0></iframe>
 
 
@@ -19,13 +19,13 @@ Use the desmos graph below to visualy see how the peak movement functions. (by c
   [ Raw Audio Input ] 
            │
            ▼
-     [ Split Audio ] ──► (Mute/discard deep bass & piercing highs)
+    [ Split Audio ]     ──► (Mute/discard deep bass & piercing highs)
            │
            ▼
  [ Isolate the Middle ] ──► Focus only on the frequency chosen by the pedal (350Hz - 2200Hz)
            │
            ▼
-   [ Multiply by 2.5 ] ──► Boost the sweet spot to get that vocal character
+   [ Multiply by 2.5 ]  ──► Boost the sweet spot to get that vocal character
            │
            ▼
   [ Processed Output ]

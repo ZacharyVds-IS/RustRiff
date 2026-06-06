@@ -12,6 +12,7 @@ node_modules
 dist
 dist-ssr
 *.local
+*.pdf
 
 # VitePress build output & cache
 docs/.vitepress/dist/

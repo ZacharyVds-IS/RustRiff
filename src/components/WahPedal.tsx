@@ -1,10 +1,12 @@
-import {Box, IconButton, Stack, Switch, Tooltip} from "@mui/material";
+import {Box, IconButton, Stack, Switch, Tooltip, Typography} from "@mui/material";
 import chroma from "chroma-js";
-import {setWahPedalPosition, toggleEffect, WahDto} from "../domain";
-import {useEffect, useRef, useState} from "react";
+import {setWahPedalPosition, WahDto} from "../domain";
+import {useRef} from "react";
 import {useAmpStore} from "../state/AmpConfigStore.tsx";
 import SettingsInputHdmiIcon from "@mui/icons-material/SettingsInputHdmi";
 import {MidiBindingDialog} from "./dialogs/MidiBindingDialog/MidiBindingDialog.tsx";
+import {useEffectToggle} from "../hooks/useEffectToggle.ts";
+import {useMidiModal} from "../hooks/useMidiModal.ts";
 
 interface WahPedalProps {
     effect: {
@@ -14,57 +16,40 @@ interface WahPedalProps {
     onToggle?: (effectId: string, isActive: boolean) => void;
 }
 
-export function WahPedal({ effect, onToggle }: WahPedalProps) {
+export function WahPedal({effect, onToggle}: WahPedalProps) {
     const sliderRef = useRef<HTMLInputElement>(null);
-    const [isActive, setIsActive] = useState(effect.data.is_active);
-    const [midiModalOpen, setMidiModalOpen] = useState(false);
+    const {isActive, handleToggle} = useEffectToggle(effect.data.id, effect.data.is_active, onToggle);
+    const {midiModalOpen, openMidiModal, closeMidiModal} = useMidiModal();
 
-    const updateEffectActiveState = useAmpStore((state) => state.updateEffectActiveState);
     const updateWahParams = useAmpStore((state) => state.updateWahParams);
     const chassisColor = chroma(effect.data.color).hex();
-
-    useEffect(() => {
-        setIsActive(effect.data.is_active);
-    }, [effect.data.id, effect.data.is_active]);
-
-    async function handleToggleChange() {
-        try {
-            const newActive = await toggleEffect({ effectId: effect.data.id });
-            setIsActive(newActive);
-            updateEffectActiveState(effect.data.id, newActive);
-            onToggle?.(effect.data.id, newActive);
-        } catch (error) {
-            console.error(`Failed to toggle effect ${effect.data.id}:`, error);
-        }
-    }
+    const textColor = chroma.contrast(chassisColor, "#111111") >= 4.5
+        ? "rgba(0, 0, 0, 0.84)"
+        : "rgba(255, 255, 255, 0.94)";
+    const textShadow = chroma(textColor).luminance() > 0.5
+        ? "0 1px 2px rgba(0,0,0,0.45)"
+        : "0 1px 2px rgba(255,255,255,0.2)";
 
     function handlePedalPositionChange(effectId: string, pedalPosition: number, previousPedalPosition: number) {
-        updateWahParams(effectId, { pedal_position: pedalPosition });
-        void setWahPedalPosition({ effectId, pedalPosition }).catch((error) => {
-            console.error("Failed to update Wah pedal position:", error);
-            updateWahParams(effectId, { pedal_position: previousPedalPosition });
+        updateWahParams(effectId, {pedal_position: pedalPosition});
+        void setWahPedalPosition({effectId, pedalPosition}).catch(() => {
+            updateWahParams(effectId, {pedal_position: previousPedalPosition});
         });
     }
 
     const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const newValue = parseFloat(e.target.value);
-        const previousPosition = effect.data.pedal_position;
-        handlePedalPositionChange(effect.data.id, newValue, previousPosition);
+        handlePedalPositionChange(effect.data.id, newValue, effect.data.pedal_position);
     };
 
     const currentRotationX = -12 + effect.data.pedal_position * 24;
 
     return (
         <>
-            <Stack direction={"column"} sx={{ alignItems: "center" }}>
+            <Stack direction="column" sx={{alignItems: "center"}}>
                 <Tooltip title="MIDI Mapping" arrow placement="top">
-                    <IconButton
-                        aria-label="midi config"
-                        size="small"
-                        sx={{ mb: 0.5 }}
-                        onClick={() => setMidiModalOpen(true)}
-                    >
-                        <SettingsInputHdmiIcon />
+                    <IconButton aria-label="midi config" size="small" sx={{mb: 0.5}} onClick={openMidiModal}>
+                        <SettingsInputHdmiIcon/>
                     </IconButton>
                 </Tooltip>
 
@@ -80,9 +65,9 @@ export function WahPedal({ effect, onToggle }: WahPedalProps) {
                             borderRadius: '12px',
                             border: '2px solid rgba(0,0,0,0.6)',
                             boxShadow: '0 8px 16px rgba(0,0,0,0.4), inset 0 2px 4px rgba(255,255,255,0.2)',
-                            cursor: 'ns-resize', // Changes cursor to up/down arrows to signal drag direction
+                            cursor: 'ns-resize',
                             padding: '12px',
-                            paddingTop:"28px",
+                            paddingTop: "28px",
                             boxSizing: 'border-box',
                             position: 'relative',
                             filter: (theme) => theme.palette.mode === 'dark'
@@ -90,13 +75,13 @@ export function WahPedal({ effect, onToggle }: WahPedalProps) {
                                 : 'drop-shadow(0 4px 8px rgba(0,0,0,0.3))',
                             perspective: '600px',
                             transformStyle: 'preserve-3d',
+                            color: textColor,
                         }}
                     >
-                    {/* Inner Texture Foot Pad */}
-                    <Box
-                        sx={{
-                            width: "100%",
-                            height: "calc(100% - 34px)",
+                        <Box
+                            sx={{
+                                width: "100%",
+                            height: "calc(100% - 70px)",
                             borderRadius: "6px",
                             border: '1px solid rgba(0,0,0,0.5)',
                             background: `repeating-linear-gradient(
@@ -113,89 +98,71 @@ export function WahPedal({ effect, onToggle }: WahPedalProps) {
                         }}
                     />
 
-                    <Box
-                        sx={{
-                            position: 'absolute',
-                            top: 4,
-                            left: '50%',
-                            transform: 'translateX(-50%)',
-                            width: 8,
-                            height: 8,
-                            borderRadius: '50%',
-                            border: '1px solid rgba(0,0,0,0.35)',
-                            bgcolor: isActive ? '#00ff00' : '#ff0000',
-                            boxShadow: isActive ? '0 0 6px #00ff00' : '0 0 6px #ff0000',
-                            zIndex: 15,
-                            transition: 'background-color 0.1s, box-shadow 0.1s',
-                        }}
-                    />
-
-                    <Box
-                        sx={{
-                            position: 'absolute',
-                            left: 0,
-                            right: 0,
-                            bottom: 2,
-                            display: 'flex',
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                            zIndex: 20,
-                        }}
-                    >
-                        <Switch
-                            size="small"
-                            checked={isActive}
-                            onChange={handleToggleChange}
-                            onClick={(e) => e.stopPropagation()}
-                            slotProps={{ input: { 'aria-label': 'Toggle wah pedal' } }}
+                        <Box
                             sx={{
-                                '& .MuiSwitch-track': {
-                                    bgcolor: 'rgba(100,100,100,0.5) !important',
-                                    opacity: '1 !important',
-                                },
-                                '& .MuiSwitch-thumb': {
-                                    bgcolor: '#cccccc',
-                                },
+                                position: 'absolute',
+                                left: 0,
+                                right: 0,
+                                bottom: 4,
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                zIndex: 20,
+                                gap: 0.5,
                             }}
+                        >
+                            <Switch checked={isActive} onChange={handleToggle} size="small" />
+                            <Typography
+                                sx={{
+                                    mb: 0.25,
+                                    fontWeight: 900,
+                                    fontSize: '0.8rem',
+                                    letterSpacing: 0.5,
+                                    textTransform: 'uppercase',
+                                    color: 'inherit',
+                                    textShadow,
+                                    maxWidth: '90%',
+                                }}
+                                noWrap
+                            >
+                                {effect.data.name}
+                            </Typography>
+                        </Box>
+
+                        <input
+                            ref={sliderRef}
+                            type="range"
+                            min="0"
+                            max="1"
+                            step="0.01"
+                            value={effect.data.pedal_position}
+                            onChange={handleSliderChange}
+                            onClick={(e) => e.stopPropagation()}
+                            style={{
+                                position: 'absolute',
+                                top: 0,
+                                left: 0,
+                                width: '100%',
+                                height: 'calc(100% - 70px)',
+                                opacity: 0,
+                                zIndex: 10,
+                                margin: 0,
+                                padding: 0,
+                                borderRadius: '12px',
+                                WebkitAppearance: 'slider-vertical',
+                                writingMode: 'vertical-lr',
+                                direction: 'rtl',
+                                cursor: 'ns-resize',
+                            }}
+                            title="Drag up or down to adjust wah"
                         />
-                    </Box>
-
-                    {/* Invisible full-surface VERTICAL slider overlay */}
-                    <input
-                        ref={sliderRef}
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.01"
-                        value={effect.data.pedal_position}
-                        onChange={handleSliderChange}
-                        onClick={(e) => e.stopPropagation()}
-                        style={{
-                            position: 'absolute',
-                            top: 0,
-                            left: 0,
-                            width: '100%',
-                            height: 'calc(100% - 34px)',
-                            opacity: 0,
-                            zIndex: 10,
-                            margin: 0,
-                            padding: 0,
-                            borderRadius: '12px',
-
-                            WebkitAppearance: 'slider-vertical',
-                            writingMode: 'vertical-lr',
-                            direction: 'rtl',
-                            cursor: 'ns-resize',
-                        }}
-                        title="Drag up or down to adjust wah"
-                    />
                     </Box>
                 </Tooltip>
             </Stack>
 
             <MidiBindingDialog
                 open={midiModalOpen}
-                onClose={() => setMidiModalOpen(false)}
+                onClose={closeMidiModal}
                 effectId={effect.data.id}
                 effectName={effect.data.name}
                 effectKind={effect.kind}

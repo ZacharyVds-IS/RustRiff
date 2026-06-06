@@ -4,8 +4,8 @@ We've chosen to implement a tuner in our amp design. This will allow us to tune 
 ## How it works
 The tuner works by analyzing the incoming audio signal from the guitar and determining the frequency of the note. It then compares this frequency to the standard frequencies of the guitar strings and provides feedback in cents.
 Cents are a unit of measurement used in music to describe the pitch difference between two notes. One semitone (the distance between two adjacent frets on a guitar) is equal to 100 cents. 
-So if the tuner indicates that a note is +50 cents, it means that the note is to sharp (higher in pitch) compared to the standard frequency for that string. 
-If it indicates -50 cents, it means the note is to flat (lower in pitch).
+So if the tuner indicates that a note is +50 cents, it means that the note is too sharp (higher in pitch) compared to the standard frequency for that string. 
+If it indicates -50 cents, it means the note is too flat (lower in pitch).
 
 Our tuner has indicators for the following ranges:
 - [-10,10] cents: out of tune but near the correct pitch

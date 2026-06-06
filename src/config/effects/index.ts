@@ -51,6 +51,18 @@ export const EFFECT_METADATA: Record<EffectKind, { label: string }> = {
     Wah: {label: "Wah"},
 };
 
+/**
+ * Default short names for each effect type.
+ * Used when auto-filling the name field in the Add Effect dialog.
+ */
+export const EFFECT_SHORT_NAMES: Record<EffectKind, string> = {
+    HCDistortion: "Hard-Clipping",
+    SCDistortion: "Soft-Clipping",
+    Cabinet: "Cabinet",
+    Delay: "Delay",
+    Wah: "Wah",
+};
+
 export const CABINET_CUSTOM_IR_VALUE = "__CUSTOM_FILE__";
 
 

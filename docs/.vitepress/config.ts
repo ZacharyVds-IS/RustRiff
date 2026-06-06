@@ -3,7 +3,7 @@ import {katex} from "@mdit/plugin-katex";
 
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
-    base: '/Guitar-Amplifier/',
+    base: '/RustRiff/',
     title: "RustRiff documentation",
     description: "Documentation combining both frontend and backend docs for RustRiff",
     themeConfig: {
@@ -58,7 +58,9 @@ export default defineConfig({
             {
                 text: 'Testing',
                 items: [
-                    {text: 'Frontend testing', link: '/project_docs/testing/frontend-testing/testing.md'},
+                    {text: 'General Concepts', link: '/project_docs/testing/Testing.md'},
+                    {text: 'Frontend Testing', link: '/project_docs/testing/frontend-testing.md'},
+                    {text: 'Backend Testing', link: '/project_docs/testing/backend-testing.md'},
                 ]
             },
             {

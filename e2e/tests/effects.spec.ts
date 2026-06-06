@@ -17,11 +17,8 @@ test.beforeEach(() => {
 test("creating an effect executes add_effect command", async ({tauriPage}) => {
   await tauriPage.waitForSelector("#root", 20_000);
 
-  const hasMockCalls = await tauriPage.evaluate(() =>
-    typeof (globalThis as typeof globalThis & {
-      __TAURI_CLEAR_MOCK_CALLS__?: () => void;
-      __TAURI_GET_MOCK_CALLS__?: () => Array<{cmd: string; args: unknown}>;
-    }).__TAURI_GET_MOCK_CALLS__ === "function",
+  const hasMockCalls = await tauriPage.evaluate(
+    "typeof (globalThis.__TAURI_GET_MOCK_CALLS__) === 'function'",
   );
 
   if (hasMockCalls) {
@@ -93,13 +90,21 @@ test("Create button in Add Effect dialog is disabled until a name is provided", 
   const addEffectDialog = tauriPage.getByRole("dialog", {name: "New Effect"});
   await expect(addEffectDialog).toBeVisible();
 
-  // Before filling in a name the Create button must be disabled
+  // Before selecting an effect type, the Create button must be disabled
   await expect(addEffectDialog.getByRole("button", {name: "Create"})).toBeDisabled();
 
-  // After selecting an effect type and entering a name it becomes enabled
+  // After selecting an effect type, the name field is auto-filled and Create button becomes enabled
   await addEffectDialog.getByRole("combobox", {name: "Effect Type"}).click();
   await tauriPage.getByRole("option", {name: "Hard-Clipping Distortion"}).click();
-  await addEffectDialog.getByRole("textbox", {name: "Name"}).fill("My Dist");
 
+  // Verify the name field is auto-filled with the effect type name
+  const nameField = addEffectDialog.getByRole("textbox", {name: "Name"});
+  await expect(nameField).toHaveValue("Hard-Clipping");
+
+  // Create button is now enabled
   await expect(addEffectDialog.getByRole("button", {name: "Create"})).toBeEnabled({timeout: 5_000});
+
+  // User can still override the default name
+  await nameField.fill("My Dist");
+  await expect(addEffectDialog.getByRole("button", {name: "Create"})).toBeEnabled();
 });

@@ -23,5 +23,6 @@ This repository is split into frontend, backend, and docs concerns:
 - `state/`: Shared application state.
 
 ## Diagram
-This diagram covers the structure of the backend.
+This diagram covers the structure of the backend. 
 ![GuitarAmpDomain.jpg](images/GuitarAmpDomain.jpg)
+_Last updated 05/06/2026._

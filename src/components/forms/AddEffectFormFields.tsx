@@ -61,17 +61,29 @@ export function AddEffectFormFields({
                     label="Name"
                     {...register("name")}
                     sx={{width: 450}}
-                    slotProps={{htmlInput: {maxLength: 15}}}
+                    slotProps={{
+                        inputLabel: {shrink: true},
+                        htmlInput: {maxLength: 15}
+                    }}
                     error={Boolean(errors.name)}
-                    helperText={errors.name?.message}
+                    helperText={errors.name?.message ?? ""}
                 />
-                <TextField
-                    type="color"
-                    label="Color"
-                    {...register("color")}
-                    sx={{width: 100}}
-                    error={Boolean(errors.color)}
-                    helperText={errors.color?.message}
+                <Controller
+                    name="color"
+                    control={control}
+                    render={({field}) => (
+                        <TextField
+                            type="color"
+                            label="Color"
+                            {...field}
+                            sx={{width: 100}}
+                            slotProps={{
+                                inputLabel: {shrink: true}
+                            }}
+                            error={Boolean(errors.color)}
+                            helperText={errors.color?.message ?? ""}
+                        />
+                    )}
                 />
             </Stack>
 

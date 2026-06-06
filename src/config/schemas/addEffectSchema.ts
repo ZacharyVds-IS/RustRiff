@@ -21,7 +21,12 @@ export const addEffectSchema = z.object({
         .max(15, "Name must be 15 characters or fewer"),
     color: z
         .string()
-        .regex(/^#[0-9A-Fa-f]{6}$/, "Color must be a valid hex value"),
+        .refine(
+            (value) => !value || /^#[0-9A-Fa-f]{6}$/.test(value),
+            "Color must be a valid hex value"
+        )
+        .default("#ff4400")
+        .transform((value) => value || "#ff4400"),
     cabinetIrChoice: z.string().optional(),
     customCabinetIrFile: z.custom<FileList | undefined>((value) => {
         return value === undefined || value instanceof FileList;
