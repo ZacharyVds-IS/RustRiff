@@ -2,12 +2,76 @@ name: Tauri Release
 
 on:
   push:
-    branches: [main]
     tags:
       - 'v*'
 
 jobs:
+  check-tag-on-main:
+    name: Check tag is on main
+    runs-on: ubuntu-latest
+    outputs:
+      tag_on_main: ${{ steps.check.outputs.on_main }}
+    steps:
+      - name: Checkout (fetch tag)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch remote main
+        run: git fetch origin main --depth=1 || git fetch origin main
+
+      - name: Is tag commit reachable from origin/main?
+        id: check
+        run: |
+          TAG_SHA=${GITHUB_SHA}
+          echo "Tag SHA: $TAG_SHA"
+          if git merge-base --is-ancestor "$TAG_SHA" origin/main; then
+            echo "on_main=true" >> $GITHUB_OUTPUT
+          else
+            echo "on_main=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Wait for Tauri CI and Publish Docs workflow success for this commit
+        if: steps.check.outputs.on_main == 'true'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const tagSha = process.env.GITHUB_SHA;
+            const maxAttempts = 150; // ~20 minutes
+            const sleep = ms => new Promise(r => setTimeout(r, ms));
+            let foundTauri = false;
+            let foundDocs = false;
+            for (let i = 0; i < maxAttempts; i++) {
+              if (!foundTauri) {
+                const runsTauri = await github.rest.actions.listWorkflowRuns({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  workflow_id: 'Tauri CI',
+                  per_page: 50,
+                });
+                foundTauri = runsTauri.data.workflow_runs.some(r => r.head_sha === tagSha && r.status === 'completed' && r.conclusion === 'success');
+              }
+              if (!foundDocs) {
+                const runsDocs = await github.rest.actions.listWorkflowRuns({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  workflow_id: 'Publish Docs',
+                  per_page: 50,
+                });
+                foundDocs = runsDocs.data.workflow_runs.some(r => r.head_sha === tagSha && r.status === 'completed' && r.conclusion === 'success');
+              }
+              if (foundTauri && foundDocs) {
+                console.log('Found successful Tauri CI and Publish Docs runs for tag SHA');
+                return;
+              }
+              console.log(`Waiting for workflows to succeed (${i+1}/${maxAttempts})...`);
+              await sleep(10000);
+            }
+            throw new Error('Timed out waiting for Tauri CI and/or Publish Docs successful runs for tag SHA');
+
   release:
+    needs: check-tag-on-main
+    if: needs.check-tag-on-main.outputs.tag_on_main == 'true'
     permissions:
       contents: write
     strategy:
@@ -73,4 +137,5 @@ jobs:
           releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
+
 
