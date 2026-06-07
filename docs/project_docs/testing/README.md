@@ -110,6 +110,6 @@ npm run test:ui && cargo test --all
 - [General Testing Guide](./Testing.md)
 - [Frontend Testing Guide](./frontend-testing.md)
 - [Backend Testing Guide](./backend-testing.md)
-- [RustRiff Architecture](../arc42/)
+- [RustRiff Architecture](../arc42/arc42_project_descriptions.md)
 - [Project Structure](../project-structure.md)
 
