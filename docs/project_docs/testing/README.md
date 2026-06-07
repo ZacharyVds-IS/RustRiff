@@ -32,19 +32,6 @@ This directory contains comprehensive guides for testing in RustRiff across the 
 
 **Read this if:** You're writing or modifying Rust tests in `src-tauri/src/`, especially audio or effect processing code.
 
-## Quick Links By Task
-
-| I want to... | See... |
-|---|---|
-| Understand testing philosophy | [Testing.md](./Testing.md) |
-| Check test coverage | [Testing.md → Test Coverage vs. Actual Test Quality](./Testing.md#test-coverage-vs-actual-test-quality) |
-| Write a React component unit test | [frontend-testing.md → Unit Test Patterns](./frontend-testing.md#unit-test-patterns) |
-| Write an E2E test for a user flow | [frontend-testing.md → E2E Test Patterns](./frontend-testing.md#e2e-test-patterns) |
-| Test a Rust effect processor | [backend-testing.md → Hot Path Testing](./backend-testing.md#hot-path-testing) |
-| Test a Rust service | [backend-testing.md → Service Layer Testing](./backend-testing.md#service-layer-testing) |
-| Run tests locally | [Testing.md → Running Tests](./Testing.md#running-tests) |
-| Check mutation testing score | [frontend-testing.md → Mutation Testing](./frontend-testing.md#mutation-testing) |
-
 ## Running Tests
 
 ### Frontend
@@ -104,12 +91,3 @@ cargo test --all
 # Both
 npm run test:ui && cargo test --all
 ```
-
-## References
-
-- [General Testing Guide](./Testing.md)
-- [Frontend Testing Guide](./frontend-testing.md)
-- [Backend Testing Guide](./backend-testing.md)
-- [RustRiff Architecture](../arc42/arc42_project_descriptions.md)
-- [Project Structure](../project-structure.md)
-
